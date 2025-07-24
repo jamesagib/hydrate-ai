@@ -185,7 +185,8 @@ export default function OnboardingPreferencesScreen() {
             padding: 16,
             backgroundColor: climate && wantsReminders !== null ? 'black' : '#E5E5E5',
             borderRadius: 12,
-            marginBottom: 20
+            marginBottom: 20,
+            marginTop: 20
           }}
         >
           <Text style={{ 
