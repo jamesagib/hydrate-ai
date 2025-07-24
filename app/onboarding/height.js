@@ -15,8 +15,8 @@ import {
 const feetOptions = Array.from({ length: 5 }, (_, i) => 4 + i); // 4-8 ft
 const inchOptions = Array.from({ length: 12 }, (_, i) => i); // 0-11 in
 const cmOptions = Array.from({ length: 61 }, (_, i) => 140 + i); // 140-200 cm
-const lbOptions = Array.from({ length: 101 }, (_, i) => 100 + i); // 100-200 lb
-const kgOptions = Array.from({ length: 101 }, (_, i) => 45 + i); // 45-145 kg
+const lbOptions = Array.from({ length: 251 }, (_, i) => 100 + i); // 100-350 lb
+const kgOptions = Array.from({ length: 116 }, (_, i) => 45 + i); // 45-160 kg
 
 export default function OnboardingHeightWeightScreen() {
   const [unit, setUnit] = useState('imperial');
@@ -109,7 +109,7 @@ export default function OnboardingHeightWeightScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Picker
                   selectedValue={feet}
-                  style={{ width: 80, height: 120 }}
+                  style={{ width: 90, height: 120 }}
                   itemStyle={{ fontFamily: 'Nunito_400Regular', fontSize: 18 }}
                   onValueChange={setFeet}
                 >
@@ -119,7 +119,7 @@ export default function OnboardingHeightWeightScreen() {
                 </Picker>
                 <Picker
                   selectedValue={inches}
-                  style={{ width: 80, height: 120 }}
+                  style={{ width: 90, height: 120 }}
                   itemStyle={{ fontFamily: 'Nunito_400Regular', fontSize: 18 }}
                   onValueChange={setInches}
                 >
@@ -151,7 +151,7 @@ export default function OnboardingHeightWeightScreen() {
               <Text style={{ fontFamily: 'Nunito_600SemiBold', fontSize: 16, color: 'black', marginBottom: 8 }}>Height</Text>
               <Picker
                 selectedValue={cm}
-                style={{ width: 120, height: 120 }}
+                style={{ width: 130, height: 120 }}
                 itemStyle={{ fontFamily: 'Nunito_400Regular', fontSize: 18 }}
                 onValueChange={setCm}
               >
@@ -165,7 +165,7 @@ export default function OnboardingHeightWeightScreen() {
               <Text style={{ fontFamily: 'Nunito_600SemiBold', fontSize: 16, color: 'black', marginBottom: 8 }}>Weight</Text>
               <Picker
                 selectedValue={kg}
-                style={{ width: 120, height: 120 }}
+                style={{ width: 130, height: 120 }}
                 itemStyle={{ fontFamily: 'Nunito_400Regular', fontSize: 18 }}
                 onValueChange={setKg}
               >
