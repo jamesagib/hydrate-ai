@@ -5,6 +5,12 @@ import { View, Text, TouchableOpacity, SafeAreaView, ScrollView } from 'react-na
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import OnboardingHeader from '../components/OnboardingHeader';
+import {
+  useFonts,
+  Nunito_400Regular,
+  Nunito_600SemiBold,
+  Nunito_700Bold,
+} from '@expo-google-fonts/nunito';
 
 const CLIMATE_OPTIONS = [
   { id: 'cold', title: 'Cold', icon: 'snow-outline' },
@@ -27,6 +33,15 @@ export default function OnboardingPreferencesScreen() {
     }
   };
 
+  const [fontsLoaded] = useFonts({
+    Nunito_400Regular,
+    Nunito_600SemiBold,
+    Nunito_700Bold,
+  });
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
       <OnboardingHeader progress={80} />
@@ -34,7 +49,7 @@ export default function OnboardingPreferencesScreen() {
       <ScrollView style={{ flex: 1, paddingHorizontal: 20 }}>
         <View style={{ flex: 1, justifyContent: 'center', minHeight: 500 }}>
           <Text style={{ 
-            fontFamily: 'NunitoSans_700Bold', 
+            fontFamily: 'Nunito_700Bold', 
             fontSize: 28, 
             color: 'black',
             marginBottom: 12,
@@ -44,7 +59,7 @@ export default function OnboardingPreferencesScreen() {
           </Text>
           
           <Text style={{ 
-            fontFamily: 'NunitoSans_400Regular', 
+            fontFamily: 'Nunito_400Regular', 
             fontSize: 16, 
             color: '#666',
             marginBottom: 40,
@@ -57,7 +72,7 @@ export default function OnboardingPreferencesScreen() {
           <View style={{ gap: 30 }}>
             <View>
               <Text style={{ 
-                fontFamily: 'NunitoSans_600SemiBold', 
+                fontFamily: 'Nunito_600SemiBold', 
                 fontSize: 18, 
                 color: 'black',
                 marginBottom: 16,
@@ -88,7 +103,7 @@ export default function OnboardingPreferencesScreen() {
                     />
                     <Text style={{ 
                       fontSize: 16,
-                      fontFamily: 'NunitoSans_600SemiBold',
+                      fontFamily: 'Nunito_600SemiBold',
                       color: climate === option.id ? 'white' : 'black'
                     }}>
                       {option.title}
@@ -100,7 +115,7 @@ export default function OnboardingPreferencesScreen() {
 
             <View>
               <Text style={{ 
-                fontFamily: 'NunitoSans_600SemiBold', 
+                fontFamily: 'Nunito_600SemiBold', 
                 fontSize: 18, 
                 color: 'black',
                 marginBottom: 16,
@@ -142,7 +157,7 @@ export default function OnboardingPreferencesScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={{ 
                         fontSize: 18, 
-                        fontFamily: 'NunitoSans_600SemiBold',
+                        fontFamily: 'Nunito_600SemiBold',
                         color: wantsReminders === (option.id === 'yes') ? 'white' : 'black',
                         marginBottom: 4
                       }}>
@@ -150,7 +165,7 @@ export default function OnboardingPreferencesScreen() {
                       </Text>
                       <Text style={{ 
                         fontSize: 16,
-                        fontFamily: 'NunitoSans_400Regular',
+                        fontFamily: 'Nunito_400Regular',
                         color: wantsReminders === (option.id === 'yes') ? 'white' : '#666'
                       }}>
                         {option.description}
@@ -176,7 +191,7 @@ export default function OnboardingPreferencesScreen() {
           <Text style={{ 
             color: climate && wantsReminders !== null ? 'white' : '#999', 
             fontSize: 18,
-            fontFamily: 'NunitoSans_600SemiBold',
+            fontFamily: 'Nunito_600SemiBold',
             textAlign: 'center'
           }}>
             Get Started

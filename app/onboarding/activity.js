@@ -5,6 +5,12 @@ import { View, Text, TouchableOpacity, SafeAreaView, ScrollView } from 'react-na
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import OnboardingHeader from '../components/OnboardingHeader';
+import {
+  useFonts,
+  Nunito_400Regular,
+  Nunito_600SemiBold,
+  Nunito_700Bold,
+} from '@expo-google-fonts/nunito';
 
 const ACTIVITY_LEVELS = [
   { id: 'sedentary', title: '0-2', description: 'Workouts now and then', icon: 'fitness-outline' },
@@ -21,6 +27,15 @@ export default function OnboardingActivityScreen() {
     }
   };
 
+  const [fontsLoaded] = useFonts({
+    Nunito_400Regular,
+    Nunito_600SemiBold,
+    Nunito_700Bold,
+  });
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
       <OnboardingHeader progress={60} />
@@ -28,7 +43,7 @@ export default function OnboardingActivityScreen() {
       <ScrollView style={{ flex: 1, paddingHorizontal: 20 }}>
         <View style={{ flex: 1, justifyContent: 'center', minHeight: 500 }}>
           <Text style={{ 
-            fontFamily: 'NunitoSans_700Bold', 
+            fontFamily: 'Nunito_700Bold', 
             fontSize: 28, 
             color: 'black',
             marginBottom: 12,
@@ -38,7 +53,7 @@ export default function OnboardingActivityScreen() {
           </Text>
           
           <Text style={{ 
-            fontFamily: 'NunitoSans_400Regular', 
+            fontFamily: 'Nunito_400Regular', 
             fontSize: 16, 
             color: '#666',
             marginBottom: 40,
@@ -82,7 +97,7 @@ export default function OnboardingActivityScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={{ 
                     fontSize: 18, 
-                    fontFamily: 'NunitoSans_600SemiBold',
+                    fontFamily: 'Nunito_600SemiBold',
                     color: selectedActivity === activity.id ? 'white' : 'black',
                     marginBottom: 4
                   }}>
@@ -90,7 +105,7 @@ export default function OnboardingActivityScreen() {
                   </Text>
                   <Text style={{ 
                     fontSize: 16,
-                    fontFamily: 'NunitoSans_400Regular',
+                    fontFamily: 'Nunito_400Regular',
                     color: selectedActivity === activity.id ? 'white' : '#666'
                   }}>
                     {activity.description}
@@ -114,7 +129,7 @@ export default function OnboardingActivityScreen() {
           <Text style={{ 
             color: selectedActivity ? 'white' : '#999', 
             fontSize: 18,
-            fontFamily: 'NunitoSans_600SemiBold',
+            fontFamily: 'Nunito_600SemiBold',
             textAlign: 'center'
           }}>
             Continue

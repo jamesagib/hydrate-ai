@@ -4,6 +4,12 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, SafeAreaView } from 'react-native';
 import { router } from 'expo-router';
 import OnboardingHeader from '../components/OnboardingHeader';
+import {
+  useFonts,
+  Nunito_400Regular,
+  Nunito_600SemiBold,
+  Nunito_700Bold,
+} from '@expo-google-fonts/nunito';
 
 export default function OnboardingAgeScreen() {
   const [age, setAge] = useState('');
@@ -14,6 +20,15 @@ export default function OnboardingAgeScreen() {
     }
   };
 
+  const [fontsLoaded] = useFonts({
+    Nunito_400Regular,
+    Nunito_600SemiBold,
+    Nunito_700Bold,
+  });
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
       <OnboardingHeader progress={30} />
@@ -21,7 +36,7 @@ export default function OnboardingAgeScreen() {
       <View style={{ flex: 1, paddingHorizontal: 20 }}>
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <Text style={{ 
-            fontFamily: 'NunitoSans_700Bold', 
+            fontFamily: 'Nunito_700Bold', 
             fontSize: 28, 
             color: 'black',
             marginBottom: 12,
@@ -31,7 +46,7 @@ export default function OnboardingAgeScreen() {
           </Text>
           
           <Text style={{ 
-            fontFamily: 'NunitoSans_400Regular', 
+            fontFamily: 'Nunito_400Regular', 
             fontSize: 16, 
             color: '#666',
             marginBottom: 40,
@@ -49,7 +64,7 @@ export default function OnboardingAgeScreen() {
                 borderRadius: 12, 
                 padding: 16, 
                 fontSize: 18,
-                fontFamily: 'NunitoSans_400Regular',
+                fontFamily: 'Nunito_400Regular',
                 backgroundColor: 'white',
                 textAlign: 'center'
               }}
@@ -76,7 +91,7 @@ export default function OnboardingAgeScreen() {
           <Text style={{ 
             color: age.trim() && !isNaN(age) && parseInt(age) > 0 ? 'white' : '#999', 
             fontSize: 18,
-            fontFamily: 'NunitoSans_600SemiBold',
+            fontFamily: 'Nunito_600SemiBold',
             textAlign: 'center'
           }}>
             Continue

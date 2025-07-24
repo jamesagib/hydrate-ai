@@ -4,6 +4,12 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, SafeAreaView, ScrollView, TextInput, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import {
+  useFonts,
+  Nunito_400Regular,
+  Nunito_600SemiBold,
+  Nunito_700Bold,
+} from '@expo-google-fonts/nunito';
 
 export default function HomeScreen() {
   const [hydrationLevel, setHydrationLevel] = useState(50); // 0-100
@@ -48,6 +54,15 @@ export default function HomeScreen() {
 
   const bottleFillPercentage = (currentIntake / dailyGoal) * 100;
 
+  const [fontsLoaded] = useFonts({
+    Nunito_400Regular,
+    Nunito_600SemiBold,
+    Nunito_700Bold,
+  });
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
       {/* Custom Header */}
@@ -63,8 +78,8 @@ export default function HomeScreen() {
         minHeight: 70
       }}>
         <Text style={{
-          fontFamily: 'NunitoSans_700Bold',
-          fontSize: 35,
+          fontFamily: 'Nunito_700Bold',
+          fontSize: 30,
           color: 'black',
           letterSpacing: -1,
           textAlign: 'left',
@@ -79,7 +94,7 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10 }}>
           <Text style={{ 
-            fontFamily: 'NunitoSans_700Bold', 
+            fontFamily: 'Nunito_700Bold', 
             fontSize: 28, 
             color: 'black',
             marginBottom: 4
@@ -87,7 +102,7 @@ export default function HomeScreen() {
             Good morning! 👋
           </Text>
           <Text style={{ 
-            fontFamily: 'NunitoSans_400Regular', 
+            fontFamily: 'Nunito_400Regular', 
             fontSize: 16, 
             color: '#666'
           }}>
@@ -131,7 +146,7 @@ export default function HomeScreen() {
           </View>
           
           <Text style={{ 
-            fontFamily: 'NunitoSans_600SemiBold', 
+            fontFamily: 'Nunito_600SemiBold', 
             fontSize: 24, 
             color: 'black',
             marginTop: 16
@@ -139,7 +154,7 @@ export default function HomeScreen() {
             {currentIntake} / {dailyGoal} oz
           </Text>
           <Text style={{ 
-            fontFamily: 'NunitoSans_400Regular', 
+            fontFamily: 'Nunito_400Regular', 
             fontSize: 16, 
             color: '#666',
             marginTop: 4
@@ -151,7 +166,7 @@ export default function HomeScreen() {
         {/* Vibe Slider */}
         <View style={{ paddingHorizontal: 20, marginBottom: 30 }}>
           <Text style={{ 
-            fontFamily: 'NunitoSans_600SemiBold', 
+            fontFamily: 'Nunito_600SemiBold', 
             fontSize: 18, 
             color: 'black',
             marginBottom: 16,
@@ -228,7 +243,7 @@ export default function HomeScreen() {
                 onPress={() => setHydrationLevel(level)}
               >
                 <Text style={{ 
-                  fontFamily: 'NunitoSans_600SemiBold', 
+                  fontFamily: 'Nunito_600SemiBold', 
                   fontSize: 12, 
                   color: hydrationLevel === level ? 'white' : '#666'
                 }}>
@@ -239,7 +254,7 @@ export default function HomeScreen() {
           </View>
           
           <Text style={{ 
-            fontFamily: 'NunitoSans_400Regular', 
+            fontFamily: 'Nunito_400Regular', 
             fontSize: 16, 
             color: '#666',
             textAlign: 'center',
@@ -252,7 +267,7 @@ export default function HomeScreen() {
         {/* Quick Actions */}
         <View style={{ paddingHorizontal: 20, marginBottom: 30 }}>
           <Text style={{ 
-            fontFamily: 'NunitoSans_600SemiBold', 
+            fontFamily: 'Nunito_600SemiBold', 
             fontSize: 18, 
             color: 'black',
             marginBottom: 16
@@ -273,7 +288,7 @@ export default function HomeScreen() {
             >
               <Text style={{ fontSize: 24, marginBottom: 4 }}>🥤</Text>
               <Text style={{ 
-                fontFamily: 'NunitoSans_600SemiBold', 
+                fontFamily: 'Nunito_600SemiBold', 
                 fontSize: 14, 
                 color: 'black'
               }}>
@@ -293,7 +308,7 @@ export default function HomeScreen() {
             >
               <Text style={{ fontSize: 24, marginBottom: 4 }}>💧</Text>
               <Text style={{ 
-                fontFamily: 'NunitoSans_600SemiBold', 
+                fontFamily: 'Nunito_600SemiBold', 
                 fontSize: 14, 
                 color: 'black'
               }}>
@@ -317,7 +332,7 @@ export default function HomeScreen() {
                   borderRadius: 12, 
                   padding: 16, 
                   fontSize: 16,
-                  fontFamily: 'NunitoSans_400Regular'
+                  fontFamily: 'Nunito_400Regular'
                 }}
                 value={quickInput}
                 onChangeText={setQuickInput}
@@ -350,7 +365,7 @@ export default function HomeScreen() {
             >
               <Ionicons name="chatbubble-outline" size={20} color="#666" style={{ marginRight: 8 }} />
               <Text style={{ 
-                fontFamily: 'NunitoSans_600SemiBold', 
+                fontFamily: 'Nunito_600SemiBold', 
                 fontSize: 16, 
                 color: '#666'
               }}>
@@ -363,7 +378,7 @@ export default function HomeScreen() {
         {/* Today's Summary */}
         <View style={{ paddingHorizontal: 20, marginBottom: 30 }}>
           <Text style={{ 
-            fontFamily: 'NunitoSans_600SemiBold', 
+            fontFamily: 'Nunito_600SemiBold', 
             fontSize: 18, 
             color: 'black',
             marginBottom: 16
@@ -378,14 +393,14 @@ export default function HomeScreen() {
           }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
               <Text style={{ 
-                fontFamily: 'NunitoSans_400Regular', 
+                fontFamily: 'Nunito_400Regular', 
                 fontSize: 16, 
                 color: '#666'
               }}>
                 Current Streak
               </Text>
               <Text style={{ 
-                fontFamily: 'NunitoSans_600SemiBold', 
+                fontFamily: 'Nunito_600SemiBold', 
                 fontSize: 16, 
                 color: 'black'
               }}>
@@ -395,14 +410,14 @@ export default function HomeScreen() {
             
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ 
-                fontFamily: 'NunitoSans_400Regular', 
+                fontFamily: 'Nunito_400Regular', 
                 fontSize: 16, 
                 color: '#666'
               }}>
                 Remaining Today
               </Text>
               <Text style={{ 
-                fontFamily: 'NunitoSans_600SemiBold', 
+                fontFamily: 'Nunito_600SemiBold', 
                 fontSize: 16, 
                 color: 'black'
               }}>
