@@ -1,16 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { supabase } from '../lib/supabase';
-import {
-  useFonts,
-  Nunito_400Regular,
-  Nunito_600SemiBold,
-  Nunito_700Bold,
-} from '@expo-google-fonts/nunito';
 import { useUser, useSuperwallEvents } from 'expo-superwall';
 
 function SubscriptionStatusBanner() {
@@ -49,40 +43,32 @@ function SuperwallEventLogger() {
   return null;
 }
 
-export default function SplashScreen() {
-  const [fontsLoaded] = useFonts({
-    Nunito_400Regular,
-    Nunito_600SemiBold,
-    Nunito_700Bold,
-  });
+export default function SplashScreen({ fontsLoaded }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!fontsLoaded) return;
+    let didNavigate = false;
     const initializeApp = async () => {
       try {
         console.log('Splash: Starting app initialization...');
-        
         // Check onboarding state
         const onboarding = await SecureStore.getItemAsync('onboarding_complete');
         console.log('Splash: Onboarding complete:', onboarding === 'true');
-        
         // Check authentication state
         let { data: { session } } = await supabase.auth.getSession();
         console.log('Splash: Initial session found:', !!session);
-        
         // If no session, try to restore from stored tokens
         if (!session) {
           const accessToken = await SecureStore.getItemAsync('supabase_session');
           const refreshToken = await SecureStore.getItemAsync('supabase_refresh_token');
           console.log('Splash: Stored tokens found - access:', !!accessToken, 'refresh:', !!refreshToken);
-          
           if (accessToken && refreshToken) {
             try {
               const { data, error } = await supabase.auth.setSession({
                 access_token: accessToken,
                 refresh_token: refreshToken,
               });
-              
               if (data.session && !error) {
                 session = data.session;
                 console.log('Splash: Session restored from tokens');
@@ -100,63 +86,51 @@ export default function SplashScreen() {
             }
           }
         }
-        
-        // Navigate based on state
+        // Navigate based on state (deferred)
         console.log('Splash: Final decision - onboarding:', onboarding, 'session:', !!session);
-        
-        if (onboarding !== 'true') {
-          console.log('Splash: Navigating to onboarding');
-          try {
-            await router.replace('/onboarding/name');
-          } catch (error) {
-            console.error('Splash: Error navigating to onboarding:', error);
-            await router.replace('/auth');
+        setTimeout(() => {
+          if (onboarding !== 'true') {
+            console.log('Splash: Navigating to onboarding');
+            router.replace('/onboarding/name');
+          } else if (session) {
+            console.log('Splash: Navigating to main app');
+            router.replace('/tabs/home');
+          } else {
+            console.log('Splash: Navigating to auth');
+            router.replace('/auth');
           }
-        } else if (session) {
-          console.log('Splash: Navigating to main app');
-          try {
-            await router.replace('/tabs/home');
-          } catch (error) {
-            console.error('Splash: Error navigating to main app:', error);
-            await router.replace('/auth');
-          }
-        } else {
-          console.log('Splash: Navigating to auth');
-          try {
-            await router.replace('/auth');
-          } catch (error) {
-            console.error('Splash: Error navigating to auth:', error);
-          }
-        }
-        
+        }, 0);
+        didNavigate = true;
       } catch (error) {
-        console.error('Splash: Error during initialization:', error);
-        // Fallback to auth screen
-        router.replace('/auth');
+        setTimeout(() => {
+          console.error('Splash: Error during initialization:', error);
+          router.replace('/auth');
+        }, 0);
       } finally {
         setLoading(false);
       }
     };
-
-    if (fontsLoaded) {
-      initializeApp();
-      
-      // Fallback timeout to prevent getting stuck
-      const timeout = setTimeout(() => {
-        console.log('Splash: Fallback timeout triggered');
-        router.replace('/auth');
-      }, 5000);
-      
-      return () => clearTimeout(timeout);
-    }
+    initializeApp();
+    return () => {
+      if (!didNavigate) setLoading(false);
+    };
   }, [fontsLoaded]);
 
-  if (!fontsLoaded || loading) {
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F2EFEB' }}>
+        <ActivityIndicator size="large" color="black" />
+        <Text style={{ fontSize: 18, color: 'black' }}>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F2EFEB' }}>
         <SubscriptionStatusBanner />
         <SuperwallEventLogger />
-        <Text style={{ fontSize: 18, color: 'black', fontWeight: '600' }}>Loading...</Text>
+        <Text style={{ fontSize: 18, color: 'black', fontWeight: '600', fontFamily: 'Nunito_700Bold' }}>Loading...</Text>
       </View>
     );
   }
@@ -168,6 +142,7 @@ export default function SplashScreen() {
         style={styles.logo}
         resizeMode="contain"
       />
+      <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 32 }}>Hydrate AI</Text>
     </View>
   );
 }

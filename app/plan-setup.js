@@ -33,6 +33,7 @@ export default function PlanSetupScreen() {
         });
         if (error) throw new Error(error.message);
         const planText = data.plan_text;
+        console.log('Plan from edge function:', planText);
 
         // 5. Insert hydration plan
         await supabase.from('hydration_plans').insert([{

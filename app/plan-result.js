@@ -19,9 +19,13 @@ export default function PlanResultScreen() {
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
         if (error) throw error;
-        setPlan(data.plan_text);
+        if (!data || !data.plan_text) {
+          setPlan(null);
+        } else {
+          setPlan(data.plan_text);
+        }
       } catch (error) {
         Alert.alert('Error', error.message || 'Could not load your plan.');
       } finally {
@@ -61,6 +65,16 @@ export default function PlanResultScreen() {
     );
   }
 
+  if (!plan) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F2EFEB' }}>
+        <Text style={{ fontSize: 18, color: 'black', fontWeight: '600' }}>
+          No hydration plan found.
+        </Text>
+      </View>
+    );
+  }
+
   // Log the full hydration plan for debugging
   console.log('Full Hydration Plan:', plan);
 
@@ -72,12 +86,10 @@ export default function PlanResultScreen() {
       <Text style={{ fontSize: 28, fontWeight: 'bold', marginBottom: 16, color: 'black' }}>
         Your Personalized Hydration Plan
       </Text>
-      
       {/* Visible part of the plan */}
       <Text style={{ fontSize: 16, color: '#222', lineHeight: 24, fontFamily: 'Menlo', marginBottom: 16 }}>
         {visiblePlan}
       </Text>
-
       {/* Blurred part with overlay */}
       {blurredPlan && (
         <View style={{ position: 'relative', marginBottom: 24 }}>
@@ -91,7 +103,6 @@ export default function PlanResultScreen() {
           }}>
             {blurredPlan}
           </Text>
-          
           {/* Overlay */}
           <View style={{
             position: 'absolute',
