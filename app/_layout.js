@@ -1,6 +1,6 @@
 'use client';
 
-import { Slot } from 'expo-router';
+import { Slot, usePathname } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -9,6 +9,8 @@ import {
   NunitoSans_600SemiBold,
   NunitoSans_700Bold,
 } from '@expo-google-fonts/nunito-sans';
+import React from 'react';
+import SplashScreen from './splash';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -16,6 +18,7 @@ export default function RootLayout() {
     NunitoSans_600SemiBold,
     NunitoSans_700Bold,
   });
+  const pathname = usePathname();
 
   if (!fontsLoaded) {
     return null;
@@ -24,7 +27,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <Slot />
+        {pathname === '/' ? <SplashScreen /> : <Slot />}
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );

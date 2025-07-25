@@ -10,7 +10,7 @@ export default function OnboardingLayout() {
         screenOptions={{
           headerShown: false,
           animation: 'none',
-          contentStyle: { backgroundColor: 'white' }
+          contentStyle: { backgroundColor: '#F2EFEB' }
         }}
       >
         <Stack.Screen 

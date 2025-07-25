@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "HydrateAI",
+    "name": "Water AI",
     "slug": "hydrate-ai",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -16,7 +16,16 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.hydrate.ai"
+      "bundleIdentifier": "com.hydrate.ai",
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.786448900175-t4l077b9dii6m9fp4e716ro93vnj9lqq"
+            ]
+          }
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +34,7 @@
       },
       "package": "com.hydrate.ai"
     },
-    "scheme": "hydrate-ai",
+    "scheme": "water-ai",
     "web": {
       "favicon": "./assets/favicon.png"
     },
@@ -36,6 +45,13 @@
     "experiments": {
       "tsconfigPaths": true,
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b4f22400-7632-4de3-bcd1-76119d301f5d"
+      }
+    },
+    "owner": "jamesagib"
   }
 }

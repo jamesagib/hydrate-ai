@@ -26,7 +26,7 @@ export default function OnboardingHeader({
       paddingHorizontal: 20,
       paddingTop: 10,
       paddingBottom: 20,
-      backgroundColor: 'white'
+      backgroundColor: '#F2EFEB'
     }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
         {showBack && (

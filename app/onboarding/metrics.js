@@ -17,7 +17,7 @@ export default function OnboardingMetricsScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F2EFEB' }}>
       <OnboardingHeader progress={40} />
       
       <ScrollView style={{ flex: 1, paddingHorizontal: 20 }}>

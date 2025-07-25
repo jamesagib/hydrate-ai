@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, SafeAreaView } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, SafeAreaView, Keyboard } from 'react-native';
 import { router } from 'expo-router';
 import OnboardingHeader from '../components/OnboardingHeader';
 import {
@@ -30,7 +30,7 @@ export default function OnboardingAgeScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F2EFEB' }}>
       <OnboardingHeader progress={30} />
       
       <View style={{ flex: 1, paddingHorizontal: 20 }}>
@@ -56,7 +56,7 @@ export default function OnboardingAgeScreen() {
             This helps us calculate your optimal hydration needs.
           </Text>
           
-          <View style={{ marginBottom: 40 }}>
+          <View style={{ marginBottom: 16 }}>
             <TextInput
               style={{ 
                 borderWidth: 1, 
@@ -75,6 +75,19 @@ export default function OnboardingAgeScreen() {
               keyboardType="number-pad"
               autoFocus
             />
+            <TouchableOpacity
+              onPress={Keyboard.dismiss}
+              style={{
+                marginTop: 12,
+                alignSelf: 'center',
+                paddingVertical: 8,
+                paddingHorizontal: 20,
+                backgroundColor: '#E5E5E5',
+                borderRadius: 8,
+              }}
+            >
+              <Text style={{ fontFamily: 'Nunito_600SemiBold', fontSize: 16, color: '#333' }}>Hide Keyboard</Text>
+            </TouchableOpacity>
           </View>
         </View>
 

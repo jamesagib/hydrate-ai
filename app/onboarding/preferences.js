@@ -11,6 +11,7 @@ import {
   Nunito_600SemiBold,
   Nunito_700Bold,
 } from '@expo-google-fonts/nunito';
+import * as SecureStore from 'expo-secure-store';
 
 const CLIMATE_OPTIONS = [
   { id: 'cold', title: 'Cold', icon: 'snow-outline' },
@@ -27,8 +28,9 @@ export default function OnboardingPreferencesScreen() {
   const [climate, setClimate] = useState(null);
   const [wantsReminders, setWantsReminders] = useState(null);
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     if (climate && wantsReminders !== null) {
+      await SecureStore.setItemAsync('onboarding_complete', 'true');
       router.replace('/tabs/home');
     }
   };
@@ -43,7 +45,7 @@ export default function OnboardingPreferencesScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F2EFEB' }}>
       <OnboardingHeader progress={80} />
       
       <ScrollView style={{ flex: 1, paddingHorizontal: 20 }}>

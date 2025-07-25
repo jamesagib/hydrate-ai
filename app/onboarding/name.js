@@ -30,7 +30,7 @@ export default function OnboardingNameScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F2EFEB' }}>
       <OnboardingHeader progress={20} />
       
       <View style={{ flex: 1, paddingHorizontal: 20 }}>

@@ -41,7 +41,7 @@ export default function OnboardingHeightWeightScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F2EFEB' }}>
       <OnboardingHeader progress={40} />
       <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 10 }}>
         <Text style={{

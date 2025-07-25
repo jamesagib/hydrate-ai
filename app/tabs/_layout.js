@@ -1,11 +1,27 @@
 'use client';
 
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { View } from 'react-native';
 import 'react-native-gesture-handler';
+import {
+  useFonts,
+  Nunito_400Regular,
+  Nunito_600SemiBold,
+  Nunito_700Bold,
+} from '@expo-google-fonts/nunito';
 
 export default function TabsLayout() {
+  const [fontsLoaded] = useFonts({
+    Nunito_400Regular,
+    Nunito_600SemiBold,
+    Nunito_700Bold,
+  });
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
     <View style={{ flex: 1 }}>
       <Tabs
@@ -14,10 +30,14 @@ export default function TabsLayout() {
           tabBarActiveTintColor: '#4FC3F7',
           tabBarInactiveTintColor: '#999',
           tabBarStyle: {
-            backgroundColor: 'transparent',
+            backgroundColor: '#F2EFEB',
             borderTopWidth: 0,
             elevation: 0,
             shadowOpacity: 0,
+          },
+          tabBarLabelStyle: {
+            fontFamily: 'Nunito_600SemiBold',
+            fontSize: 12,
           },
         }}
       >
@@ -48,12 +68,12 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name="profile"
+          name="settings"
           options={{
-            title: 'Profile',
+            title: 'Settings',
             tabBarIcon: ({ focused, color, size }) => (
               <Ionicons 
-                name={focused ? 'person' : 'person-outline'} 
+                name={focused ? 'settings-sharp' : 'settings-outline'} 
                 size={size} 
                 color={color} 
               />
