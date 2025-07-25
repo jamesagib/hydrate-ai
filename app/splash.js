@@ -5,7 +5,7 @@ import { View, Text, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { supabase } from '../lib/supabase';
-import { useUser, useSuperwallEvents } from 'expo-superwall';
+import { useUser, useSuperwallEvents, usePlacement } from 'expo-superwall';
 
 function SubscriptionStatusBanner() {
   const { subscriptionStatus, user } = useUser();
@@ -45,9 +45,20 @@ function SuperwallEventLogger() {
 
 export default function SplashScreen({ fontsLoaded }) {
   const [loading, setLoading] = useState(true);
+  const { subscriptionStatus } = useUser();
+  const { registerPlacement, state } = usePlacement();
 
+  // Persistent paywall enforcement
   useEffect(() => {
     if (!fontsLoaded) return;
+    if (!subscriptionStatus) return;
+    if (subscriptionStatus.status !== 'ACTIVE') {
+      // Show paywall until user subscribes
+      registerPlacement({ placement: 'app_install' }); // Replace with your actual placement name
+      setLoading(true);
+      return;
+    }
+    // If subscribed, continue with normal splash logic
     let didNavigate = false;
     const initializeApp = async () => {
       try {
@@ -114,23 +125,13 @@ export default function SplashScreen({ fontsLoaded }) {
     return () => {
       if (!didNavigate) setLoading(false);
     };
-  }, [fontsLoaded]);
+  }, [fontsLoaded, subscriptionStatus]);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || loading || (subscriptionStatus && subscriptionStatus.status !== 'ACTIVE')) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F2EFEB' }}>
         <ActivityIndicator size="large" color="black" />
         <Text style={{ fontSize: 18, color: 'black' }}>Loading...</Text>
-      </View>
-    );
-  }
-
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F2EFEB' }}>
-        <SubscriptionStatusBanner />
-        <SuperwallEventLogger />
-        <Text style={{ fontSize: 18, color: 'black', fontWeight: '600', fontFamily: 'Nunito_700Bold' }}>Loading...</Text>
       </View>
     );
   }

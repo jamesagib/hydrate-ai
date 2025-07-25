@@ -4,9 +4,39 @@ import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { loadOnboardingData, clearOnboardingData } from '../lib/onboardingStorage';
 
-function formatGrokPrompt(onboarding) {
-  const prompt = `You are a hydration expert creating a personalized hydration plan for the Water AI app.\n\nInput (JSON):\n{\n  "Age": ${onboarding.age},\n  "Weight": ${onboarding.weight_kg ? Math.round(onboarding.weight_kg * 2.20462) : ''},\n  "Sex": "${onboarding.sex}",\n  "Activity Level": "${onboarding.activity_level}",\n  "Climate": "${onboarding.climate}",\n  "Health Notes": "None",\n  "Preference for reminders": "${onboarding.wants_coaching ? 'Yes' : 'No'}",\n  "Beverage Habits": ""\n}\n\nInstructions:\n- Calculate daily water intake goal based on all inputs.\n- Use reasoning to explain recommendations (e.g., impacts of climate, activity, beverages).\n- Suggest logging times and hydration amounts.\n- Include lifestyle adjustments and pro tips.\n- If reminders preferred, mention app nudges.\n- Use the following output format exactly:\n\nHydrateAI Plan for You 🫗  \n🌊 Daily Goal: {{total_oz}} oz ({{total_liters}} L)  \n_{{reasoning about needs}}_\n\n🕒 Suggested Logging Times:  \n- {{time}} – {{oz}} oz ({{note}})  \n...  \n\n🔥 Adjustments for Lifestyle:  \n_{{text}}_\n\n💡 Pro Tip:  \n_{{text}}_\n\n🔔 Reminders:  \n_{{text}}_\n\n---\n\nCreate the hydration plan now.`;
-  return prompt;
+function parseHydrationPlan(planText) {
+  const dailyGoalMatch = planText.match(/🌊 Daily Goal: (.+?)\s+_(.+?)_\s+🕒/s);
+  const loggingTimesMatch = planText.match(/🕒 Suggested Logging Times:\s+([\s\S]+?)\s+🔥/);
+  const adjustmentsMatch = planText.match(/🔥 Adjustments for Lifestyle:\s+_(.+?)_\s+💡/s);
+  const proTipMatch = planText.match(/💡 Pro Tip:\s+_(.+?)_\s+🔔/s);
+  const remindersMatch = planText.match(/🔔 Reminders:\s+_(.+?)_\s+---/s) || planText.match(/🔔 Reminders:\s+_(.+?)_$/s);
+
+  // Parse suggested logging times as array of objects
+  let suggestedLoggingTimes = [];
+  if (loggingTimesMatch) {
+    const lines = loggingTimesMatch[1].split('\n').map(l => l.trim()).filter(Boolean);
+    for (const line of lines) {
+      // Example: - 7:00 AM – 16 oz (Kickstart your day)
+      const match = line.match(/-\s*(.+?)\s*[–-]\s*(\d+) oz(?: \((.+)\))?/);
+      if (match) {
+        suggestedLoggingTimes.push({
+          time: match[1],
+          oz: Number(match[2]),
+          note: match[3] || null,
+        });
+      }
+    }
+  }
+
+  return {
+    daily_goal: dailyGoalMatch ? dailyGoalMatch[1].trim() : null,
+    reasoning: dailyGoalMatch ? dailyGoalMatch[2].trim() : null,
+    suggested_logging_times: suggestedLoggingTimes.length > 0 ? suggestedLoggingTimes : null,
+    lifestyle_adjustments: adjustmentsMatch ? adjustmentsMatch[1].trim() : null,
+    pro_tip: proTipMatch ? proTipMatch[1].trim() : null,
+    reminders: remindersMatch ? remindersMatch[1].trim() : null,
+    plan_text: planText,
+  };
 }
 
 export default function PlanSetupScreen() {
@@ -25,7 +55,8 @@ export default function PlanSetupScreen() {
         if (!onboarding) throw new Error('No onboarding data');
 
         // 3. Format Grok 3 Mini prompt
-        const prompt = formatGrokPrompt(onboarding);
+        // (kept for reference, not used directly)
+        // const prompt = formatGrokPrompt(onboarding);
 
         // 4. Call Edge Function to get plan text
         const { data, error } = await supabase.functions.invoke('generate-hydration-plan', {
@@ -33,17 +64,22 @@ export default function PlanSetupScreen() {
         });
         if (error) throw new Error(error.message);
         const planText = data.plan_text;
-        console.log('Plan from edge function:', planText);
+        const parsedPlan = parseHydrationPlan(planText);
+        console.log('Parsed plan:', parsedPlan);
 
         // 5. Insert hydration plan
-        await supabase.from('hydration_plans').insert([{
+        const { error: insertError, data: insertData } = await supabase.from('hydration_plans').insert([{
           user_id: user.id,
-          daily_goal: null, // Optionally parse from planText
-          suggested_logging_times: null, // Optionally parse from planText
-          lifestyle_adjustments: null, // Optionally parse from planText
+          daily_goal: parsedPlan.daily_goal,
+          suggested_logging_times: parsedPlan.suggested_logging_times,
+          lifestyle_adjustments: parsedPlan.lifestyle_adjustments,
+          pro_tip: parsedPlan.pro_tip,
+          reminders: parsedPlan.reminders,
           plan_text: planText,
           plan_generated_by: 'ai'
         }]);
+        console.log('Insert result:', insertData, insertError);
+        if (insertError) throw new Error(insertError.message);
 
         // 6. Upsert profile
         await supabase.from('profiles').upsert([{ user_id: user.id, ...onboarding }]);
