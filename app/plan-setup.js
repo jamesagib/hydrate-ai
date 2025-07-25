@@ -82,7 +82,26 @@ export default function PlanSetupScreen() {
         if (insertError) throw new Error(insertError.message);
 
         // 6. Upsert profile
-        await supabase.from('profiles').upsert([{ user_id: user.id, ...onboarding }]);
+        console.log('Onboarding data for profile:', onboarding);
+        const profileData = {
+          user_id: user.id, 
+          name: onboarding.name,
+          pronouns: onboarding.pronouns,
+          age: onboarding.age,
+          weight_kg: onboarding.weight_kg,
+          height_cm: onboarding.height_cm,
+          activity_level: onboarding.activity_level,
+          climate: onboarding.climate,
+          forgets_water: onboarding.forgets_water || false,
+          wants_coaching: onboarding.wants_coaching || false
+        };
+        console.log('Profile data to insert:', profileData);
+        const { error: profileError, data: profileResult } = await supabase.from('profiles').upsert([profileData]);
+        console.log('Profile upsert result:', profileResult, profileError);
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          // Don't throw error here, just log it
+        }
         await clearOnboardingData();
 
         // 7. Navigate to plan result screen
