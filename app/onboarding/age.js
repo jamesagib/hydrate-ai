@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, SafeAreaView, Keyboard } from 'react-native';
+import { View, Text, TouchableOpacity, SafeAreaView, TextInput } from 'react-native';
+import { loadOnboardingData, saveOnboardingData } from '../../lib/onboardingStorage';
 import { router } from 'expo-router';
 import OnboardingHeader from '../components/OnboardingHeader';
 import {
@@ -13,99 +14,109 @@ import {
 
 export default function OnboardingAgeScreen() {
   const [age, setAge] = useState('');
-
-  const handleNext = () => {
-    if (age.trim() && !isNaN(age) && parseInt(age) > 0) {
-      router.push('/onboarding/height');
-    }
-  };
-
+  const [sex, setSex] = useState('');
   const [fontsLoaded] = useFonts({
     Nunito_400Regular,
     Nunito_600SemiBold,
     Nunito_700Bold,
   });
-  if (!fontsLoaded) {
-    return null;
-  }
+  if (!fontsLoaded) return null;
+
+  const handleNext = async () => {
+    const prev = await loadOnboardingData() || {};
+    await saveOnboardingData({ ...prev, age, sex });
+    router.push('/onboarding/height');
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F2EFEB' }}>
-      <OnboardingHeader progress={30} />
-      
-      <View style={{ flex: 1, paddingHorizontal: 20 }}>
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          <Text style={{ 
-            fontFamily: 'Nunito_700Bold', 
-            fontSize: 28, 
-            color: 'black',
-            marginBottom: 12,
-            textAlign: 'center'
-          }}>
-            How old are you?
-          </Text>
-          
-          <Text style={{ 
-            fontFamily: 'Nunito_400Regular', 
-            fontSize: 16, 
-            color: '#666',
-            marginBottom: 40,
-            textAlign: 'center',
-            lineHeight: 22
-          }}>
-            This helps us calculate your optimal hydration needs.
-          </Text>
-          
-          <View style={{ marginBottom: 16 }}>
-            <TextInput
-              style={{ 
-                borderWidth: 1, 
-                borderColor: '#E5E5E5', 
-                borderRadius: 12, 
-                padding: 16, 
-                fontSize: 18,
-                fontFamily: 'Nunito_400Regular',
-                backgroundColor: 'white',
-                textAlign: 'center'
-              }}
-              value={age}
-              onChangeText={setAge}
-              placeholder="Enter your age"
-              placeholderTextColor="#999"
-              keyboardType="number-pad"
-              autoFocus
-            />
-            <TouchableOpacity
-              onPress={Keyboard.dismiss}
-              style={{
-                marginTop: 12,
-                alignSelf: 'center',
-                paddingVertical: 8,
-                paddingHorizontal: 20,
-                backgroundColor: '#E5E5E5',
-                borderRadius: 8,
-              }}
-            >
-              <Text style={{ fontFamily: 'Nunito_600SemiBold', fontSize: 16, color: '#333' }}>Hide Keyboard</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <TouchableOpacity 
-          onPress={handleNext}
-          disabled={!age.trim() || isNaN(age) || parseInt(age) <= 0}
-          style={{ 
-            padding: 16,
-            backgroundColor: age.trim() && !isNaN(age) && parseInt(age) > 0 ? 'black' : '#E5E5E5',
+      <OnboardingHeader progress={20} />
+      <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 10 }}>
+        <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 28, color: 'black', marginBottom: 8 }}>
+          Age
+        </Text>
+        <Text style={{ fontFamily: 'Nunito_400Regular', fontSize: 16, color: '#666', marginBottom: 32 }}>
+          This will be used to calibrate your custom plan.
+        </Text>
+        <TextInput
+          style={{
+            backgroundColor: 'white',
             borderRadius: 12,
-            marginBottom: 20
+            padding: 16,
+            fontSize: 18,
+            fontFamily: 'Nunito_400Regular',
+            marginBottom: 32,
+            borderWidth: 1,
+            borderColor: '#E5E5E5',
+          }}
+          placeholder="Enter your age"
+          keyboardType="numeric"
+          value={age}
+          onChangeText={setAge}
+          maxLength={3}
+        />
+        <Text style={{ fontFamily: 'Nunito_600SemiBold', fontSize: 18, color: 'black', marginBottom: 16 }}>
+          Sex
+        </Text>
+        <View style={{ flexDirection: 'row', marginBottom: 40 }}>
+          <TouchableOpacity
+            style={{
+              flex: 1,
+              backgroundColor: sex === 'male' ? 'black' : 'white',
+              borderRadius: 12,
+              padding: 16,
+              marginRight: 8,
+              borderWidth: 1,
+              borderColor: sex === 'male' ? 'black' : '#E5E5E5',
+              alignItems: 'center',
+            }}
+            onPress={() => setSex('male')}
+          >
+            <Text style={{
+              color: sex === 'male' ? 'white' : 'black',
+              fontFamily: 'Nunito_600SemiBold',
+              fontSize: 18,
+            }}>Male</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              flex: 1,
+              backgroundColor: sex === 'female' ? 'black' : 'white',
+              borderRadius: 12,
+              padding: 16,
+              marginLeft: 8,
+              borderWidth: 1,
+              borderColor: sex === 'female' ? 'black' : '#E5E5E5',
+              alignItems: 'center',
+            }}
+            onPress={() => setSex('female')}
+          >
+            <Text style={{
+              color: sex === 'female' ? 'white' : 'black',
+              fontFamily: 'Nunito_600SemiBold',
+              fontSize: 18,
+            }}>Female</Text>
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity
+          onPress={handleNext}
+          disabled={!age || !sex}
+          style={{
+            backgroundColor: age && sex ? 'black' : '#E5E5E5',
+            borderRadius: 20,
+            paddingVertical: 18,
+            alignItems: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3,
           }}
         >
-          <Text style={{ 
-            color: age.trim() && !isNaN(age) && parseInt(age) > 0 ? 'white' : '#999', 
+          <Text style={{
+            color: age && sex ? 'white' : '#999',
+            fontFamily: 'Nunito_700Bold',
             fontSize: 18,
-            fontFamily: 'Nunito_600SemiBold',
-            textAlign: 'center'
           }}>
             Continue
           </Text>

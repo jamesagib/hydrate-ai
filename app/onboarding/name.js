@@ -10,14 +10,17 @@ import {
   Nunito_600SemiBold,
   Nunito_700Bold,
 } from '@expo-google-fonts/nunito';
+import { saveOnboardingData, loadOnboardingData } from '../../lib/onboardingStorage';
 
 export default function OnboardingNameScreen() {
   const [name, setName] = useState('');
+  const [pronouns, setPronouns] = useState('');
 
-  const handleNext = () => {
-    if (name.trim()) {
-      router.push('/onboarding/age');
-    }
+  const handleNext = async () => {
+    // Save name and pronouns to onboarding storage
+    const prev = await loadOnboardingData() || {};
+    await saveOnboardingData({ ...prev, name, pronouns });
+    router.push('/onboarding/age');
   };
 
   const [fontsLoaded] = useFonts({

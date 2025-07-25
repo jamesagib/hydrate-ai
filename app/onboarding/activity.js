@@ -11,6 +11,7 @@ import {
   Nunito_600SemiBold,
   Nunito_700Bold,
 } from '@expo-google-fonts/nunito';
+import { saveOnboardingData, loadOnboardingData } from '../../lib/onboardingStorage';
 
 const ACTIVITY_LEVELS = [
   { id: 'sedentary', title: '0-2', description: 'Workouts now and then', icon: 'fitness-outline' },
@@ -21,10 +22,10 @@ const ACTIVITY_LEVELS = [
 export default function OnboardingActivityScreen() {
   const [selectedActivity, setSelectedActivity] = useState(null);
 
-  const handleNext = () => {
-    if (selectedActivity) {
-      router.push('/onboarding/preferences');
-    }
+  const handleNext = async () => {
+    const prev = await loadOnboardingData() || {};
+    await saveOnboardingData({ ...prev, activity_level: selectedActivity });
+    router.push('/onboarding/preferences');
   };
 
   const [fontsLoaded] = useFonts({

@@ -11,10 +11,12 @@ import {
   Nunito_600SemiBold,
   Nunito_700Bold,
 } from '@expo-google-fonts/nunito';
+import { clearOnboardingData } from '../../lib/onboardingStorage';
 
 export default function ProfileScreen() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [userEmail, setUserEmail] = useState(null);
 
   const [fontsLoaded] = useFonts({
     Nunito_400Regular,
@@ -27,6 +29,7 @@ export default function ProfileScreen() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         setUser(user);
+        setUserEmail(user?.email || null);
       } catch (error) {
         console.error('Error fetching user:', error);
       } finally {
@@ -60,6 +63,14 @@ export default function ProfileScreen() {
         },
       ]
     );
+  };
+
+  const handleResetOnboarding = async () => {
+    await SecureStore.deleteItemAsync('onboarding_complete');
+    await clearOnboardingData();
+    await supabase.auth.signOut();
+    Alert.alert('Onboarding reset', 'Restart the app to begin onboarding again.');
+    router.replace('/');
   };
 
   if (!fontsLoaded || loading) {
@@ -130,6 +141,16 @@ export default function ProfileScreen() {
             <Text style={styles.logoutButtonText}>Logout</Text>
           </TouchableOpacity>
         </View>
+        {userEmail === 'jamesmagib@gmail.com' && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 30 }}>
+            <TouchableOpacity
+              style={{ backgroundColor: 'black', paddingVertical: 16, paddingHorizontal: 32, borderRadius: 12, alignItems: 'center' }}
+              onPress={handleResetOnboarding}
+            >
+              <Text style={{ color: 'white', fontSize: 18, fontFamily: 'Nunito_600SemiBold' }}>Reset Onboarding (DEV)</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

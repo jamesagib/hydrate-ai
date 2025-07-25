@@ -12,6 +12,7 @@ import {
   Nunito_700Bold,
 } from '@expo-google-fonts/nunito';
 import * as SecureStore from 'expo-secure-store';
+import { saveOnboardingData, loadOnboardingData, clearOnboardingData } from '../../lib/onboardingStorage';
 
 const CLIMATE_OPTIONS = [
   { id: 'cold', title: 'Cold', icon: 'snow-outline' },
@@ -30,8 +31,10 @@ export default function OnboardingPreferencesScreen() {
 
   const handleFinish = async () => {
     if (climate && wantsReminders !== null) {
+      const prev = await loadOnboardingData() || {};
+      await saveOnboardingData({ ...prev, climate, forgets_water: null, wants_coaching: wantsReminders });
       await SecureStore.setItemAsync('onboarding_complete', 'true');
-      router.replace('/tabs/home');
+      router.replace('/auth');
     }
   };
 

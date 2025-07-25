@@ -7,17 +7,55 @@ import * as SecureStore from 'expo-secure-store';
 import { supabase } from '../lib/supabase';
 import {
   useFonts,
-  NunitoSans_400Regular,
-  NunitoSans_600SemiBold,
-  NunitoSans_700Bold,
-} from '@expo-google-fonts/nunito-sans';
+  Nunito_400Regular,
+  Nunito_600SemiBold,
+  Nunito_700Bold,
+} from '@expo-google-fonts/nunito';
+import { useUser, useSuperwallEvents } from 'expo-superwall';
+
+function SubscriptionStatusBanner() {
+  const { subscriptionStatus, user } = useUser();
+  if (!subscriptionStatus) return null;
+  return (
+    <View style={{ padding: 10, backgroundColor: '#e0f7fa' }}>
+      <Text>
+        {subscriptionStatus.status === 'ACTIVE'
+          ? 'You are a premium user! 🎉'
+          : 'Upgrade to premium for full access.'}
+      </Text>
+      <Text>User ID: {user?.appUserId}</Text>
+    </View>
+  );
+}
+
+function SuperwallEventLogger() {
+  useSuperwallEvents({
+    onSuperwallEvent: (eventInfo) => {
+      console.log('Superwall Event:', eventInfo.event, eventInfo.params);
+    },
+    onSubscriptionStatusChange: (newStatus) => {
+      console.log('Subscription Status Changed:', newStatus.status);
+    },
+    onPaywallPresent: (info) => {
+      console.log('Paywall Presented:', info.name);
+    },
+    onPaywallDismiss: (info, result) => {
+      console.log('Paywall Dismissed:', info.name, result);
+    },
+    onPaywallError: (error) => {
+      console.error('Paywall Error:', error);
+    },
+  });
+  return null;
+}
 
 export default function SplashScreen() {
   const [fontsLoaded] = useFonts({
-    NunitoSans_400Regular,
-    NunitoSans_600SemiBold,
-    NunitoSans_700Bold,
+    Nunito_400Regular,
+    Nunito_600SemiBold,
+    Nunito_700Bold,
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -63,9 +101,6 @@ export default function SplashScreen() {
           }
         }
         
-        // Small delay to show splash screen
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
         // Navigate based on state
         console.log('Splash: Final decision - onboarding:', onboarding, 'session:', !!session);
         
@@ -98,6 +133,8 @@ export default function SplashScreen() {
         console.error('Splash: Error during initialization:', error);
         // Fallback to auth screen
         router.replace('/auth');
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -114,8 +151,14 @@ export default function SplashScreen() {
     }
   }, [fontsLoaded]);
 
-  if (!fontsLoaded) {
-    return null;
+  if (!fontsLoaded || loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F2EFEB' }}>
+        <SubscriptionStatusBanner />
+        <SuperwallEventLogger />
+        <Text style={{ fontSize: 18, color: 'black', fontWeight: '600' }}>Loading...</Text>
+      </View>
+    );
   }
 
   return (

@@ -13,6 +13,7 @@ import {
   Nunito_700Bold,
 } from '@expo-google-fonts/nunito';
 import { router } from 'expo-router';
+import { loadOnboardingData, clearOnboardingData } from '../lib/onboardingStorage';
 
 // Configure Google Signin
 GoogleSignin.configure({
@@ -29,6 +30,18 @@ const generateNonce = () => {
     result += charset.charAt(Math.floor(Math.random() * charset.length));
   }
   return result;
+};
+
+const createProfileIfNeeded = async (userId) => {
+  // Check if profile exists
+  const { data: existing } = await supabase.from('profiles').select('user_id').eq('user_id', userId).single();
+  if (!existing) {
+    const onboarding = await loadOnboardingData();
+    if (onboarding) {
+      await supabase.from('profiles').insert([{ user_id: userId, ...onboarding }]);
+      await clearOnboardingData();
+    }
+  }
 };
 
 export default function AuthScreen() {
@@ -62,10 +75,9 @@ export default function AuthScreen() {
       
       if (error) throw error;
       if (data.session) {
-        // Store both access and refresh tokens for session persistence
-        await SecureStore.setItemAsync('supabase_session', data.session.access_token);
-        await SecureStore.setItemAsync('supabase_refresh_token', data.session.refresh_token);
-        router.replace('/');
+        // After sign-in, go to plan setup screen
+        router.replace('/plan-setup');
+        return;
       } else {
         Alert.alert('Google sign-in failed', 'No session returned.');
       }
@@ -92,10 +104,9 @@ export default function AuthScreen() {
       });
       if (error) throw error;
       if (data.session) {
-        // Store both access and refresh tokens for session persistence
-        await SecureStore.setItemAsync('supabase_session', data.session.access_token);
-        await SecureStore.setItemAsync('supabase_refresh_token', data.session.refresh_token);
-        router.replace('/');
+        // After sign-in, go to plan setup screen
+        router.replace('/plan-setup');
+        return;
       } else {
         Alert.alert('Apple sign-in failed', 'No session returned.');
       }

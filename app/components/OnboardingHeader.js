@@ -56,7 +56,7 @@ export default function OnboardingHeader({
       </View>
       
       <Text style={{ 
-        fontFamily: 'NunitoSans_400Regular', 
+        fontFamily: 'Nunito_400Regular', 
         fontSize: 14, 
         color: '#666',
         marginLeft: 15

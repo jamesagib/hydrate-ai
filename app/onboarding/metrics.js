@@ -4,16 +4,17 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, SafeAreaView, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import OnboardingHeader from '../components/OnboardingHeader';
+import { saveOnboardingData, loadOnboardingData } from '../../lib/onboardingStorage';
 
 export default function OnboardingMetricsScreen() {
   const [age, setAge] = useState('');
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
 
-  const handleNext = () => {
-    if (age && weight && height) {
-      router.push('/onboarding/activity');
-    }
+  const handleNext = async () => {
+    const prev = await loadOnboardingData() || {};
+    await saveOnboardingData({ ...prev, age, weight_kg: weight, height_cm: height });
+    router.push('/onboarding/activity');
   };
 
   return (

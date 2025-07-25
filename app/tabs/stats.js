@@ -47,7 +47,7 @@ export default function StatsScreen() {
         {/* Header */}
         <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10 }}>
           <Text style={{ 
-            fontFamily: 'NunitoSans_700Bold', 
+            fontFamily: 'Nunito_700Bold', 
             fontSize: 28, 
             color: 'black',
             marginBottom: 4
@@ -55,7 +55,7 @@ export default function StatsScreen() {
             Your Stats
           </Text>
           <Text style={{ 
-            fontFamily: 'NunitoSans_400Regular', 
+            fontFamily: 'Nunito_400Regular', 
             fontSize: 16, 
             color: '#666'
           }}>
@@ -85,7 +85,7 @@ export default function StatsScreen() {
                 onPress={() => setSelectedPeriod(period)}
               >
                 <Text style={{ 
-                  fontFamily: 'NunitoSans_600SemiBold', 
+                  fontFamily: 'Nunito_600SemiBold', 
                   fontSize: 14, 
                   color: selectedPeriod === period ? 'black' : '#666',
                   textTransform: 'capitalize'
@@ -100,7 +100,7 @@ export default function StatsScreen() {
         {/* Weekly Progress Chart */}
         <View style={{ paddingHorizontal: 20, marginBottom: 30 }}>
           <Text style={{ 
-            fontFamily: 'NunitoSans_600SemiBold', 
+            fontFamily: 'Nunito_600SemiBold', 
             fontSize: 18, 
             color: 'black',
             marginBottom: 16
@@ -138,7 +138,7 @@ export default function StatsScreen() {
                       }} />
                     </View>
                     <Text style={{ 
-                      fontFamily: 'NunitoSans_400Regular', 
+                      fontFamily: 'Nunito_400Regular', 
                       fontSize: 12, 
                       color: '#666',
                       marginBottom: 4
@@ -146,7 +146,7 @@ export default function StatsScreen() {
                       {getDayName(index)}
                     </Text>
                     <Text style={{ 
-                      fontFamily: 'NunitoSans_600SemiBold', 
+                      fontFamily: 'Nunito_600SemiBold', 
                       fontSize: 12, 
                       color: 'black'
                     }}>
@@ -166,14 +166,14 @@ export default function StatsScreen() {
               borderTopColor: '#E5E5E5'
             }}>
               <Text style={{ 
-                fontFamily: 'NunitoSans_400Regular', 
+                fontFamily: 'Nunito_400Regular', 
                 fontSize: 14, 
                 color: '#666'
               }}>
                 Average this week
               </Text>
               <Text style={{ 
-                fontFamily: 'NunitoSans_600SemiBold', 
+                fontFamily: 'Nunito_600SemiBold', 
                 fontSize: 16, 
                 color: 'black'
               }}>
@@ -186,7 +186,7 @@ export default function StatsScreen() {
         {/* Key Metrics */}
         <View style={{ paddingHorizontal: 20, marginBottom: 30 }}>
           <Text style={{ 
-            fontFamily: 'NunitoSans_600SemiBold', 
+            fontFamily: 'Nunito_600SemiBold', 
             fontSize: 18, 
             color: 'black',
             marginBottom: 16
@@ -204,7 +204,7 @@ export default function StatsScreen() {
             }}>
               <Text style={{ fontSize: 32, marginBottom: 8 }}>🔥</Text>
               <Text style={{ 
-                fontFamily: 'NunitoSans_700Bold', 
+                fontFamily: 'Nunito_700Bold', 
                 fontSize: 24, 
                 color: 'black',
                 marginBottom: 4
@@ -212,7 +212,7 @@ export default function StatsScreen() {
                 {currentStreak}
               </Text>
               <Text style={{ 
-                fontFamily: 'NunitoSans_400Regular', 
+                fontFamily: 'Nunito_400Regular', 
                 fontSize: 14, 
                 color: '#666',
                 textAlign: 'center'
@@ -230,7 +230,7 @@ export default function StatsScreen() {
             }}>
               <Text style={{ fontSize: 32, marginBottom: 8 }}>🏆</Text>
               <Text style={{ 
-                fontFamily: 'NunitoSans_700Bold', 
+                fontFamily: 'Nunito_700Bold', 
                 fontSize: 24, 
                 color: 'black',
                 marginBottom: 4
@@ -238,7 +238,7 @@ export default function StatsScreen() {
                 {bestStreak}
               </Text>
               <Text style={{ 
-                fontFamily: 'NunitoSans_400Regular', 
+                fontFamily: 'Nunito_400Regular', 
                 fontSize: 14, 
                 color: '#666',
                 textAlign: 'center'
@@ -256,7 +256,7 @@ export default function StatsScreen() {
             }}>
               <Text style={{ fontSize: 32, marginBottom: 8 }}>📊</Text>
               <Text style={{ 
-                fontFamily: 'NunitoSans_700Bold', 
+                fontFamily: 'Nunito_700Bold', 
                 fontSize: 24, 
                 color: 'black',
                 marginBottom: 4
@@ -264,7 +264,7 @@ export default function StatsScreen() {
                 {Math.round((goalDays / totalDays) * 100)}%
               </Text>
               <Text style={{ 
-                fontFamily: 'NunitoSans_400Regular', 
+                fontFamily: 'Nunito_400Regular', 
                 fontSize: 14, 
                 color: '#666',
                 textAlign: 'center'
@@ -278,7 +278,7 @@ export default function StatsScreen() {
         {/* Achievements */}
         <View style={{ paddingHorizontal: 20, marginBottom: 30 }}>
           <Text style={{ 
-            fontFamily: 'NunitoSans_600SemiBold', 
+            fontFamily: 'Nunito_600SemiBold', 
             fontSize: 18, 
             color: 'black',
             marginBottom: 16
@@ -305,7 +305,7 @@ export default function StatsScreen() {
                 
                 <View style={{ flex: 1 }}>
                   <Text style={{ 
-                    fontFamily: 'NunitoSans_600SemiBold', 
+                    fontFamily: 'Nunito_600SemiBold', 
                     fontSize: 16, 
                     color: achievement.earned ? 'black' : '#999',
                     marginBottom: 2
@@ -313,7 +313,7 @@ export default function StatsScreen() {
                     {achievement.title}
                   </Text>
                   <Text style={{ 
-                    fontFamily: 'NunitoSans_400Regular', 
+                    fontFamily: 'Nunito_400Regular', 
                     fontSize: 14, 
                     color: achievement.earned ? '#666' : '#999'
                   }}>
@@ -332,7 +332,7 @@ export default function StatsScreen() {
         {/* Insights */}
         <View style={{ paddingHorizontal: 20, marginBottom: 30 }}>
           <Text style={{ 
-            fontFamily: 'NunitoSans_600SemiBold', 
+            fontFamily: 'Nunito_600SemiBold', 
             fontSize: 18, 
             color: 'black',
             marginBottom: 16
@@ -348,7 +348,7 @@ export default function StatsScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
               <Ionicons name="trending-up" size={20} color="#4CAF50" style={{ marginRight: 8 }} />
               <Text style={{ 
-                fontFamily: 'NunitoSans_600SemiBold', 
+                fontFamily: 'Nunito_600SemiBold', 
                 fontSize: 16, 
                 color: 'black'
               }}>
@@ -356,7 +356,7 @@ export default function StatsScreen() {
               </Text>
             </View>
             <Text style={{ 
-              fontFamily: 'NunitoSans_400Regular', 
+              fontFamily: 'Nunito_400Regular', 
               fontSize: 14, 
               color: '#666',
               lineHeight: 20

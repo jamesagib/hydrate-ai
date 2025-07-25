@@ -11,6 +11,7 @@ import {
   Nunito_600SemiBold,
   Nunito_700Bold,
 } from '@expo-google-fonts/nunito';
+import { saveOnboardingData, loadOnboardingData } from '../../lib/onboardingStorage';
 
 const feetOptions = Array.from({ length: 5 }, (_, i) => 4 + i); // 4-8 ft
 const inchOptions = Array.from({ length: 12 }, (_, i) => i); // 0-11 in
@@ -35,8 +36,17 @@ export default function OnboardingHeightWeightScreen() {
     return null;
   }
 
-  const handleContinue = () => {
-    // Save height/weight to state/store here if needed
+  const handleContinue = async () => {
+    const prev = await loadOnboardingData() || {};
+    let height_cm = null, weight_kg = null;
+    if (unit === 'imperial') {
+      height_cm = Math.round(((feet * 12 + inches) * 2.54));
+      weight_kg = Math.round(lb * 0.453592);
+    } else {
+      height_cm = cm;
+      weight_kg = kg;
+    }
+    await saveOnboardingData({ ...prev, height_cm, weight_kg, unit });
     router.push('/onboarding/activity');
   };
 

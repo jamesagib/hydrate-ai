@@ -14,15 +14,27 @@ export default function OnboardingLayout() {
         }}
       >
         <Stack.Screen 
+          name="welcome"
+          options={{
+            title: 'Welcome'
+          }}
+        />
+        <Stack.Screen 
           name="name"
           options={{
             title: 'Welcome'
           }}
         />
         <Stack.Screen 
-          name="metrics"
+          name="age"
           options={{
-            title: 'Your Metrics'
+            title: 'Your Age'
+          }}
+        />
+        <Stack.Screen 
+          name="height"
+          options={{
+            title: 'Height & Weight'
           }}
         />
         <Stack.Screen 

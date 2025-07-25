@@ -2429,6 +2429,12 @@ PODS:
     - ReactCommon/turbomodule/core
     - Yoga
   - SocketRocket (0.7.1)
+  - Superscript (0.2.8)
+  - SuperwallExpo (0.2.2):
+    - ExpoModulesCore
+    - SuperwallKit (= 4.5.2)
+  - SuperwallKit (4.5.2):
+    - Superscript (= 0.2.8)
   - Yoga (0.0.0)
 
 DEPENDENCIES:
@@ -2535,6 +2541,8 @@ DEPENDENCIES:
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNSVG (from `../node_modules/react-native-svg`)
+  - SuperwallExpo (from `../node_modules/expo-superwall/ios`)
+  - SuperwallKit (~> 4.0)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 SPEC REPOS:
@@ -2547,6 +2555,8 @@ SPEC REPOS:
     - GTMSessionFetcher
     - PromisesObjC
     - SocketRocket
+    - Superscript
+    - SuperwallKit
 
 EXTERNAL SOURCES:
   boost:
@@ -2752,6 +2762,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-screens"
   RNSVG:
     :path: "../node_modules/react-native-svg"
+  SuperwallExpo:
+    :path: "../node_modules/expo-superwall/ios"
   Yoga:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
@@ -2865,8 +2877,11 @@ SPEC CHECKSUMS:
   RNScreens: 482e9707f9826230810c92e765751af53826d509
   RNSVG: 8a1054afe490b5d63b9792d7ae3c1fde8c05cdd0
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
+  Superscript: 82dbb40f502823160e75503ebc1b6bac756a503d
+  SuperwallExpo: 623c9b230a9f95b9b085492888e18e776c99f1c8
+  SuperwallKit: 520fd9dff39358c9708d88cc69c1f4fbd32b3008
   Yoga: adb397651e1c00672c12e9495babca70777e411e
 
-PODFILE CHECKSUM: eb506fa14b163031d6fd6f5ffd28bd54cb0bd118
+PODFILE CHECKSUM: 3a37b9f3e15fc9b2cc33081b41b1872a5efda4bb
 
 COCOAPODS: 1.16.2
