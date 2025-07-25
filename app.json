@@ -53,7 +53,9 @@
           "ios": {
               "deploymentTarget": "15.1"
           }
-        },
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/splash-icon.png",
