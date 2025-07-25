@@ -91,9 +91,38 @@ jobs:
       - name: 📱 Build iOS Production
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
-          eas build --platform ios --profile production --local --non-interactive --output=./app-ios-prod.ipa
+          eas build --platform ios --profile production --local --non-interactive
         env:
           NODE_ENV: production
+
+      - name: 🔍 Find and Copy IPA File
+        run: |
+          echo "Looking for IPA files..."
+          find . -name "*.ipa" -type f
+          echo "Current directory contents:"
+          ls -la
+          echo "Copying IPA to expected location..."
+          # Find the IPA file and copy it to the expected location
+          IPA_FILE=$(find . -name "*.ipa" -type f | head -1)
+          if [ -n "$IPA_FILE" ]; then
+            echo "Found IPA: $IPA_FILE"
+            cp "$IPA_FILE" ./app-ios-prod.ipa
+            echo "Copied to ./app-ios-prod.ipa"
+          else
+            echo "No IPA file found!"
+            exit 1
+          fi
+
+      - name: ✅ Verify IPA File
+        run: |
+          echo "Verifying IPA file exists..."
+          if [ -f "./app-ios-prod.ipa" ]; then
+            echo "✅ IPA file found: ./app-ios-prod.ipa"
+            ls -la ./app-ios-prod.ipa
+          else
+            echo "❌ IPA file not found!"
+            exit 1
+          fi
 
       - name: 🚀 Submit to App Store
         run: |
