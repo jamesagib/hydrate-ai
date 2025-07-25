@@ -32,17 +32,6 @@ const generateNonce = () => {
   return result;
 };
 
-const createProfileIfNeeded = async (userId) => {
-  // Check if profile exists
-  const { data: existing } = await supabase.from('profiles').select('user_id').eq('user_id', userId).single();
-  if (!existing) {
-    const onboarding = await loadOnboardingData();
-    if (onboarding) {
-      await supabase.from('profiles').insert([{ user_id: userId, ...onboarding }]);
-      await clearOnboardingData();
-    }
-  }
-};
 
 export default function AuthScreen() {
   // All hooks must be called at the top, in the same order, on every render
