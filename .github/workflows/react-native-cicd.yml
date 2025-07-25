@@ -126,6 +126,10 @@ jobs:
 
       - name: 🚀 Submit to App Store
         run: |
+          # Clear any API key environment variables that might interfere
+          unset APP_STORE_CONNECT_API_KEY
+          unset APP_STORE_CONNECT_API_KEY_ID
+          unset APP_STORE_CONNECT_ISSUER_ID
           eas submit -p ios --path ./app-ios-prod.ipa --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
