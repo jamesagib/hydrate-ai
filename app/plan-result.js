@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView, Text, ActivityIndicator, ScrollView, Alert, TouchableOpacity, StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { usePlacement } from 'expo-superwall';
 
@@ -55,17 +56,38 @@ export default function PlanResultScreen() {
       console.log('Paywall dismissed:', info, result);
       setPaywallMessage('Paywall dismissed');
       setTimeout(() => setPaywallMessage(null), 2000);
+      
+      // REVIEW MODE: Allow access to full app after paywall is dismissed
+      const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
+      if (isReviewMode) {
+        console.log('Review mode: Paywall dismissed, navigating to home');
+        setTimeout(() => router.replace('/tabs/home'), 1000);
+      }
     },
     onError: (error) => {
       console.error('Paywall error:', error);
       setPaywallError(error || 'Could not show paywall.');
       setPaywallMessage('Paywall error');
       setTimeout(() => setPaywallMessage(null), 2000);
+      
+      // REVIEW MODE: Allow access even if paywall errors
+      const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
+      if (isReviewMode) {
+        console.log('Review mode: Paywall error, navigating to home');
+        setTimeout(() => router.replace('/tabs/home'), 1000);
+      }
     },
     onSkip: (reason) => {
       console.log('Paywall skipped:', reason);
       setPaywallMessage('Paywall skipped');
       setTimeout(() => setPaywallMessage(null), 2000);
+      
+      // REVIEW MODE: Allow access when paywall is skipped
+      const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
+      if (isReviewMode) {
+        console.log('Review mode: Paywall skipped, navigating to home');
+        setTimeout(() => router.replace('/tabs/home'), 1000);
+      }
     },
   });
 

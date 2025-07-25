@@ -46,12 +46,46 @@ function SuperwallEventLogger() {
 export default function SplashScreen({ fontsLoaded }) {
   const [loading, setLoading] = useState(true);
   const { subscriptionStatus } = useUser();
-  const { registerPlacement, state } = usePlacement();
+  const { registerPlacement, state } = usePlacement({
+    onPresent: (info) => {
+      console.log('Splash: Paywall presented:', info);
+    },
+    onDismiss: (info, result) => {
+      console.log('Splash: Paywall dismissed:', info, result);
+      // REVIEW MODE: Allow access to full app after paywall is dismissed
+      const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
+      if (isReviewMode) {
+        console.log('Splash: Review mode - paywall dismissed, allowing app access');
+        setLoading(false);
+      }
+    },
+    onError: (error) => {
+      console.error('Splash: Paywall error:', error);
+      // REVIEW MODE: Allow access even if paywall errors
+      const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
+      if (isReviewMode) {
+        console.log('Splash: Review mode - paywall error, allowing app access');
+        setLoading(false);
+      }
+    },
+    onSkip: (reason) => {
+      console.log('Splash: Paywall skipped:', reason);
+      // REVIEW MODE: Allow access when paywall is skipped
+      const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
+      if (isReviewMode) {
+        console.log('Splash: Review mode - paywall skipped, allowing app access');
+        setLoading(false);
+      }
+    },
+  });
 
   // Persistent paywall enforcement
   useEffect(() => {
     if (!fontsLoaded) return;
     if (!subscriptionStatus) return;
+    // REVIEW MODE: Show paywall but allow easy access
+    const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
+    
     if (subscriptionStatus.status !== 'ACTIVE') {
       // Show paywall until user subscribes
       registerPlacement({ placement: 'app_install' }); // Replace with your actual placement name
