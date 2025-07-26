@@ -41,6 +41,24 @@ export default function AuthScreen() {
     Nunito_700Bold,
   });
   const navigation = useNavigation();
+  
+  // Check if Apple Auth is available
+  const [isAppleAuthAvailable, setIsAppleAuthAvailable] = React.useState(false);
+  
+  React.useEffect(() => {
+    const checkAppleAuth = async () => {
+      try {
+        const isAvailable = await AppleAuthentication.isAvailableAsync();
+        setIsAppleAuthAvailable(isAvailable);
+        console.log('Apple Auth available:', isAvailable);
+      } catch (error) {
+        console.error('Error checking Apple Auth availability:', error);
+        setIsAppleAuthAvailable(false);
+      }
+    };
+    
+    checkAppleAuth();
+  }, []);
 
   if (!fontsLoaded) {
     return null;
@@ -78,21 +96,35 @@ export default function AuthScreen() {
   // Apple sign-in handler
   const handleAppleSignIn = async () => {
     try {
+      // Generate a secure nonce
+      const nonce = generateNonce();
+      
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
+        nonce: nonce, // Add the nonce here
       });
-      const { identityToken, nonce } = credential;
+      
+      const { identityToken } = credential;
       if (!identityToken) throw new Error('No Apple identity token returned');
+      
+      console.log('Apple sign-in successful, token received');
+      
       const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'apple',
         token: identityToken,
-        nonce,
+        nonce: nonce, // Use the same nonce
       });
-      if (error) throw error;
+      
+      if (error) {
+        console.error('Supabase Apple auth error:', error);
+        throw error;
+      }
+      
       if (data.session) {
+        console.log('Apple sign-in successful, session created');
         // After sign-in, go to plan setup screen
         router.replace('/plan-setup');
         return;
@@ -100,9 +132,25 @@ export default function AuthScreen() {
         Alert.alert('Apple sign-in failed', 'No session returned.');
       }
     } catch (e) {
-      if (e.code !== 'ERR_CANCELED') {
-        Alert.alert('Apple sign-in error', e.message);
+      console.error('Apple sign-in error:', e);
+      if (e.code === 'ERR_CANCELED') {
+        console.log('User canceled Apple sign-in');
+        return;
       }
+      
+      // More specific error handling
+      let errorMessage = 'Apple sign-in failed';
+      if (e.code === 'ERR_REQUEST_NOT_HANDLED') {
+        errorMessage = 'Apple Sign In is not available on this device';
+      } else if (e.code === 'ERR_REQUEST_EMPTY') {
+        errorMessage = 'No response from Apple Sign In';
+      } else if (e.code === 'ERR_REQUEST_INVALID_RESPONSE') {
+        errorMessage = 'Invalid response from Apple Sign In';
+      } else if (e.message) {
+        errorMessage = e.message;
+      }
+      
+      Alert.alert('Apple sign-in error', errorMessage);
     }
   };
 
@@ -113,13 +161,15 @@ export default function AuthScreen() {
       <TouchableOpacity style={styles.googleButton} onPress={handleGoogleSignIn}>
         <Text style={styles.buttonText}>Sign in with Google</Text>
       </TouchableOpacity>
-      <AppleAuthentication.AppleAuthenticationButton
-        buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-        buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-        cornerRadius={8}
-        style={{ width: 240, height: 44, marginTop: 16 }}
-        onPress={handleAppleSignIn}
-      />
+      {isAppleAuthAvailable && (
+        <AppleAuthentication.AppleAuthenticationButton
+          buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+          buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+          cornerRadius={8}
+          style={{ width: 240, height: 44, marginTop: 16 }}
+          onPress={handleAppleSignIn}
+        />
+      )}
     </View>
   );
 }
