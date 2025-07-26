@@ -20,7 +20,8 @@
     "production": {
       "autoIncrement": true,
       "ios": {
-        "resourceClass": "m-medium"
+        "resourceClass": "m-medium",
+        "provisioningProfilePath": "./Water_AI_Manually_Created_Profile.mobileprovision"
       }
     }
   },
