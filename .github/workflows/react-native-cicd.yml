@@ -81,15 +81,7 @@ jobs:
           echo "EAS CLI version:"
           eas --version
 
-      - name: 🔧 Update iOS Credentials
-        run: |
-          echo "Updating iOS credentials..."
-          eas credentials --platform ios --non-interactive
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
-          EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
-          EXPO_TEAM_ID: ${{ secrets.EXPO_TEAM_ID }}
+
 
       - name: 📱 Build iOS Development
         run: |
