@@ -52,9 +52,27 @@ jobs:
 
       - name: 🔧 Setup Ruby and Fastlane
         run: |
+          # Check architecture and set up Homebrew path
+          echo "Current architecture: $(uname -m)"
+          
+          # Check if Homebrew is installed
+          if ! command -v brew &> /dev/null; then
+            echo "Homebrew not found, installing..."
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          fi
+          
+          echo "Homebrew location: $(which brew)"
+          
+          # Set up Homebrew path for ARM64
+          if [[ $(uname -m) == "arm64" ]]; then
+            echo "Running on ARM64, using /opt/homebrew"
+            export PATH="/opt/homebrew/bin:$PATH"
+            echo 'export PATH="/opt/homebrew/bin:$PATH"' >> ~/.zshrc
+          fi
+          
           # Install rbenv for Ruby version management
           echo "Installing rbenv..."
-          brew install rbenv ruby-build
+          arch -arm64 brew install rbenv ruby-build
           
           # Initialize rbenv
           echo 'export PATH="$HOME/.rbenv/bin:$PATH"' >> ~/.zshrc
