@@ -40,6 +40,8 @@ jobs:
   build-and-deploy:
     runs-on: self-hosted
     if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    env:
+      PATH: /usr/local/bin:$HOME/.gem/bin:$PATH
     steps:
       - name: 🏗 Checkout repository
         uses: actions/checkout@v4
@@ -111,6 +113,14 @@ jobs:
           echo "Installing Fastlane..."
           arch -arm64 gem install fastlane
           
+          # Create symlink to make Fastlane available system-wide
+          echo "Creating Fastlane symlink for system-wide access..."
+          sudo ln -sf "$(which fastlane)" /usr/local/bin/fastlane
+          
+          # Also add to PATH for current session and future steps
+          export PATH="/usr/local/bin:$HOME/.gem/bin:$PATH"
+          echo 'export PATH="/usr/local/bin:$HOME/.gem/bin:$PATH"' >> ~/.zshrc
+          
           # Verify installations
           echo "Ruby version:"
           arch -arm64 ruby --version
@@ -118,6 +128,12 @@ jobs:
           which ruby
           echo "Fastlane version:"
           arch -arm64 fastlane --version
+          echo "Fastlane location:"
+          which fastlane
+          echo "System-wide Fastlane symlink:"
+          ls -la /usr/local/bin/fastlane || echo "Symlink not found"
+          echo "Testing system-wide Fastlane:"
+          /usr/local/bin/fastlane --version || echo "System-wide Fastlane not working"
 
       - name: 📦 Install dependencies
         run: |
@@ -182,10 +198,18 @@ jobs:
       - name: 📱 Build iOS Development
         if: ${{ github.event.inputs.buildType != 'prod-only' }}
         run: |
+          # Ensure Fastlane is in PATH for EAS build
+          export PATH="/usr/local/bin:$HOME/.gem/bin:$PATH"
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
+          
+          # Verify Fastlane is available before building
+          echo "Verifying Fastlane availability before EAS build..."
+          which fastlane || echo "Fastlane not found in PATH: $PATH"
+          
           eas build --platform ios --profile development --local --non-interactive
         env:
           NODE_ENV: development
+          PATH: /usr/local/bin:$HOME/.gem/bin:$PATH
 
       - name: 🔍 Find and Copy Development Build
         if: ${{ github.event.inputs.buildType != 'prod-only' }}
@@ -232,10 +256,18 @@ jobs:
       - name: 📱 Build iOS Production
         if: ${{ github.event.inputs.buildType == 'prod-only' || github.event.inputs.buildType == 'both' }}
         run: |
+          # Ensure Fastlane is in PATH for EAS build
+          export PATH="/usr/local/bin:$HOME/.gem/bin:$PATH"
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
+          
+          # Verify Fastlane is available before building
+          echo "Verifying Fastlane availability before EAS build..."
+          which fastlane || echo "Fastlane not found in PATH: $PATH"
+          
           eas build --platform ios --profile production --local --non-interactive
         env:
           NODE_ENV: production
+          PATH: /usr/local/bin:$HOME/.gem/bin:$PATH
 
       - name: 🔍 Find and Copy Production IPA
         if: ${{ github.event.inputs.buildType == 'prod-only' || github.event.inputs.buildType == 'both' }}
