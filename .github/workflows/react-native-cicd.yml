@@ -41,8 +41,55 @@ jobs:
     runs-on: self-hosted
     if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     env:
-      PATH: /usr/local/bin:$HOME/.gem/bin:$PATH
+      PATH: /usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$HOME/.gem/bin:$PATH
     steps:
+      - name: 🔧 Verify System Utilities
+        run: |
+          echo "Checking system utilities..."
+          echo "Current PATH: $PATH"
+          echo "System info:"
+          uname -a
+          echo "Checking for tar:"
+          which tar || echo "tar not found in PATH"
+          echo "Checking for common system utilities:"
+          which ls || echo "ls not found"
+          which cp || echo "cp not found"
+          which mv || echo "mv not found"
+          which mkdir || echo "mkdir not found"
+          echo "Checking /usr/bin for tar:"
+          ls -la /usr/bin/tar || echo "tar not in /usr/bin"
+          echo "Checking /bin for tar:"
+          ls -la /bin/tar || echo "tar not in /bin"
+          
+          # Try to fix PATH if needed
+          if ! command -v tar &> /dev/null; then
+            echo "tar not found, attempting to fix PATH..."
+            export PATH="/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+            echo "Updated PATH: $PATH"
+            which tar || echo "tar still not found after PATH update"
+            
+            # If still not found, try to install it
+            if ! command -v tar &> /dev/null; then
+              echo "tar still not found, attempting to install..."
+              if command -v brew &> /dev/null; then
+                arch -arm64 brew install gnu-tar
+                export PATH="/opt/homebrew/bin:$PATH"
+              else
+                echo "Homebrew not available, cannot install tar"
+              fi
+            fi
+          fi
+          
+          # Final verification
+          echo "Final tar verification:"
+          if command -v tar &> /dev/null; then
+            echo "✅ tar is available at: $(which tar)"
+            tar --version || echo "tar version check failed"
+          else
+            echo "❌ tar is still not available"
+            exit 1
+          fi
+
       - name: 🏗 Checkout repository
         uses: actions/checkout@v4
 
