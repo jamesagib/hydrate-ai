@@ -52,13 +52,16 @@ jobs:
 
       - name: 🔧 Setup Ruby and Fastlane
         run: |
+          # Force ARM64 execution for all commands
+          export ARCHFLAGS="-arch arm64"
+          
           # Check architecture and set up Homebrew path
           echo "Current architecture: $(uname -m)"
           
           # Check if Homebrew is installed
           if ! command -v brew &> /dev/null; then
             echo "Homebrew not found, installing..."
-            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+            arch -arm64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
           fi
           
           echo "Homebrew location: $(which brew)"
@@ -74,30 +77,47 @@ jobs:
           echo "Installing rbenv..."
           arch -arm64 brew install rbenv ruby-build
           
-          # Initialize rbenv
+          # Initialize rbenv with ARM64
           echo 'export PATH="$HOME/.rbenv/bin:$PATH"' >> ~/.zshrc
           echo 'eval "$(rbenv init -)"' >> ~/.zshrc
           source ~/.zshrc
           
-          # Install Ruby 3.2.2 (stable version)
+          # Try to install Ruby 3.2.2 with ARM64 flags
           echo "Installing Ruby 3.2.2..."
-          rbenv install 3.2.2
-          rbenv global 3.2.2
+          arch -arm64 rbenv install 3.2.2
+          
+          if [ $? -ne 0 ]; then
+            echo "Ruby 3.2.2 installation failed, trying Ruby 3.1.4..."
+            arch -arm64 rbenv install 3.1.4
+            
+            if [ $? -ne 0 ]; then
+              echo "Ruby installation failed, trying system Ruby with user gems..."
+              # Use system Ruby but install gems to user directory
+              export GEM_HOME="$HOME/.gem"
+              export PATH="$GEM_HOME/bin:$PATH"
+              echo 'export GEM_HOME="$HOME/.gem"' >> ~/.zshrc
+              echo 'export PATH="$GEM_HOME/bin:$PATH"' >> ~/.zshrc
+            else
+              rbenv global 3.1.4
+            fi
+          else
+            rbenv global 3.2.2
+          fi
           
           # Reload shell to use new Ruby
           eval "$(rbenv init -)"
           
           # Install Fastlane using user's Ruby
           echo "Installing Fastlane..."
-          gem install fastlane
+          arch -arm64 gem install fastlane
           
           # Verify installations
           echo "Ruby version:"
-          ruby --version
+          arch -arm64 ruby --version
           echo "Ruby location:"
           which ruby
           echo "Fastlane version:"
-          fastlane --version
+          arch -arm64 fastlane --version
 
       - name: 📦 Install dependencies
         run: |
@@ -147,7 +167,7 @@ jobs:
           echo "Verifying Fastlane is available..."
           if command -v fastlane &> /dev/null; then
             echo "✅ Fastlane is available"
-            fastlane --version
+            arch -arm64 fastlane --version
             echo "Fastlane location:"
             which fastlane
           else
