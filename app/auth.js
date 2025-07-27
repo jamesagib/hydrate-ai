@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { supabase } from '../lib/supabase';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
@@ -175,6 +175,7 @@ export default function AuthScreen() {
       <Text style={styles.title}>Save your progress</Text>
       <Text style={styles.subtitle}>Sign up to view your personalized water plan, customized just for you.</Text>
       <TouchableOpacity style={styles.googleButton} onPress={handleGoogleSignIn}>
+        <Image source={require('../assets/googleLogo.png')} style={styles.googleLogo} />
         <Text style={styles.buttonText}>Sign in with Google</Text>
       </TouchableOpacity>
       
@@ -224,14 +225,29 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   googleButton: {
-    backgroundColor: '#4285F4',
+    backgroundColor: 'white',
     paddingVertical: 12,
-    paddingHorizontal: 32,
+    paddingHorizontal: 24,
     borderRadius: 8,
     marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  googleLogo: {
+    width: 20,
+    height: 20,
+    marginRight: 12,
   },
   buttonText: {
-    color: 'white',
+    color: '#333',
     fontSize: 16,
     fontFamily: 'Nunito_600SemiBold',
     textAlign: 'center',
