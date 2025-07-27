@@ -41,7 +41,7 @@ jobs:
     runs-on: self-hosted
     if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     env:
-      PATH: /usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$HOME/.gem/bin:$PATH
+      PATH: /usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$HOME/bin:$HOME/.gem/bin:$PATH
     steps:
       - name: 🔧 Verify System Utilities
         run: |
@@ -101,86 +101,60 @@ jobs:
 
       - name: 🔧 Setup Ruby and Fastlane
         run: |
-          # Force ARM64 execution for all commands
-          export ARCHFLAGS="-arch arm64"
-          
-          # Check architecture and set up Homebrew path
+          # Check architecture and use appropriate approach
           echo "Current architecture: $(uname -m)"
           
-          # Check if Homebrew is installed
-          if ! command -v brew &> /dev/null; then
-            echo "Homebrew not found, installing..."
-            arch -arm64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-          fi
+          # Use system Ruby and install Fastlane to user directory
+          echo "Using system Ruby..."
           
-          echo "Homebrew location: $(which brew)"
-          
-          # Set up Homebrew path for ARM64
-          if [[ $(uname -m) == "arm64" ]]; then
-            echo "Running on ARM64, using /opt/homebrew"
-            export PATH="/opt/homebrew/bin:$PATH"
-            echo 'export PATH="/opt/homebrew/bin:$PATH"' >> ~/.zshrc
-          fi
-          
-          # Install rbenv for Ruby version management
-          echo "Installing rbenv..."
-          arch -arm64 brew install rbenv ruby-build
-          
-          # Initialize rbenv with ARM64
-          echo 'export PATH="$HOME/.rbenv/bin:$PATH"' >> ~/.zshrc
-          echo 'eval "$(rbenv init -)"' >> ~/.zshrc
-          source ~/.zshrc
-          
-          # Try to install Ruby 3.2.2 with ARM64 flags
-          echo "Installing Ruby 3.2.2..."
-          arch -arm64 rbenv install 3.2.2
-          
-          if [ $? -ne 0 ]; then
-            echo "Ruby 3.2.2 installation failed, trying Ruby 3.1.4..."
-            arch -arm64 rbenv install 3.1.4
-            
-            if [ $? -ne 0 ]; then
-              echo "Ruby installation failed, trying system Ruby with user gems..."
-              # Use system Ruby but install gems to user directory
-              export GEM_HOME="$HOME/.gem"
-              export PATH="$GEM_HOME/bin:$PATH"
-              echo 'export GEM_HOME="$HOME/.gem"' >> ~/.zshrc
-              echo 'export PATH="$GEM_HOME/bin:$PATH"' >> ~/.zshrc
-            else
-              rbenv global 3.1.4
-            fi
+          # Check if system Ruby is available
+          if command -v ruby &> /dev/null; then
+            echo "System Ruby found: $(which ruby)"
+            ruby --version
           else
-            rbenv global 3.2.2
+            echo "❌ No Ruby found on system"
+            exit 1
           fi
           
-          # Reload shell to use new Ruby
-          eval "$(rbenv init -)"
+          # Set up user gem directory to avoid permission issues
+          export GEM_HOME="$HOME/.gem"
+          export GEM_PATH="$HOME/.gem"
+          export PATH="$GEM_HOME/bin:$PATH"
           
-          # Install Fastlane using user's Ruby
-          echo "Installing Fastlane..."
-          arch -arm64 gem install fastlane
+          # Add to shell configuration for persistence
+          echo 'export GEM_HOME="$HOME/.gem"' >> ~/.zshrc
+          echo 'export GEM_PATH="$HOME/.gem"' >> ~/.zshrc
+          echo 'export PATH="$GEM_HOME/bin:$PATH"' >> ~/.zshrc
           
-          # Create symlink to make Fastlane available system-wide
-          echo "Creating Fastlane symlink for system-wide access..."
-          sudo ln -sf "$(which fastlane)" /usr/local/bin/fastlane
+          # Create gem directory if it doesn't exist
+          mkdir -p "$GEM_HOME"
           
-          # Also add to PATH for current session and future steps
-          export PATH="/usr/local/bin:$HOME/.gem/bin:$PATH"
-          echo 'export PATH="/usr/local/bin:$HOME/.gem/bin:$PATH"' >> ~/.zshrc
+          # Install Fastlane to user directory
+          echo "Installing Fastlane to user directory..."
+          gem install fastlane --user-install
+          
+          # Create symlink in user's bin directory
+          echo "Creating Fastlane symlink in user bin..."
+          mkdir -p "$HOME/bin"
+          ln -sf "$GEM_HOME/bin/fastlane" "$HOME/bin/fastlane"
+          
+          # Add user bin to PATH
+          export PATH="$HOME/bin:$PATH"
+          echo 'export PATH="$HOME/bin:$PATH"' >> ~/.zshrc
           
           # Verify installations
           echo "Ruby version:"
-          arch -arm64 ruby --version
+          ruby --version
           echo "Ruby location:"
           which ruby
           echo "Fastlane version:"
-          arch -arm64 fastlane --version
+          fastlane --version
           echo "Fastlane location:"
           which fastlane
-          echo "System-wide Fastlane symlink:"
-          ls -la /usr/local/bin/fastlane || echo "Symlink not found"
-          echo "Testing system-wide Fastlane:"
-          /usr/local/bin/fastlane --version || echo "System-wide Fastlane not working"
+          echo "User gem directory:"
+          ls -la "$GEM_HOME/bin/" | grep fastlane || echo "Fastlane not in gem bin"
+          echo "User bin directory:"
+          ls -la "$HOME/bin/" | grep fastlane || echo "Fastlane not in user bin"
 
       - name: 📦 Install dependencies
         run: |
@@ -224,13 +198,14 @@ jobs:
 
       - name: 🔍 Verify Fastlane availability
         run: |
-          # Ensure rbenv is loaded
-          eval "$(rbenv init -)"
+          # Ensure user gem environment is loaded
+          export GEM_HOME="$HOME/.gem"
+          export PATH="$HOME/bin:$GEM_HOME/bin:$PATH"
           
           echo "Verifying Fastlane is available..."
           if command -v fastlane &> /dev/null; then
             echo "✅ Fastlane is available"
-            arch -arm64 fastlane --version
+            fastlane --version
             echo "Fastlane location:"
             which fastlane
           else
@@ -238,6 +213,10 @@ jobs:
             echo "Current PATH: $PATH"
             echo "Ruby location:"
             which ruby
+            echo "Checking user gem directory:"
+            ls -la "$HOME/.gem/bin/" | grep fastlane || echo "Fastlane not in gem bin"
+            echo "Checking user bin directory:"
+            ls -la "$HOME/bin/" | grep fastlane || echo "Fastlane not in user bin"
             exit 1
           fi
 
@@ -246,7 +225,8 @@ jobs:
         if: ${{ github.event.inputs.buildType != 'prod-only' }}
         run: |
           # Ensure Fastlane is in PATH for EAS build
-          export PATH="/usr/local/bin:$HOME/.gem/bin:$PATH"
+          export GEM_HOME="$HOME/.gem"
+          export PATH="$HOME/bin:$GEM_HOME/bin:$PATH"
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
           
           # Verify Fastlane is available before building
@@ -256,7 +236,7 @@ jobs:
           eas build --platform ios --profile development --local --non-interactive
         env:
           NODE_ENV: development
-          PATH: /usr/local/bin:$HOME/.gem/bin:$PATH
+          PATH: $HOME/bin:$HOME/.gem/bin:$PATH
 
       - name: 🔍 Find and Copy Development Build
         if: ${{ github.event.inputs.buildType != 'prod-only' }}
@@ -304,7 +284,8 @@ jobs:
         if: ${{ github.event.inputs.buildType == 'prod-only' || github.event.inputs.buildType == 'both' }}
         run: |
           # Ensure Fastlane is in PATH for EAS build
-          export PATH="/usr/local/bin:$HOME/.gem/bin:$PATH"
+          export GEM_HOME="$HOME/.gem"
+          export PATH="$HOME/bin:$GEM_HOME/bin:$PATH"
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
           
           # Verify Fastlane is available before building
@@ -314,7 +295,7 @@ jobs:
           eas build --platform ios --profile production --local --non-interactive
         env:
           NODE_ENV: production
-          PATH: /usr/local/bin:$HOME/.gem/bin:$PATH
+          PATH: $HOME/bin:$HOME/.gem/bin:$PATH
 
       - name: 🔍 Find and Copy Production IPA
         if: ${{ github.event.inputs.buildType == 'prod-only' || github.event.inputs.buildType == 'both' }}
