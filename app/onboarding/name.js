@@ -14,12 +14,11 @@ import { saveOnboardingData, loadOnboardingData } from '../../lib/onboardingStor
 
 export default function OnboardingNameScreen() {
   const [name, setName] = useState('');
-  const [pronouns, setPronouns] = useState('');
 
   const handleNext = async () => {
-    // Save name and pronouns to onboarding storage
+    // Save name to onboarding storage
     const prev = await loadOnboardingData() || {};
-    await saveOnboardingData({ ...prev, name, pronouns });
+    await saveOnboardingData({ ...prev, name });
     router.push('/onboarding/age');
   };
 

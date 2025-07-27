@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, SafeAreaView, ScrollView, Modal, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { supabase } from '../../lib/supabase';
@@ -17,6 +17,10 @@ export default function ProfileScreen() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [editingField, setEditingField] = useState(null);
+  const [editValue, setEditValue] = useState('');
 
   const [fontsLoaded] = useFonts({
     Nunito_400Regular,
@@ -30,6 +34,17 @@ export default function ProfileScreen() {
         const { data: { user } } = await supabase.auth.getUser();
         setUser(user);
         setUserEmail(user?.email || null);
+
+        // Fetch user profile data
+        if (user) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+          
+          setProfile(profileData);
+        }
       } catch (error) {
         console.error('Error fetching user:', error);
       } finally {
@@ -73,6 +88,65 @@ export default function ProfileScreen() {
     router.replace('/');
   };
 
+  const handleEditField = (field, currentValue) => {
+    setEditingField(field);
+    setEditValue(currentValue || '');
+    setIsEditModalVisible(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!user || !editingField) return;
+
+    try {
+      const updateData = {};
+      updateData[editingField] = editValue;
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error updating profile:', error);
+        Alert.alert('Error', 'Failed to update profile. Please try again.');
+        return;
+      }
+
+      // Update local state
+      setProfile(prev => ({ ...prev, [editingField]: editValue }));
+      setIsEditModalVisible(false);
+      setEditingField(null);
+      setEditValue('');
+      
+      Alert.alert('Success', 'Profile updated successfully!');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    }
+  };
+
+  const getFieldLabel = (field) => {
+    if (!field) return '';
+    switch (field) {
+      case 'name': return 'Name';
+      case 'age': return 'Age';
+      case 'activity_level': return 'Activity Level';
+      case 'climate': return 'Climate';
+      default: return field;
+    }
+  };
+
+  const getFieldOptions = (field) => {
+    switch (field) {
+      case 'activity_level':
+        return ['low', 'moderate', 'high'];
+      case 'climate':
+        return ['cold', 'temperate', 'hot'];
+      default:
+        return null;
+    }
+  };
+
   if (!fontsLoaded || loading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#F2EFEB' }}>
@@ -107,30 +181,71 @@ export default function ProfileScreen() {
         
         {user && (
           <View style={{ paddingHorizontal: 20, marginBottom: 30 }}>
-            <Text style={{ 
-              fontFamily: 'Nunito_600SemiBold', 
-              fontSize: 18, 
-              color: 'black',
-              marginBottom: 16
-            }}>
-              Profile
-            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <Text style={{ 
+                fontFamily: 'Nunito_600SemiBold', 
+                fontSize: 18, 
+                color: 'black'
+              }}>
+                Profile
+              </Text>
+              <TouchableOpacity
+                onPress={() => handleEditField('name', profile?.name)}
+                style={{ paddingHorizontal: 12, paddingVertical: 6 }}
+              >
+                <Text style={{ 
+                  fontFamily: 'Nunito_600SemiBold', 
+                  fontSize: 14, 
+                  color: '#4FC3F7'
+                }}>
+                  Edit
+                </Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.profileSection}>
-              <View style={styles.profileInfo}>
+              <TouchableOpacity 
+                style={styles.profileInfo}
+                onPress={() => handleEditField('name', profile?.name)}
+              >
                 <Text style={styles.label}>Name:</Text>
                 <Text style={styles.value}>
-                  {user.user_metadata?.full_name || user.user_metadata?.name || 'Not provided'}
+                  {profile?.name || 'Not provided'}
                 </Text>
-              </View>
+                <Text style={styles.editIcon}>✏️</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.profileInfo}
+                onPress={() => handleEditField('age', profile?.age?.toString())}
+              >
+                <Text style={styles.label}>Age:</Text>
+                <Text style={styles.value}>
+                  {profile?.age ? `${profile.age} years` : 'Not provided'}
+                </Text>
+                <Text style={styles.editIcon}>✏️</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.profileInfo}
+                onPress={() => handleEditField('activity_level', profile?.activity_level)}
+              >
+                <Text style={styles.label}>Activity Level:</Text>
+                <Text style={styles.value}>
+                  {profile?.activity_level ? profile.activity_level.charAt(0).toUpperCase() + profile.activity_level.slice(1) : 'Not provided'}
+                </Text>
+                <Text style={styles.editIcon}>✏️</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.profileInfo}
+                onPress={() => handleEditField('climate', profile?.climate)}
+              >
+                <Text style={styles.label}>Climate:</Text>
+                <Text style={styles.value}>
+                  {profile?.climate ? profile.climate.charAt(0).toUpperCase() + profile.climate.slice(1) : 'Not provided'}
+                </Text>
+                <Text style={styles.editIcon}>✏️</Text>
+              </TouchableOpacity>
               <View style={styles.profileInfo}>
                 <Text style={styles.label}>Email:</Text>
                 <Text style={styles.value}>{user.email}</Text>
-              </View>
-              <View style={styles.profileInfo}>
-                <Text style={styles.label}>Provider:</Text>
-                <Text style={styles.value}>
-                  {user.app_metadata?.provider || 'Unknown'}
-                </Text>
               </View>
             </View>
           </View>
@@ -151,6 +266,75 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Edit Profile Modal */}
+        <Modal
+          visible={isEditModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setIsEditModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>
+                Edit {getFieldLabel(editingField) || 'Field'}
+              </Text>
+              
+              {getFieldOptions(editingField) ? (
+                // Dropdown for fields with options
+                <View style={styles.optionsContainer}>
+                  {getFieldOptions(editingField).map((option) => (
+                    <TouchableOpacity
+                      key={option}
+                      style={[
+                        styles.optionButton,
+                        editValue === option && styles.optionButtonSelected
+                      ]}
+                      onPress={() => setEditValue(option)}
+                    >
+                      <Text style={[
+                        styles.optionText,
+                        editValue === option && styles.optionTextSelected
+                      ]}>
+                        {option.charAt(0).toUpperCase() + option.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                // Text input for other fields
+                <TextInput
+                  style={styles.textInput}
+                  value={editValue}
+                  onChangeText={setEditValue}
+                  placeholder={`Enter ${(getFieldLabel(editingField) || 'value').toLowerCase()}`}
+                  placeholderTextColor="#999"
+                  keyboardType={editingField === 'age' ? 'numeric' : 'default'}
+                  autoFocus
+                />
+              )}
+              
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => {
+                    setIsEditModalVisible(false);
+                    setEditingField(null);
+                    setEditValue('');
+                  }}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleSaveEdit}
+                >
+                  <Text style={styles.saveButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
@@ -205,5 +389,94 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontFamily: 'Nunito_600SemiBold',
+  },
+  editIcon: {
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: 'Nunito_700Bold',
+    color: 'black',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    fontFamily: 'Nunito_400Regular',
+    marginBottom: 20,
+  },
+  optionsContainer: {
+    marginBottom: 20,
+  },
+  optionButton: {
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#F8F9FA',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
+  optionButtonSelected: {
+    backgroundColor: '#4FC3F7',
+    borderColor: '#4FC3F7',
+  },
+  optionText: {
+    fontSize: 16,
+    fontFamily: 'Nunito_400Regular',
+    color: 'black',
+    textAlign: 'center',
+  },
+  optionTextSelected: {
+    color: 'white',
+    fontFamily: 'Nunito_600SemiBold',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontFamily: 'Nunito_600SemiBold',
+    color: '#666',
+  },
+  saveButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#4FC3F7',
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontFamily: 'Nunito_600SemiBold',
+    color: 'white',
   },
 }); 

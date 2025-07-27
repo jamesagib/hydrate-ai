@@ -4,7 +4,7 @@
 create table if not exists profiles (
     user_id uuid primary key references auth.users(id) on delete cascade,
     name text,
-    pronouns text,
+    sex text,
     age int,
     weight_kg numeric,
     height_cm numeric,

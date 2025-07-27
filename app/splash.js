@@ -89,17 +89,24 @@ export default function SplashScreen({ fontsLoaded }) {
     const initializeApp = async () => {
       try {
         console.log('Splash: Starting app initialization...');
+        
+        // Initialize Supabase auth session
+        await supabase.auth.getSession();
+        
         // Check onboarding state
         const onboarding = await SecureStore.getItemAsync('onboarding_complete');
         console.log('Splash: Onboarding complete:', onboarding === 'true');
+        
         // Check authentication state
         let { data: { session } } = await supabase.auth.getSession();
         console.log('Splash: Initial session found:', !!session);
+        
         // If no session, try to restore from stored tokens
         if (!session) {
           const accessToken = await SecureStore.getItemAsync('supabase_session');
           const refreshToken = await SecureStore.getItemAsync('supabase_refresh_token');
           console.log('Splash: Stored tokens found - access:', !!accessToken, 'refresh:', !!refreshToken);
+          
           if (accessToken && refreshToken) {
             try {
               const { data, error } = await supabase.auth.setSession({
@@ -123,13 +130,32 @@ export default function SplashScreen({ fontsLoaded }) {
             }
           }
         }
-        // Navigate based on state (deferred)
-        console.log('Splash: Final decision - onboarding:', onboarding, 'session:', !!session);
+        
+        // Wait a bit for auth state to settle
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Get final session state
+        const { data: { session: finalSession } } = await supabase.auth.getSession();
+        
+        // Navigate based on state
+        console.log('Splash: Final decision - onboarding:', onboarding, 'session:', !!finalSession);
+        
+        // Development mode: Skip auth for easier testing
+        if (__DEV__) {
+          console.log('Splash: Development mode - checking for dev bypass');
+          const devBypass = await SecureStore.getItemAsync('dev_auth_bypass');
+          if (devBypass === 'true') {
+            console.log('Splash: Dev bypass enabled, going to main app');
+            router.replace('/tabs/home');
+            return;
+          }
+        }
+        
         setTimeout(() => {
           if (onboarding !== 'true') {
             console.log('Splash: Navigating to onboarding');
             router.replace('/onboarding/name');
-          } else if (session) {
+          } else if (finalSession) {
             console.log('Splash: Navigating to main app');
             router.replace('/tabs/home');
           } else {

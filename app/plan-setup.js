@@ -86,7 +86,7 @@ export default function PlanSetupScreen() {
         const profileData = {
           user_id: user.id, 
           name: onboarding.name,
-          pronouns: onboarding.pronouns,
+          sex: onboarding.sex,
           age: onboarding.age,
           weight_kg: onboarding.weight_kg,
           height_cm: onboarding.height_cm,
@@ -96,11 +96,26 @@ export default function PlanSetupScreen() {
           wants_coaching: onboarding.wants_coaching || false
         };
         console.log('Profile data to insert:', profileData);
+        
+        // Debug: Check if user exists
+        const { data: userCheck, error: userCheckError } = await supabase.auth.getUser();
+        console.log('User check:', userCheck, userCheckError);
+        
+        // Debug: Try to insert profile with more detailed error handling
         const { error: profileError, data: profileResult } = await supabase.from('profiles').upsert([profileData]);
         console.log('Profile upsert result:', profileResult, profileError);
+        
         if (profileError) {
           console.error('Profile creation error:', profileError);
+          console.error('Error details:', {
+            code: profileError.code,
+            message: profileError.message,
+            details: profileError.details,
+            hint: profileError.hint
+          });
           // Don't throw error here, just log it
+        } else {
+          console.log('Profile created successfully:', profileResult);
         }
         await clearOnboardingData();
 

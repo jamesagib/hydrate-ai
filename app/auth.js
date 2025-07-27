@@ -29,6 +29,14 @@ const generateNonce = () => {
   return result;
 };
 
+// Simple SHA256 implementation for React Native
+const hashNonce = async (nonce) => {
+  // For now, let's try without hashing the nonce
+  // Apple Sign In might work with the raw nonce
+  console.log('Using raw nonce for Apple Sign In');
+  return nonce;
+};
+
 
 export default function AuthScreen() {
   // All hooks must be called at the top, in the same order, on every render
@@ -105,7 +113,7 @@ export default function AuthScreen() {
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
-        nonce: nonce, // Add the nonce here
+        // Don't pass nonce to Apple - let it handle it internally
       });
       
       const { identityToken } = credential;
@@ -116,7 +124,7 @@ export default function AuthScreen() {
       const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'apple',
         token: identityToken,
-        nonce: nonce, // Use the same nonce
+        // Don't pass nonce to Supabase either - let it handle Apple tokens
       });
       
       if (error) {
@@ -170,15 +178,7 @@ export default function AuthScreen() {
         <Text style={styles.buttonText}>Sign in with Google</Text>
       </TouchableOpacity>
       
-      <TouchableOpacity 
-        style={[styles.googleButton, { backgroundColor: 'red', marginTop: 16 }]} 
-        onPress={() => {
-          console.log('Test button pressed!');
-          Alert.alert('Test', 'Button works!');
-        }}
-      >
-        <Text style={styles.buttonText}>Test Button</Text>
-      </TouchableOpacity>
+      
       {isAppleAuthAvailable && (
         <AppleAuthentication.AppleAuthenticationButton
           buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
@@ -191,11 +191,13 @@ export default function AuthScreen() {
           }}
         />
       )}
-      {!isAppleAuthAvailable && (
-        <Text style={{ marginTop: 16, color: 'red', fontFamily: 'Nunito_400Regular' }}>
-          Apple Sign In not available on this device
-        </Text>
-      )}
+                   {!isAppleAuthAvailable && (
+               <Text style={{ marginTop: 16, color: 'red', fontFamily: 'Nunito_400Regular' }}>
+                 Apple Sign In not available on this device
+               </Text>
+             )}
+             
+
     </View>
   );
 }

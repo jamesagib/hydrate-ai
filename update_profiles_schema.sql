@@ -1,0 +1,1 @@
+ALTER TABLE profiles DROP COLUMN IF EXISTS pronouns; ALTER TABLE profiles ADD COLUMN IF NOT EXISTS gender text;

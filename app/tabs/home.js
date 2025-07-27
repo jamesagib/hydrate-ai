@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, TouchableOpacity, SafeAreaView, ScrollView, TextInput, Image, Modal, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, SafeAreaView, ScrollView, TextInput, Image, Modal, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
+import { supabase } from '../../lib/supabase';
 
 import {
   useFonts,
@@ -17,21 +18,132 @@ import Animated, {
   withSpring, 
   withTiming,
   runOnJS,
-  cancelAnimation
+  cancelAnimation,
+  withSequence,
+  withDelay
 } from 'react-native-reanimated';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const [hydrationLevel, setHydrationLevel] = useState(50); // 0-100
-  const [dailyGoal] = useState(80); // oz
-  const [currentIntake, setCurrentIntake] = useState(32); // oz
+  const [dailyGoal, setDailyGoal] = useState(80); // oz - will be fetched from DB
+  const [currentIntake, setCurrentIntake] = useState(0); // oz - will be calculated from DB
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [modalStep, setModalStep] = useState(1);
   const [selectedDrink, setSelectedDrink] = useState(null);
+  const [selectedDrinkObject, setSelectedDrinkObject] = useState(null);
   const [customAmount, setCustomAmount] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [hasReachedGoal, setHasReachedGoal] = useState(false);
+
+  // Drink options with hydration values
+  const drinkOptions = [
+    { name: "Water", water_oz: 8 },
+    { name: "Sparkling Water", water_oz: 8 },
+    { name: "Coconut Water", water_oz: 7.5 },
+    { name: "Unsweetened Tea", water_oz: 7.5 },
+    { name: "Green Tea", water_oz: 7.2 },
+    { name: "Black Coffee (8 oz)", water_oz: 7 },
+    { name: "Iced Coffee with Cream (12 oz)", water_oz: 6 },
+    { name: "Latte (12 oz)", water_oz: 6.2 },
+    { name: "Herbal Tea", water_oz: 7.8 },
+    { name: "Orange Juice", water_oz: 7 },
+    { name: "Apple Juice", water_oz: 6.8 },
+    { name: "Lemonade", water_oz: 6.5 },
+    { name: "Sports Drink (e.g., Gatorade)", water_oz: 7 },
+    { name: "Milk (Whole)", water_oz: 6.5 },
+    { name: "Milk (Skim)", water_oz: 6.8 },
+    { name: "Almond Milk (Unsweetened)", water_oz: 7.5 },
+    { name: "Protein Shake (Whey with Water)", water_oz: 7.5 },
+    { name: "Smoothie", water_oz: 5.5 },
+    { name: "Soda (Cola)", water_oz: 6 },
+    { name: "Energy Drink", water_oz: 5.5 },
+    { name: "Beer", water_oz: 6.5 }
+  ];
   
   const translateY = useSharedValue(SCREEN_HEIGHT);
+  
+  // Confetti animation values
+  const confetti1 = useSharedValue(0);
+  const confetti2 = useSharedValue(0);
+  const confetti3 = useSharedValue(0);
+  const confetti4 = useSharedValue(0);
+  const confetti5 = useSharedValue(0);
+  const celebrationScale = useSharedValue(0);
+
+  // Fetch user data and daily goal on component mount
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.log('No user found');
+          setLoading(false);
+          return;
+        }
+        setUser(user);
+
+        // Fetch user's hydration plan to get daily goal
+        const { data: planData, error: planError } = await supabase
+          .from('hydration_plans')
+          .select('daily_goal')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (planError && planError.code !== 'PGRST116') {
+          console.error('Error fetching hydration plan:', planError);
+        }
+
+        if (planData && planData.daily_goal) {
+          // Extract numeric value from daily goal (e.g., "80oz/day" -> 80)
+          const goalMatch = planData.daily_goal.match(/(\d+)/);
+          if (goalMatch) {
+            setDailyGoal(parseInt(goalMatch[1]));
+          }
+        }
+
+        // Fetch today's check-ins to calculate current intake
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const { data: checkins, error: checkinsError } = await supabase
+          .from('hydration_checkins')
+          .select('value')
+          .eq('user_id', user.id)
+          .gte('created_at', today.toISOString());
+
+        if (checkinsError) {
+          console.error('Error fetching check-ins:', checkinsError);
+        } else if (checkins) {
+          const totalIntake = checkins.reduce((sum, checkin) => sum + (checkin.value || 0), 0);
+          setCurrentIntake(totalIntake);
+        }
+
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  // Update hydration level when currentIntake or dailyGoal changes
+  useEffect(() => {
+    if (dailyGoal > 0) {
+      const percentage = (currentIntake / dailyGoal) * 100;
+      setHydrationLevel(Math.min(percentage, 100));
+    }
+  }, [currentIntake, dailyGoal]);
 
   const getHydrationEmoji = (level) => {
     if (level <= 20) return '🐫';
@@ -47,6 +159,45 @@ export default function HomeScreen() {
     if (level <= 60) return '#FFD54F';
     if (level <= 80) return '#4FC3F7';
     return '#4CAF50';
+  };
+
+  const triggerCelebration = () => {
+    setShowCelebration(true);
+    setHasReachedGoal(true);
+    
+    // Animate confetti
+    confetti1.value = withSequence(
+      withDelay(0, withSpring(1, { damping: 8, stiffness: 100 })),
+      withDelay(2000, withSpring(0))
+    );
+    confetti2.value = withSequence(
+      withDelay(200, withSpring(1, { damping: 8, stiffness: 100 })),
+      withDelay(2200, withSpring(0))
+    );
+    confetti3.value = withSequence(
+      withDelay(400, withSpring(1, { damping: 8, stiffness: 100 })),
+      withDelay(2400, withSpring(0))
+    );
+    confetti4.value = withSequence(
+      withDelay(600, withSpring(1, { damping: 8, stiffness: 100 })),
+      withDelay(2600, withSpring(0))
+    );
+    confetti5.value = withSequence(
+      withDelay(800, withSpring(1, { damping: 8, stiffness: 100 })),
+      withDelay(2800, withSpring(0))
+    );
+    
+    // Animate celebration scale
+    celebrationScale.value = withSequence(
+      withSpring(1, { damping: 8, stiffness: 100 }),
+      withDelay(3000, withSpring(0))
+    );
+    
+    // Hide celebration after animation
+    setTimeout(() => {
+      setShowCelebration(false);
+      setHasReachedGoal(false);
+    }, 3000);
   };
 
   const handleOpenModal = useCallback(() => {
@@ -67,6 +218,7 @@ export default function HomeScreen() {
         runOnJS(setIsModalVisible)(false);
         runOnJS(setModalStep)(1);
         runOnJS(setSelectedDrink)(null);
+        runOnJS(setSelectedDrinkObject)(null);
         runOnJS(setCustomAmount)('');
       }
     });
@@ -78,19 +230,164 @@ export default function HomeScreen() {
     };
   });
 
+  // Confetti animated styles
+  const confetti1Style = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: confetti1.value * -200 },
+      { translateX: confetti1.value * 50 },
+      { rotate: `${confetti1.value * 360}deg` }
+    ],
+    opacity: confetti1.value
+  }));
+
+  const confetti2Style = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: confetti2.value * -180 },
+      { translateX: confetti2.value * -30 },
+      { rotate: `${confetti2.value * -360}deg` }
+    ],
+    opacity: confetti2.value
+  }));
+
+  const confetti3Style = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: confetti3.value * -220 },
+      { translateX: confetti3.value * 80 },
+      { rotate: `${confetti3.value * 720}deg` }
+    ],
+    opacity: confetti3.value
+  }));
+
+  const confetti4Style = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: confetti4.value * -160 },
+      { translateX: confetti4.value * -60 },
+      { rotate: `${confetti4.value * -180}deg` }
+    ],
+    opacity: confetti4.value
+  }));
+
+  const confetti5Style = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: confetti5.value * -240 },
+      { translateX: confetti5.value * 40 },
+      { rotate: `${confetti5.value * 540}deg` }
+    ],
+    opacity: confetti5.value
+  }));
+
+  const celebrationStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: celebrationScale.value }],
+    opacity: celebrationScale.value
+  }));
+
   const bottleFillPercentage = (currentIntake / dailyGoal) * 100;
+
+  // Function to add hydration check-in to database
+  const addHydrationCheckin = async (amount, checkinType = 'slider') => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('hydration_checkins')
+        .insert([{
+          user_id: user.id,
+          checkin_type: checkinType,
+          value: amount,
+          raw_input: `${amount}oz`
+        }]);
+
+      if (error) {
+        console.error('Error adding check-in:', error);
+        return false;
+      }
+
+      // Update local state
+      const newTotal = currentIntake + amount;
+      setCurrentIntake(newTotal);
+      
+      // Update hydration level
+      const newPercentage = (newTotal / dailyGoal) * 100;
+      setHydrationLevel(Math.min(newPercentage, 100));
+      
+      // Check if goal is reached and trigger celebration
+      if (newTotal >= dailyGoal && !hasReachedGoal) {
+        triggerCelebration();
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error adding check-in:', error);
+      return false;
+    }
+  };
 
   const [fontsLoaded] = useFonts({
     Nunito_400Regular,
     Nunito_600SemiBold,
     Nunito_700Bold,
   });
-  if (!fontsLoaded) {
-    return null;
+  
+  if (!fontsLoaded || loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#F2EFEB', justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="black" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: 'black', fontFamily: 'Nunito_400Regular' }}>
+          Loading your hydration data...
+        </Text>
+      </SafeAreaView>
+    );
   }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F2EFEB' }}>
+      {/* Confetti Animation */}
+      {showCelebration && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, pointerEvents: 'none' }}>
+          <Animated.View style={[confetti1Style, { position: 'absolute', top: '50%', left: '20%' }]}>
+            <Text style={{ fontSize: 24 }}>🎉</Text>
+          </Animated.View>
+          <Animated.View style={[confetti2Style, { position: 'absolute', top: '40%', left: '80%' }]}>
+            <Text style={{ fontSize: 20 }}>✨</Text>
+          </Animated.View>
+          <Animated.View style={[confetti3Style, { position: 'absolute', top: '60%', left: '10%' }]}>
+            <Text style={{ fontSize: 22 }}>🎊</Text>
+          </Animated.View>
+          <Animated.View style={[confetti4Style, { position: 'absolute', top: '30%', left: '70%' }]}>
+            <Text style={{ fontSize: 18 }}>🌟</Text>
+          </Animated.View>
+          <Animated.View style={[confetti5Style, { position: 'absolute', top: '70%', left: '90%' }]}>
+            <Text style={{ fontSize: 26 }}>🎈</Text>
+          </Animated.View>
+          
+          {/* Celebration Message */}
+          <Animated.View style={[celebrationStyle, { 
+            position: 'absolute', 
+            top: '20%', 
+            left: '50%', 
+            transform: [{ translateX: -100 }],
+            backgroundColor: '#4CAF50',
+            paddingHorizontal: 20,
+            paddingVertical: 10,
+            borderRadius: 20,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 4,
+            elevation: 5
+          }]}>
+            <Text style={{ 
+              color: 'white', 
+              fontFamily: 'Nunito_700Bold', 
+              fontSize: 18,
+              textAlign: 'center'
+            }}>
+              🎉 Goal Reached! 🎉
+            </Text>
+          </Animated.View>
+        </View>
+      )}
+      
       {/* Logo Row */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, marginBottom: 40 }}>
         <Image source={require('../../assets/icon.png')} style={{ width: 45, height: 45, marginRight: 5 }} />
@@ -225,35 +522,60 @@ export default function HomeScreen() {
             
             {/* Step 1: Select Drink Source */}
             {modalStep === 1 && (
-              <View>
-                <Text style={styles.stepTitle}>What did you drink?</Text>
-                
-                <View style={styles.drinkGrid}>
-                  {['Starbucks Tall', 'Bottled Water', 'Custom Amount'].map((drink) => (
-                    <TouchableOpacity
-                      key={drink}
-                      style={[
-                        styles.drinkButton,
-                        selectedDrink === drink && styles.drinkButtonSelected
-                      ]}
-                      onPress={() => {
-                        setSelectedDrink(drink);
-                        if (drink === 'Custom Amount') {
-                          setModalStep(3);
-                        } else {
-                          setModalStep(2);
-                        }
-                      }}
-                    >
-                      <Text style={[
-                        styles.drinkButtonText,
-                        selectedDrink === drink && styles.drinkButtonTextSelected
-                      ]}>
-                        {drink}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <Text style={styles.stepTitle}>What did you drink?</Text>
+                  <TouchableOpacity
+                    onPress={() => setModalStep(3)}
+                    style={{ paddingHorizontal: 12, paddingVertical: 6 }}
+                  >
+                    <Text style={{ 
+                      fontFamily: 'Nunito_600SemiBold', 
+                      fontSize: 14, 
+                      color: '#4FC3F7',
+                      textDecorationLine: 'underline'
+                    }}>
+                      Custom Amount
+                    </Text>
+                  </TouchableOpacity>
                 </View>
+                
+                <ScrollView 
+                  style={{ flex: 1 }} 
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{ paddingBottom: 20 }}
+                >
+                  <View style={styles.drinkGrid}>
+                    {drinkOptions.filter(drink => drink.name !== 'Custom Amount').map((drink) => (
+                      <TouchableOpacity
+                        key={drink.name}
+                        style={[
+                          styles.drinkButton,
+                          selectedDrinkObject?.name === drink.name && styles.drinkButtonSelected
+                        ]}
+                        onPress={() => {
+                          setSelectedDrinkObject(drink);
+                          setModalStep(2);
+                        }}
+                      >
+                        <Text style={[
+                          styles.drinkButtonText,
+                          selectedDrinkObject?.name === drink.name && styles.drinkButtonTextSelected
+                        ]}>
+                          {drink.name}
+                        </Text>
+                        {drink.water_oz > 0 && (
+                          <Text style={[
+                            styles.drinkOunces,
+                            selectedDrinkObject?.name === drink.name && styles.drinkOuncesSelected
+                          ]}>
+                            {drink.water_oz} oz
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
               </View>
             )}
 
@@ -293,12 +615,15 @@ export default function HomeScreen() {
                   
                   <TouchableOpacity
                     style={styles.addButton}
-                    onPress={() => {
-                      setCurrentIntake(prev => prev + 16); // Assuming 16oz for selected drink
-                      handleCloseModal();
+                    onPress={async () => {
+                      const amount = selectedDrinkObject?.water_oz || 0;
+                      const success = await addHydrationCheckin(amount, 'slider');
+                      if (success) {
+                        handleCloseModal();
+                      }
                     }}
                   >
-                    <Text style={styles.addButtonText}>Add Water</Text>
+                    <Text style={styles.addButtonText}>Add {selectedDrinkObject?.name || 'Drink'}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -327,13 +652,15 @@ export default function HomeScreen() {
                   
                   <TouchableOpacity
                     style={styles.addButton}
-                    onPress={() => {
+                    onPress={async () => {
                       const amount = parseInt(customAmount) || 0;
                       if (amount > 0) {
-                        setCurrentIntake(prev => prev + amount);
-                        setCustomAmount('');
+                        const success = await addHydrationCheckin(amount, 'freeform');
+                        if (success) {
+                          setCustomAmount('');
+                          handleCloseModal();
+                        }
                       }
-                      handleCloseModal();
                     }}
                   >
                     <Text style={styles.addButtonText}>Add Water</Text>
@@ -364,7 +691,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     padding: 20,
     paddingBottom: 40,
-    height: SCREEN_HEIGHT * 0.65,
+    height: SCREEN_HEIGHT * 0.75,
     width: '100%',
     position: 'absolute',
     bottom: 0,
@@ -395,16 +722,18 @@ const styles = StyleSheet.create({
   drinkGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 8,
+    justifyContent: 'space-between',
   },
   drinkButton: {
-    width: '30%',
-    padding: 16,
+    width: '48%',
+    padding: 12,
     borderRadius: 12,
     backgroundColor: '#F5F5F5',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E5E5E5',
+    marginBottom: 8,
   },
   drinkButtonSelected: {
     backgroundColor: '#4FC3F7',
@@ -418,6 +747,15 @@ const styles = StyleSheet.create({
   },
   drinkButtonTextSelected: {
     color: 'white',
+  },
+  drinkOunces: {
+    fontFamily: 'Nunito_400Regular',
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+  },
+  drinkOuncesSelected: {
+    color: 'rgba(255, 255, 255, 0.8)',
   },
   hydrationDisplay: {
     alignItems: 'center',
