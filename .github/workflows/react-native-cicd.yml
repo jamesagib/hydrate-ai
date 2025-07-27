@@ -52,23 +52,32 @@ jobs:
 
       - name: 🔧 Setup Ruby and Fastlane
         run: |
-          # Install Ruby if not available
-          if ! command -v ruby &> /dev/null; then
-            echo "Installing Ruby..."
-            brew install ruby
-          fi
+          # Install rbenv for Ruby version management
+          echo "Installing rbenv..."
+          brew install rbenv ruby-build
           
-          # Add Ruby to PATH
-          echo 'export PATH="/usr/local/opt/ruby/bin:$PATH"' >> ~/.zshrc
+          # Initialize rbenv
+          echo 'export PATH="$HOME/.rbenv/bin:$PATH"' >> ~/.zshrc
+          echo 'eval "$(rbenv init -)"' >> ~/.zshrc
           source ~/.zshrc
           
-          # Install Fastlane
+          # Install Ruby 3.2.2 (stable version)
+          echo "Installing Ruby 3.2.2..."
+          rbenv install 3.2.2
+          rbenv global 3.2.2
+          
+          # Reload shell to use new Ruby
+          eval "$(rbenv init -)"
+          
+          # Install Fastlane using user's Ruby
           echo "Installing Fastlane..."
           gem install fastlane
           
           # Verify installations
           echo "Ruby version:"
           ruby --version
+          echo "Ruby location:"
+          which ruby
           echo "Fastlane version:"
           fastlane --version
 
@@ -114,13 +123,20 @@ jobs:
 
       - name: 🔍 Verify Fastlane availability
         run: |
+          # Ensure rbenv is loaded
+          eval "$(rbenv init -)"
+          
           echo "Verifying Fastlane is available..."
           if command -v fastlane &> /dev/null; then
             echo "✅ Fastlane is available"
             fastlane --version
+            echo "Fastlane location:"
+            which fastlane
           else
             echo "❌ Fastlane is not available in PATH"
             echo "Current PATH: $PATH"
+            echo "Ruby location:"
+            which ruby
             exit 1
           fi
 
