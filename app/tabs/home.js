@@ -38,6 +38,7 @@ export default function HomeScreen() {
   const [user, setUser] = useState(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [hasReachedGoal, setHasReachedGoal] = useState(false);
+  const [currentDate, setCurrentDate] = useState(new Date().toDateString());
 
   // Drink options with hydration values
   const drinkOptions = [
@@ -142,8 +143,23 @@ export default function HomeScreen() {
     if (dailyGoal > 0) {
       const percentage = (currentIntake / dailyGoal) * 100;
       setHydrationLevel(Math.min(percentage, 100));
+      
+      // Reset hasReachedGoal if current intake drops below goal (new day)
+      if (currentIntake < dailyGoal && hasReachedGoal) {
+        setHasReachedGoal(false);
+      }
     }
-  }, [currentIntake, dailyGoal]);
+  }, [currentIntake, dailyGoal, hasReachedGoal]);
+
+  // Check for date change and reset celebration state
+  useEffect(() => {
+    const today = new Date().toDateString();
+    if (today !== currentDate) {
+      setCurrentDate(today);
+      setHasReachedGoal(false);
+      setShowCelebration(false);
+    }
+  }, [currentDate]);
 
   const getHydrationEmoji = (level) => {
     if (level <= 20) return '🐫';
@@ -193,10 +209,10 @@ export default function HomeScreen() {
       withDelay(3000, withSpring(0))
     );
     
-    // Hide celebration after animation
+    // Hide celebration after animation but keep hasReachedGoal true
     setTimeout(() => {
       setShowCelebration(false);
-      setHasReachedGoal(false);
+      // Don't reset hasReachedGoal to prevent repeated celebrations
     }, 3000);
   };
 
@@ -363,9 +379,9 @@ export default function HomeScreen() {
           {/* Celebration Message */}
           <Animated.View style={[celebrationStyle, { 
             position: 'absolute', 
-            top: '20%', 
+            top: '50%', 
             left: '50%', 
-            transform: [{ translateX: -100 }],
+            transform: [{ translateX: -100 }, { translateY: -25 }],
             backgroundColor: '#4CAF50',
             paddingHorizontal: 20,
             paddingVertical: 10,

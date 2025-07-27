@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView, Text, ActivityIndicator, ScrollView, Alert, TouchableOpacity, StyleSheet, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { usePlacement } from 'expo-superwall';
 
@@ -40,11 +40,13 @@ function parseHydrationPlan(planText) {
 }
 
 export default function PlanResultScreen() {
+  const params = useLocalSearchParams();
   const [plan, setPlan] = useState(null);
   const [parsed, setParsed] = useState(null);
   const [loading, setLoading] = useState(true);
   const [paywallError, setPaywallError] = useState(null);
   const [paywallMessage, setPaywallMessage] = useState(null);
+  const isFromSettings = params.from === 'settings';
 
   const { registerPlacement, state } = usePlacement({
     onPresent: (info) => {
@@ -120,6 +122,8 @@ export default function PlanResultScreen() {
     fetchPlan();
   }, []);
 
+
+
   const showPaywall = () => {
     setPaywallError(null);
     registerPlacement({ placement: 'campaign_trigger' }); // Replace with your actual paywall ID
@@ -190,8 +194,13 @@ export default function PlanResultScreen() {
         </ScrollView>
         {/* Sticky bottom bar with background and button */}
         <View style={styles.stickyBarBg} />
-        <TouchableOpacity style={styles.stickyButton} onPress={showPaywall}>
-          <Text style={styles.bottomButtonText}>Let's go</Text>
+        <TouchableOpacity 
+          style={styles.stickyButton} 
+          onPress={isFromSettings ? () => router.back() : showPaywall}
+        >
+          <Text style={styles.bottomButtonText}>
+            {isFromSettings ? 'Go Back' : "Let's go"}
+          </Text>
         </TouchableOpacity>
         {paywallError && <Text style={styles.paywallError}>{paywallError}</Text>}
       </View>

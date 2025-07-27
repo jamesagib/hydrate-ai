@@ -174,7 +174,7 @@ export default function StatsScreen() {
   };
 
   // Calculate achievements based on user data
-  const calculateAchievements = (userData) => {
+  const calculateAchievements = () => {
     const newAchievements = achievements.map(achievement => {
       let earned = false;
       

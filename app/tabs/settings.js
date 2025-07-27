@@ -251,6 +251,24 @@ export default function ProfileScreen() {
           </View>
         )}
 
+        {/* Hydration Plan Section */}
+        <View style={{ paddingHorizontal: 20, marginBottom: 30 }}>
+          <Text style={{ 
+            fontFamily: 'Nunito_600SemiBold', 
+            fontSize: 18, 
+            color: 'black',
+            marginBottom: 16
+          }}>
+            Hydration Plan
+          </Text>
+          <TouchableOpacity 
+            style={styles.hydrationPlanButton} 
+            onPress={() => router.push('/plan-result?from=settings')}
+          >
+            <Text style={styles.hydrationPlanButtonText}>View My Hydration Plan</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={{ paddingHorizontal: 20, marginBottom: 30 }}>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Text style={styles.logoutButtonText}>Logout</Text>
@@ -386,6 +404,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoutButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontFamily: 'Nunito_600SemiBold',
+  },
+  hydrationPlanButton: {
+    backgroundColor: '#4FC3F7',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  hydrationPlanButtonText: {
     color: 'white',
     fontSize: 18,
     fontFamily: 'Nunito_600SemiBold',

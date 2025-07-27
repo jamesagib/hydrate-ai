@@ -42,6 +42,8 @@ jobs:
     if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     env:
       PATH: /usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$HOME/bin:$HOME/.gem/bin:$PATH
+      RUBYOPT: "-W0"
+      RUBYZIP_V3_API_WARN: "false"
     steps:
       - name: 🔧 Verify System Utilities
         run: |
@@ -129,9 +131,13 @@ jobs:
           # Create gem directory if it doesn't exist
           mkdir -p "$GEM_HOME"
           
-          # Install Fastlane to user directory
-          echo "Installing Fastlane to user directory..."
-          gem install fastlane --user-install
+          # Install Fastlane to user directory with suppressed warnings (only if not cached)
+          if ! command -v fastlane &> /dev/null; then
+            echo "Installing Fastlane to user directory..."
+            RUBYOPT="-W0" gem install fastlane --user-install --no-document
+          else
+            echo "Fastlane already installed (from cache)"
+          fi
           
           # Create symlink in user's bin directory
           echo "Creating Fastlane symlink in user bin..."
@@ -162,6 +168,16 @@ jobs:
           npm config set registry https://registry.npmjs.org/
           npm ci
           npm install -g eas-cli@latest
+
+      - name: 📦 Cache Ruby gems
+        uses: actions/cache@v3
+        with:
+          path: |
+            $HOME/.gem
+            $HOME/bin
+          key: ${{ runner.os }}-ruby-gems-${{ hashFiles('**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-ruby-gems-
 
       - name: 🔧 Setup Xcode
         run: |
