@@ -129,7 +129,7 @@ export default function OnboardingHeightWeightScreen() {
                 </Picker>
                 <Picker
                   selectedValue={inches}
-                  style={{ width: 90, height: 120 }}
+                  style={{ width: 100, height: 120 }}
                   itemStyle={{ fontFamily: 'Nunito_400Regular', fontSize: 18 }}
                   onValueChange={setInches}
                 >

@@ -3,9 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { supabase } from '../lib/supabase';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { useEffect } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import * as SecureStore from 'expo-secure-store';
 import {
   useFonts,
   Nunito_400Regular,
@@ -13,7 +11,6 @@ import {
   Nunito_700Bold,
 } from '@expo-google-fonts/nunito';
 import { router } from 'expo-router';
-import { loadOnboardingData, clearOnboardingData } from '../lib/onboardingStorage';
 
 // Configure Google Signin
 GoogleSignin.configure({
@@ -96,9 +93,13 @@ export default function AuthScreen() {
   // Apple sign-in handler
   const handleAppleSignIn = async () => {
     try {
+      console.log('Starting Apple sign-in process...');
+      
       // Generate a secure nonce
       const nonce = generateNonce();
+      console.log('Generated nonce:', nonce);
       
+      console.log('Calling AppleAuthentication.signInAsync...');
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
@@ -150,16 +151,33 @@ export default function AuthScreen() {
         errorMessage = e.message;
       }
       
-      Alert.alert('Apple sign-in error', errorMessage);
+      // Send error to remote logging service
+      console.error('Apple Auth Error Details:', {
+        code: e.code,
+        message: e.message,
+        fullError: e
+      });
+      
+      Alert.alert('Apple sign-in error', `${errorMessage}\n\nCode: ${e.code || 'Unknown'}\nMessage: ${e.message || 'No message'}`);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Sign in to Water AI</Text>
-      <Text style={styles.subtitle}>Sign up to view your personalized water plan.</Text>
+      <Text style={styles.title}>Save your progress</Text>
+      <Text style={styles.subtitle}>Sign up to view your personalized water plan, customized just for you.</Text>
       <TouchableOpacity style={styles.googleButton} onPress={handleGoogleSignIn}>
         <Text style={styles.buttonText}>Sign in with Google</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity 
+        style={[styles.googleButton, { backgroundColor: 'red', marginTop: 16 }]} 
+        onPress={() => {
+          console.log('Test button pressed!');
+          Alert.alert('Test', 'Button works!');
+        }}
+      >
+        <Text style={styles.buttonText}>Test Button</Text>
       </TouchableOpacity>
       {isAppleAuthAvailable && (
         <AppleAuthentication.AppleAuthenticationButton
@@ -167,8 +185,16 @@ export default function AuthScreen() {
           buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
           cornerRadius={8}
           style={{ width: 240, height: 44, marginTop: 16 }}
-          onPress={handleAppleSignIn}
+          onPress={() => {
+            console.log('Apple Auth button pressed!');
+            handleAppleSignIn();
+          }}
         />
+      )}
+      {!isAppleAuthAvailable && (
+        <Text style={{ marginTop: 16, color: 'red', fontFamily: 'Nunito_400Regular' }}>
+          Apple Sign In not available on this device
+        </Text>
       )}
     </View>
   );

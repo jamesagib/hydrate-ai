@@ -79,20 +79,12 @@ export default function SplashScreen({ fontsLoaded }) {
     },
   });
 
-  // Persistent paywall enforcement
+  // App initialization (paywall only shows after plan creation)
   useEffect(() => {
     if (!fontsLoaded) return;
     if (!subscriptionStatus) return;
-    // REVIEW MODE: Show paywall but allow easy access
-    const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
     
-    if (subscriptionStatus.status !== 'ACTIVE') {
-      // Show paywall until user subscribes
-      registerPlacement({ placement: 'app_install' }); // Replace with your actual placement name
-      setLoading(true);
-      return;
-    }
-    // If subscribed, continue with normal splash logic
+    // Don't show paywall here - let users complete onboarding and plan creation first
     let didNavigate = false;
     const initializeApp = async () => {
       try {
