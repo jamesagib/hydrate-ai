@@ -100,32 +100,44 @@ jobs:
         env:
           NODE_ENV: development
 
-      - name: 🔍 Find and Copy Development App
+      - name: 🔍 Find and Copy Development Build
         run: |
-          echo "Looking for development app files..."
+          echo "Looking for development build files..."
+          find . -name "*.ipa" -type f
           find . -name "*.app" -type d
           echo "Current directory contents:"
           ls -la
-          echo "Copying development app to expected location..."
-          # Find the .app file and copy it to the expected location
-          APP_FILE=$(find . -name "*.app" -type d | head -1)
-          if [ -n "$APP_FILE" ]; then
-            echo "Found app: $APP_FILE"
-            cp -R "$APP_FILE" ./app-ios-dev.app
-            echo "Copied to ./app-ios-dev.app"
+          echo "Copying development build to expected location..."
+          # First try to find .ipa file (most common for development builds)
+          IPA_FILE=$(find . -name "*.ipa" -type f | head -1)
+          if [ -n "$IPA_FILE" ]; then
+            echo "Found IPA: $IPA_FILE"
+            cp "$IPA_FILE" ./app-ios-dev.ipa
+            echo "Copied to ./app-ios-dev.ipa"
           else
-            echo "No .app file found!"
-            exit 1
+            # Fallback to .app file
+            APP_FILE=$(find . -name "*.app" -type d | head -1)
+            if [ -n "$APP_FILE" ]; then
+              echo "Found app: $APP_FILE"
+              cp -R "$APP_FILE" ./app-ios-dev.app
+              echo "Copied to ./app-ios-dev.app"
+            else
+              echo "No .ipa or .app file found!"
+              exit 1
+            fi
           fi
 
-      - name: ✅ Verify Development App
+      - name: ✅ Verify Development Build
         run: |
-          echo "Verifying development app exists..."
-          if [ -d "./app-ios-dev.app" ]; then
+          echo "Verifying development build exists..."
+          if [ -f "./app-ios-dev.ipa" ]; then
+            echo "✅ Development IPA found: ./app-ios-dev.ipa"
+            ls -la ./app-ios-dev.ipa
+          elif [ -d "./app-ios-dev.app" ]; then
             echo "✅ Development app found: ./app-ios-dev.app"
             ls -la ./app-ios-dev.app
           else
-            echo "❌ Development app not found!"
+            echo "❌ Development build not found!"
             exit 1
           fi
 
@@ -183,6 +195,7 @@ jobs:
         with:
           name: app-builds
           path: |
+            ./app-ios-dev.ipa
             ./app-ios-dev.app
             ./app-ios-prod.ipa
           retention-days: 7
