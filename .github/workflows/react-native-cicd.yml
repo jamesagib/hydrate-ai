@@ -50,8 +50,32 @@ jobs:
           node-version: "20"
           cache: "npm"
 
+      - name: 🔧 Setup Ruby and Fastlane
+        run: |
+          # Install Ruby if not available
+          if ! command -v ruby &> /dev/null; then
+            echo "Installing Ruby..."
+            brew install ruby
+          fi
+          
+          # Add Ruby to PATH
+          echo 'export PATH="/usr/local/opt/ruby/bin:$PATH"' >> ~/.zshrc
+          source ~/.zshrc
+          
+          # Install Fastlane
+          echo "Installing Fastlane..."
+          gem install fastlane
+          
+          # Verify installations
+          echo "Ruby version:"
+          ruby --version
+          echo "Fastlane version:"
+          fastlane --version
+
       - name: 📦 Install dependencies
         run: |
+          # Configure npm to use HTTPS registry
+          npm config set registry https://registry.npmjs.org/
           npm ci
           npm install -g eas-cli@latest
 
@@ -87,6 +111,18 @@ jobs:
         run: |
           echo "EAS CLI version:"
           eas --version
+
+      - name: 🔍 Verify Fastlane availability
+        run: |
+          echo "Verifying Fastlane is available..."
+          if command -v fastlane &> /dev/null; then
+            echo "✅ Fastlane is available"
+            fastlane --version
+          else
+            echo "❌ Fastlane is not available in PATH"
+            echo "Current PATH: $PATH"
+            exit 1
+          fi
 
       # Build Development (always runs)
       - name: 📱 Build iOS Development
