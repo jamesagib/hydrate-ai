@@ -43,7 +43,7 @@ function SuperwallEventLogger() {
   return null;
 }
 
-export default function SplashScreen({ fontsLoaded }) {
+export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
   const [loading, setLoading] = useState(true);
   const { subscriptionStatus } = useUser();
   const { registerPlacement, state } = usePlacement({
@@ -174,6 +174,11 @@ export default function SplashScreen({ fontsLoaded }) {
           }
         }, 0);
         didNavigate = true;
+        
+        // Notify parent that app initialization is complete
+        if (onAppInitialized) {
+          onAppInitialized();
+        }
       } catch (error) {
         setTimeout(() => {
           console.error('Splash: Error during initialization:', error);
@@ -181,6 +186,10 @@ export default function SplashScreen({ fontsLoaded }) {
         }, 0);
       } finally {
         setLoading(false);
+        // Notify parent that app initialization is complete (even on error)
+        if (onAppInitialized) {
+          onAppInitialized();
+        }
       }
     };
     initializeApp();
@@ -193,7 +202,7 @@ export default function SplashScreen({ fontsLoaded }) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F2EFEB' }}>
         <ActivityIndicator size="large" color="black" />
-        <Text style={{ fontSize: 18, color: 'black' }}>Loading...</Text>
+        <Text style={{ fontSize: 18, color: 'black', fontFamily: 'Nunito_600SemiBold' }}>Loading...</Text>
       </View>
     );
   }

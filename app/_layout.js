@@ -10,7 +10,7 @@ import {
   Nunito_600SemiBold,
   Nunito_700Bold,
 } from '@expo-google-fonts/nunito';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import SplashScreen from './splash';
 import { supabase } from '../lib/supabase';
@@ -22,6 +22,7 @@ export default function RootLayout() {
     Nunito_600SemiBold,
     Nunito_700Bold,
   });
+  const [appInitialized, setAppInitialized] = useState(false);
 
   // Set up Supabase auth listener for session persistence
   useEffect(() => {
@@ -46,15 +47,21 @@ export default function RootLayout() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Show splash screen until fonts are loaded AND app is initialized
+  const showSplash = !fontsLoaded || !appInitialized;
+
   return (
     /// watch out for 'apiKeys' and 'ios' this took 3 HOURS TO DEBUG!!!!!
     <SuperwallProvider apiKeys={{ ios:  process.env.EXPO_PUBLIC_SUPERWALL_API_KEY }}>
       <SafeAreaProvider>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <Slot />
-          {!fontsLoaded && (
+          {showSplash && (
             <View style={styles.splashOverlay} pointerEvents="box-none">
-              <SplashScreen fontsLoaded={false} />
+              <SplashScreen 
+                fontsLoaded={fontsLoaded} 
+                onAppInitialized={() => setAppInitialized(true)}
+              />
             </View>
           )}
         </GestureHandlerRootView>
