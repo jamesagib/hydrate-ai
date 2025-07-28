@@ -147,12 +147,24 @@ jobs:
           echo "Installing CocoaPods via Homebrew..."
           brew install cocoapods
           
-          # Verify installation
+          # Install Fastlane (required for EAS Build)
+          echo "Installing Fastlane..."
+          sudo gem install fastlane
+          
+          # Verify installations
           if command -v pod &> /dev/null; then
             echo "CocoaPods version:"
             pod --version
           else
             echo "❌ CocoaPods installation failed"
+            exit 1
+          fi
+          
+          if command -v fastlane &> /dev/null; then
+            echo "Fastlane version:"
+            fastlane --version
+          else
+            echo "❌ Fastlane installation failed"
             exit 1
           fi
 
