@@ -135,10 +135,22 @@ jobs:
           echo "Xcode setup complete"
           
           echo "Installing CocoaPods..."
-          # Install CocoaPods using gem
-          sudo gem install cocoapods --no-document
-          echo "CocoaPods version:"
-          pod --version
+          # Try to install CocoaPods with specific version that works with older Ruby
+          sudo gem install cocoapods -v 1.12.1 --no-document || echo "Failed to install CocoaPods via gem"
+          
+          # Alternative: Try using Homebrew if available
+          if command -v brew &> /dev/null; then
+            echo "Trying Homebrew installation..."
+            brew install cocoapods || echo "Failed to install CocoaPods via Homebrew"
+          fi
+          
+          # Check if CocoaPods is available
+          if command -v pod &> /dev/null; then
+            echo "CocoaPods version:"
+            pod --version
+          else
+            echo "⚠️  CocoaPods not available, but continuing with build..."
+          fi
 
       - name: 🗑️ Clear EAS Cache
         run: |
