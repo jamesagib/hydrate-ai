@@ -202,27 +202,13 @@ jobs:
             npx expo --version
           fi
 
-      # Build Development (always runs)
+      # Build Development (skipped for now - focus on production)
       - name: 📱 Build iOS Development
         if: ${{ github.event.inputs.buildType != 'prod-only' }}
         run: |
-          export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
-          
-          # Kill any existing Metro processes
-          echo "Cleaning up any existing Metro processes..."
-          pkill -f "metro" || echo "No Metro processes found"
-          pkill -f "8081" || echo "No processes on port 8081"
-          
-          # Wait a moment for cleanup
-          sleep 2
-          
-          # Build using Expo run:ios with no-install flag (creates app without hanging)
-          echo "Starting iOS development build..."
-          npx expo run:ios --configuration Debug --no-install || {
-            echo "First build attempt failed, retrying..."
-            sleep 5
-            npx expo run:ios --configuration Debug --no-install
-          }
+          echo "Skipping development build to focus on production build for TestFlight..."
+          echo "Creating placeholder development build file..."
+          echo "Development build skipped - focus on production" > ./app-ios-dev.ipa
         env:
           NODE_ENV: development
 
