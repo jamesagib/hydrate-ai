@@ -158,8 +158,95 @@ export default function HomeScreen() {
       setCurrentDate(today);
       setHasReachedGoal(false);
       setShowCelebration(false);
+      
+      // Update streaks for the previous day
+      updateStreaksForPreviousDay();
     }
   }, [currentDate]);
+
+  // Function to update streaks when date changes
+  const updateStreaksForPreviousDay = async () => {
+    if (!user) return;
+    
+    try {
+      // Get yesterday's date
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(0, 0, 0, 0);
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Get yesterday's check-ins
+      const { data: yesterdayCheckins } = await supabase
+        .from('hydration_checkins')
+        .select('value')
+        .eq('user_id', user.id)
+        .gte('created_at', yesterday.toISOString())
+        .lt('created_at', today.toISOString());
+      
+      // Calculate yesterday's total intake
+      const yesterdayTotal = yesterdayCheckins?.reduce((sum, checkin) => sum + (checkin.value || 0), 0) || 0;
+      
+      // Check if user met their goal yesterday
+      const metGoalYesterday = yesterdayTotal >= dailyGoal;
+      
+      // Get current streak data
+      const { data: currentStreakData } = await supabase
+        .from('streaks')
+        .select('current_streak, longest_streak, last_checkin_date, goal_days, total_days')
+        .eq('user_id', user.id)
+        .single();
+      
+      let newCurrentStreak = currentStreakData?.current_streak || 0;
+      let newLongestStreak = currentStreakData?.longest_streak || 0;
+      let newGoalDays = currentStreakData?.goal_days || 0;
+      let newTotalDays = currentStreakData?.total_days || 0;
+      
+      // Update streak based on yesterday's performance
+      if (metGoalYesterday) {
+        // User met goal yesterday, continue streak
+        newCurrentStreak += 1;
+        newGoalDays += 1;
+        newTotalDays += 1;
+      } else if (yesterdayCheckins && yesterdayCheckins.length > 0) {
+        // User logged something but didn't meet goal, break streak
+        newCurrentStreak = 0;
+        newTotalDays += 1;
+      }
+      // If no checkins yesterday, don't update anything (user didn't use app)
+      
+      // Update longest streak if current streak is longer
+      if (newCurrentStreak > newLongestStreak) {
+        newLongestStreak = newCurrentStreak;
+      }
+      
+      // Update streak in database
+      const { error } = await supabase
+        .from('streaks')
+        .upsert([{
+          user_id: user.id,
+          current_streak: newCurrentStreak,
+          longest_streak: newLongestStreak,
+          last_checkin_date: yesterday.toISOString().split('T')[0],
+          goal_days: newGoalDays,
+          total_days: newTotalDays,
+          updated_at: new Date().toISOString()
+        }]);
+      
+      if (error) {
+        console.error('Error updating streak:', error);
+      } else {
+        console.log('Streak updated for previous day:', {
+          metGoal: metGoalYesterday,
+          newStreak: newCurrentStreak,
+          yesterdayTotal
+        });
+      }
+    } catch (error) {
+      console.error('Error updating streaks:', error);
+    }
+  };
 
   const getHydrationEmoji = (level) => {
     if (level <= 20) return '🐫';

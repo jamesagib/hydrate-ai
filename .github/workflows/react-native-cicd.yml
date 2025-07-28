@@ -210,12 +210,12 @@ jobs:
           # Wait a moment for cleanup
           sleep 2
           
-          # Build using Expo development build with retry
+          # Build using EAS Build for development (creates IPA without running server)
           echo "Starting iOS development build..."
-          npx expo run:ios --configuration Debug || {
+          eas build --platform ios --profile development --non-interactive --local || {
             echo "First build attempt failed, retrying..."
             sleep 5
-            npx expo run:ios --configuration Debug
+            eas build --platform ios --profile development --non-interactive --local
           }
         env:
           NODE_ENV: development
@@ -285,12 +285,12 @@ jobs:
           # Wait a moment for cleanup
           sleep 2
           
-          # Build using Expo production build with retry
+          # Build using EAS Build for production (creates IPA without running server)
           echo "Starting iOS production build..."
-          npx expo run:ios --configuration Release || {
+          eas build --platform ios --profile production --non-interactive --local || {
             echo "First build attempt failed, retrying..."
             sleep 5
-            npx expo run:ios --configuration Release
+            eas build --platform ios --profile production --non-interactive --local
           }
         env:
           NODE_ENV: production
