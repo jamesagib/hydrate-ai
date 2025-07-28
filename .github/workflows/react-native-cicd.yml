@@ -103,6 +103,9 @@ jobs:
         run: |
           echo "Setting up Expo CLI for local builds..."
           npm install -g @expo/cli@latest
+          # Add npm global bin to PATH
+          export PATH="$PATH:$(npm config get prefix)/bin"
+          echo "Updated PATH: $PATH"
           expo --version
 
       - name: 📦 Install dependencies
