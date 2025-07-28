@@ -121,6 +121,12 @@ jobs:
           npm config set registry https://registry.npmjs.org/
           npm ci
           npm install -g eas-cli@latest
+          
+          # Install CocoaPods dependencies
+          echo "Installing CocoaPods dependencies..."
+          cd ios
+          pod install
+          cd ..
 
 
 
