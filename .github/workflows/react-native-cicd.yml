@@ -202,8 +202,21 @@ jobs:
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
           
-          # Build using Expo development build (no EAS Build limits)
-          npx expo run:ios --configuration Debug
+          # Kill any existing Metro processes
+          echo "Cleaning up any existing Metro processes..."
+          pkill -f "metro" || echo "No Metro processes found"
+          pkill -f "8081" || echo "No processes on port 8081"
+          
+          # Wait a moment for cleanup
+          sleep 2
+          
+          # Build using Expo development build with retry
+          echo "Starting iOS development build..."
+          npx expo run:ios --configuration Debug || {
+            echo "First build attempt failed, retrying..."
+            sleep 5
+            npx expo run:ios --configuration Debug
+          }
         env:
           NODE_ENV: development
 
@@ -264,8 +277,21 @@ jobs:
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
           
-          # Build using Expo production build (no EAS Build limits)
-          npx expo run:ios --configuration Release
+          # Kill any existing Metro processes
+          echo "Cleaning up any existing Metro processes..."
+          pkill -f "metro" || echo "No Metro processes found"
+          pkill -f "8081" || echo "No processes on port 8081"
+          
+          # Wait a moment for cleanup
+          sleep 2
+          
+          # Build using Expo production build with retry
+          echo "Starting iOS production build..."
+          npx expo run:ios --configuration Release || {
+            echo "First build attempt failed, retrying..."
+            sleep 5
+            npx expo run:ios --configuration Release
+          }
         env:
           NODE_ENV: production
 
