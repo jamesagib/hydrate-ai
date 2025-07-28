@@ -59,11 +59,16 @@ export default function PlanResultScreen() {
       setPaywallMessage('Paywall dismissed');
       setTimeout(() => setPaywallMessage(null), 2000);
       
-      // REVIEW MODE: Allow access to full app after paywall is dismissed
+      // Only allow dismissal in review mode or after successful purchase
       const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
-      if (isReviewMode) {
-        console.log('Review mode: Paywall dismissed, navigating to home');
+      const isSuccessfulPurchase = result?.outcome === 'purchased';
+      
+      if (isReviewMode || isSuccessfulPurchase) {
+        console.log('Paywall dismissed - navigating to home');
         setTimeout(() => router.replace('/tabs/home'), 1000);
+      } else {
+        console.log('Paywall dismissed without purchase - staying on paywall');
+        // In production, this shouldn't happen if paywall is non-dismissible
       }
     },
     onError: (error) => {
@@ -84,11 +89,14 @@ export default function PlanResultScreen() {
       setPaywallMessage('Paywall skipped');
       setTimeout(() => setPaywallMessage(null), 2000);
       
-      // REVIEW MODE: Allow access when paywall is skipped
+      // Only allow skip in review mode
       const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
       if (isReviewMode) {
         console.log('Review mode: Paywall skipped, navigating to home');
         setTimeout(() => router.replace('/tabs/home'), 1000);
+      } else {
+        console.log('Paywall skipped in production - this should not happen');
+        // In production, this shouldn't happen if paywall is non-dismissible
       }
     },
   });

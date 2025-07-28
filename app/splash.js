@@ -52,11 +52,16 @@ export default function SplashScreen({ fontsLoaded }) {
     },
     onDismiss: (info, result) => {
       console.log('Splash: Paywall dismissed:', info, result);
-      // REVIEW MODE: Allow access to full app after paywall is dismissed
+      // Only allow dismissal in review mode or after successful purchase
       const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
-      if (isReviewMode) {
-        console.log('Splash: Review mode - paywall dismissed, allowing app access');
+      const isSuccessfulPurchase = result?.outcome === 'purchased';
+      
+      if (isReviewMode || isSuccessfulPurchase) {
+        console.log('Splash: Review mode or successful purchase - allowing app access');
         setLoading(false);
+      } else {
+        console.log('Splash: Paywall dismissed without purchase - staying on paywall');
+        // In production, this shouldn't happen if paywall is non-dismissible
       }
     },
     onError: (error) => {
@@ -70,11 +75,14 @@ export default function SplashScreen({ fontsLoaded }) {
     },
     onSkip: (reason) => {
       console.log('Splash: Paywall skipped:', reason);
-      // REVIEW MODE: Allow access when paywall is skipped
+      // Only allow skip in review mode
       const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
       if (isReviewMode) {
         console.log('Splash: Review mode - paywall skipped, allowing app access');
         setLoading(false);
+      } else {
+        console.log('Splash: Paywall skipped in production - this should not happen');
+        // In production, this shouldn't happen if paywall is non-dismissible
       }
     },
   });
@@ -100,6 +108,8 @@ export default function SplashScreen({ fontsLoaded }) {
         // Check authentication state
         let { data: { session } } = await supabase.auth.getSession();
         console.log('Splash: Initial session found:', !!session);
+        console.log('Splash: Session user:', session?.user?.email);
+        console.log('Splash: Session expires:', session?.expires_at);
         
         // If no session, try to restore from stored tokens
         if (!session) {
@@ -179,7 +189,7 @@ export default function SplashScreen({ fontsLoaded }) {
     };
   }, [fontsLoaded, subscriptionStatus]);
 
-  if (!fontsLoaded || loading || (subscriptionStatus && subscriptionStatus.status !== 'ACTIVE')) {
+  if (!fontsLoaded || loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F2EFEB' }}>
         <ActivityIndicator size="large" color="black" />
