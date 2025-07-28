@@ -15,18 +15,21 @@ on:
         type: choice
         description: "Build type to run"
         options:
-          - dev-only
-          - prod-only
-          - both
-        default: dev-only
+          - dev
+          - prod-apk
+          - prod-aab
+          - ios-dev
+          - ios-prod
+          - publish-stores
+          - all
       platform:
         type: choice
         description: "Platform to build"
-        default: "ios"
+        default: "all"
         options:
-          - ios
           - android
-          - both
+          - ios
+          - all
 
 env:
   EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
@@ -37,17 +40,17 @@ env:
   NODE_OPTIONS: --openssl-legacy-provider
 
 jobs:
-  build-and-deploy:
-    runs-on: macos-latest
+  check-skip:
+    runs-on: ubuntu-latest
     if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     steps:
-      - name: 🔧 Setup Environment
-        run: |
-          echo "Setting up build environment..."
-          echo "Node version: $(node --version)"
-          echo "npm version: $(npm --version)"
-          echo "Xcode version: $(xcodebuild -version)"
+      - name: Skip CI check
+        run: echo "Proceeding with workflow"
 
+  build-and-deploy:
+    needs: check-skip
+    runs-on: macos-latest
+    steps:
       - name: 🏗 Checkout repository
         uses: actions/checkout@v4
 
@@ -57,79 +60,21 @@ jobs:
           node-version: "20"
           cache: "npm"
 
-      - name: 🔧 Setup Expo CLI
-        run: |
-          echo "Setting up Expo CLI for local builds..."
-          npm install -g @expo/cli@latest
-          # Find where npm installed the expo CLI
-          echo "npm prefix: $(npm config get prefix)"
-          echo "npm global bin: $(npm bin -g)"
-          # Add npm global bin to PATH
-          export PATH="$(npm bin -g):$PATH"
-          echo "Updated PATH: $PATH"
-          # Try to find expo in common locations
-          which expo || echo "expo not found in PATH"
-          ls -la $(npm bin -g)/expo || echo "expo not in npm global bin"
-          # Use npx as fallback
-          npx expo --version
-
       - name: 📦 Install dependencies
         run: |
-          # Configure npm to use HTTPS registry
-          npm config set registry https://registry.npmjs.org/
           npm ci
           npm install -g eas-cli@latest
-          
-          # Install CocoaPods dependencies
-          echo "Installing CocoaPods dependencies..."
-          cd ios
-          pod install
-          cd ..
-
-
-
-      - name: 🔧 Setup CocoaPods
-        run: |
-          echo "Installing CocoaPods..."
-          sudo gem install cocoapods
-          echo "CocoaPods version: $(pod --version)"
+      - name: 🔧 Select Xcode 16.2
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app
 
       - name: 🗑️ Clear EAS Cache
         run: |
           echo "Clearing EAS cache to force fresh credential creation..."
           rm -rf ~/.eas-build-local
-
-      - name: 📁 Setup Provisioning Profile and Export Options
+      - name: 📁 Setup Provisioning Profile
         run: |
           echo "${{ secrets.PROVISIONING_PROFILE }}" | base64 -d > Water_AI_Manually_Created_Profile.mobileprovision
           echo "Provisioning profile created"
-          
-          # Install the provisioning profile for automatic signing
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles/
-          cp Water_AI_Manually_Created_Profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
-          echo "Provisioning profile installed for automatic signing"
-          
-          # Create exportOptions.plist for automatic signing
-          echo '<?xml version="1.0" encoding="UTF-8"?>' > exportOptions.plist
-          echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' >> exportOptions.plist
-          echo '<plist version="1.0">' >> exportOptions.plist
-          echo '<dict>' >> exportOptions.plist
-          echo '    <key>method</key>' >> exportOptions.plist
-          echo '    <string>app-store-connect</string>' >> exportOptions.plist
-          echo '    <key>teamID</key>' >> exportOptions.plist
-          echo "    <string>${{ secrets.EXPO_TEAM_ID }}</string>" >> exportOptions.plist
-          echo '    <key>signingStyle</key>' >> exportOptions.plist
-          echo '    <string>automatic</string>' >> exportOptions.plist
-          echo '    <key>stripSwiftSymbols</key>' >> exportOptions.plist
-          echo '    <true/>' >> exportOptions.plist
-          echo '    <key>uploadBitcode</key>' >> exportOptions.plist
-          echo '    <false/>' >> exportOptions.plist
-          echo '    <key>uploadSymbols</key>' >> exportOptions.plist
-          echo '    <true/>' >> exportOptions.plist
-          echo '</dict>' >> exportOptions.plist
-          echo '</plist>' >> exportOptions.plist
-          echo "Export options plist created with automatic signing"
-
       - name: 📱 Setup EAS build cache
         uses: actions/cache@v3
         with:
@@ -137,82 +82,44 @@ jobs:
           key: ${{ runner.os }}-eas-build-local-${{ hashFiles('**/package.json') }}
           restore-keys: |
             ${{ runner.os }}-eas-build-local-
-
       - name: 🔄 Verify EAS CLI installation
         run: |
           echo "EAS CLI version:"
           eas --version
-
-      - name: 🔍 Verify Expo CLI
-        run: |
-          echo "Verifying Expo CLI is available..."
-          # Try npx expo first (most reliable)
-          if npx expo --version &> /dev/null; then
-            echo "✅ Expo CLI is available via npx"
-            npx expo --version
-          elif command -v expo &> /dev/null; then
-            echo "✅ Expo CLI is available in PATH"
-            expo --version
-          else
-            echo "❌ Expo CLI is not available"
-            echo "Trying to install Expo CLI again..."
-            npm install -g @expo/cli@latest
-            npx expo --version
-          fi
-
-      # Build Development (skipped for now - focus on production)
       - name: 📱 Build iOS Development
-        if: ${{ github.event.inputs.buildType != 'prod-only' }}
         run: |
-          echo "Skipping development build to focus on production build for TestFlight..."
-          echo "Creating placeholder development build file..."
-          echo "Development build skipped - focus on production" > ./app-ios-dev.ipa
+          export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
+          eas build --platform ios --profile development --local --non-interactive
         env:
           NODE_ENV: development
 
       - name: 🔍 Find and Copy Development Build
-        if: ${{ github.event.inputs.buildType != 'prod-only' }}
         run: |
           echo "Looking for development build files..."
-          echo "Searching for IPA files:"
-          find . -name "*.ipa" -type f 2>/dev/null || echo "No IPA files found"
-          echo "Searching for APP files:"
-          find . -name "*.app" -type d 2>/dev/null || echo "No APP files found"
-          echo "Searching in ios/build directory:"
-          find ./ios -name "*.ipa" -o -name "*.app" 2>/dev/null || echo "No files in ios/build"
+          find . -name "*.ipa" -type f
+          find . -name "*.app" -type d
           echo "Current directory contents:"
           ls -la
-          echo "ios directory contents:"
-          ls -la ios/ 2>/dev/null || echo "ios directory not found"
-          
           echo "Copying development build to expected location..."
-          IPA_FILE=$(find . -name "*.ipa" -type f 2>/dev/null | head -1)
+          # First try to find .ipa file (most common for development builds)
+          IPA_FILE=$(find . -name "*.ipa" -type f | head -1)
           if [ -n "$IPA_FILE" ]; then
             echo "Found IPA: $IPA_FILE"
-            # Check if it's already in the right location
-            if [ "$IPA_FILE" = "./app-ios-dev.ipa" ]; then
-              echo "IPA already in correct location: ./app-ios-dev.ipa"
-            else
-              cp "$IPA_FILE" ./app-ios-dev.ipa
-              echo "Copied to ./app-ios-dev.ipa"
-            fi
+            cp "$IPA_FILE" ./app-ios-dev.ipa
+            echo "Copied to ./app-ios-dev.ipa"
           else
-            APP_FILE=$(find . -name "*.app" -type d 2>/dev/null | head -1)
+            # Fallback to .app file
+            APP_FILE=$(find . -name "*.app" -type d | head -1)
             if [ -n "$APP_FILE" ]; then
               echo "Found app: $APP_FILE"
               cp -R "$APP_FILE" ./app-ios-dev.app
               echo "Copied to ./app-ios-dev.app"
             else
               echo "No .ipa or .app file found!"
-              echo "Build may have failed or created files in unexpected location"
-              echo "Creating a placeholder file to prevent workflow failure"
-              echo "Build completed but no app file found" > ./app-ios-dev-placeholder.txt
-              exit 0  # Don't fail the workflow, just warn
+              exit 1
             fi
           fi
-
       - name: ✅ Verify Development Build
-        if: ${{ github.event.inputs.buildType != 'prod-only' }}
         run: |
           echo "Verifying development build exists..."
           if [ -f "./app-ios-dev.ipa" ]; then
@@ -225,85 +132,52 @@ jobs:
             echo "❌ Development build not found!"
             exit 1
           fi
-
-      # Build Production (only when requested)
       - name: 📱 Build iOS Production
-        if: ${{ github.event.inputs.buildType == 'prod-only' || github.event.inputs.buildType == 'both' }}
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
-          
-          # Kill any existing Metro processes
-          echo "Cleaning up any existing Metro processes..."
-          pkill -f "metro" || echo "No Metro processes found"
-          pkill -f "8081" || echo "No processes on port 8081"
-          
-          # Wait a moment for cleanup
-          sleep 2
-          
-          # Build using Expo with proper flags to avoid Metro hanging
-          echo "Starting iOS production build..."
-          
-          # Set environment to prevent Metro from starting
-          export CI=true
-          export EXPO_NO_METRO=1
-          
-          # Build using Expo with specific flags - build only, don't run
-          echo "Building with Expo..."
-                    # Build and archive with proper signing
-          echo "Building and archiving with proper signing..."
-          cd ios
-          xcodebuild -workspace HydrateAI.xcworkspace -scheme HydrateAI -configuration Release -destination 'generic/platform=iOS' archive -archivePath ../HydrateAI.xcarchive
-          cd ..
-          
-          # Export the archive to signed IPA
-          echo "Exporting archive to signed IPA..."
-          xcodebuild -exportArchive -archivePath HydrateAI.xcarchive -exportPath ./export -exportOptionsPlist exportOptions.plist
-          
-          # Copy the exported IPA to the expected location
-          if [ -f "./export/HydrateAI.ipa" ]; then
-            cp "./export/HydrateAI.ipa" "./app-ios-prod.ipa"
-            echo "✅ Successfully created signed IPA: ./app-ios-prod.ipa"
-          else
-            echo "❌ Failed to create signed IPA"
-            exit 1
-          fi
+          eas build --platform ios --profile production --local --non-interactive
         env:
           NODE_ENV: production
 
-      - name: 🔍 Find and Copy Production IPA
-        if: ${{ github.event.inputs.buildType == 'prod-only' || github.event.inputs.buildType == 'both' }}
+      - name: 🔍 Find and Copy IPA File
         run: |
-          echo "Looking for production IPA files..."
+          echo "Looking for IPA files..."
           find . -name "*.ipa" -type f
           echo "Current directory contents:"
           ls -la
           echo "Copying IPA to expected location..."
+          # Find the IPA file and copy it to the expected location
           IPA_FILE=$(find . -name "*.ipa" -type f | head -1)
           if [ -n "$IPA_FILE" ]; then
             echo "Found IPA: $IPA_FILE"
-            # Check if it's already in the right location
-            if [ "$IPA_FILE" = "./app-ios-prod.ipa" ]; then
-              echo "IPA already in correct location: ./app-ios-prod.ipa"
-            else
-              cp "$IPA_FILE" ./app-ios-prod.ipa
-              echo "Copied to ./app-ios-prod.ipa"
-            fi
+            cp "$IPA_FILE" ./app-ios-prod.ipa
+            echo "Copied to ./app-ios-prod.ipa"
           else
             echo "No IPA file found!"
             exit 1
           fi
-
-      - name: ✅ Verify Production IPA
-        if: ${{ github.event.inputs.buildType == 'prod-only' || github.event.inputs.buildType == 'both' }}
+      - name: ✅ Verify IPA File
         run: |
-          echo "Verifying production IPA file exists..."
+          echo "Verifying IPA file exists..."
           if [ -f "./app-ios-prod.ipa" ]; then
-            echo "✅ Production IPA file found: ./app-ios-prod.ipa"
+            echo "✅ IPA file found: ./app-ios-prod.ipa"
             ls -la ./app-ios-prod.ipa
           else
-            echo "❌ Production IPA file not found!"
+            echo "❌ IPA file not found!"
             exit 1
           fi
+      # - name: 🚀 Submit to App Store
+      #   run: |
+      #     # Clear any API key environment variables that might interfere
+      #     unset APP_STORE_CONNECT_API_KEY
+      #     unset APP_STORE_CONNECT_API_KEY_ID
+      #     unset APP_STORE_CONNECT_ISSUER_ID
+      #     eas submit -p ios --path ./app-ios-prod.ipa --non-interactive
+      #   env:
+      #     EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      #     EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
+      #     EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
+      #     EXPO_TEAM_ID: ${{ secrets.EXPO_TEAM_ID }}
 
       - name: 📦 Upload build artifacts to GitHub
         uses: actions/upload-artifact@v4
