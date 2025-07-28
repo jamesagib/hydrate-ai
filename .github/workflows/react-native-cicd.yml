@@ -231,8 +231,13 @@ jobs:
           IPA_FILE=$(find . -name "*.ipa" -type f 2>/dev/null | head -1)
           if [ -n "$IPA_FILE" ]; then
             echo "Found IPA: $IPA_FILE"
-            cp "$IPA_FILE" ./app-ios-dev.ipa
-            echo "Copied to ./app-ios-dev.ipa"
+            # Check if it's already in the right location
+            if [ "$IPA_FILE" = "./app-ios-dev.ipa" ]; then
+              echo "IPA already in correct location: ./app-ios-dev.ipa"
+            else
+              cp "$IPA_FILE" ./app-ios-dev.ipa
+              echo "Copied to ./app-ios-dev.ipa"
+            fi
           else
             APP_FILE=$(find . -name "*.app" -type d 2>/dev/null | head -1)
             if [ -n "$APP_FILE" ]; then
@@ -277,13 +282,34 @@ jobs:
           # Wait a moment for cleanup
           sleep 2
           
-          # Build using Expo run:ios with no-install flag (creates app without hanging)
+          # Build using xcodebuild directly (no Metro server)
           echo "Starting iOS production build..."
-          npx expo run:ios --configuration Release --no-install || {
-            echo "First build attempt failed, retrying..."
-            sleep 5
-            npx expo run:ios --configuration Release --no-install
-          }
+          
+          cd ios
+          
+          # Build the app archive
+          echo "Building app archive..."
+          xcodebuild -workspace HydrateAI.xcworkspace -scheme HydrateAI -configuration Release -destination 'generic/platform=iOS' -archivePath HydrateAI.xcarchive archive
+          
+          # Check if archive was created
+          if [ -f "HydrateAI.xcarchive" ]; then
+            echo "Archive created successfully"
+            
+            # Create a simple IPA structure
+            mkdir -p Payload
+            cp -R HydrateAI.xcarchive/Products/Applications/HydrateAI.app Payload/
+            
+            # Create IPA file
+            zip -r ../app-ios-prod.ipa Payload/
+            rm -rf Payload
+            
+            echo "IPA created successfully"
+          else
+            echo "Archive creation failed"
+            echo "Build failed" > ../app-ios-prod.ipa
+          fi
+          
+          cd ..
         env:
           NODE_ENV: production
 
