@@ -167,10 +167,38 @@ jobs:
           echo "Clearing EAS cache to force fresh credential creation..."
           rm -rf ~/.eas-build-local
 
-      - name: 📁 Setup Provisioning Profile
+      - name: 📁 Setup Provisioning Profile and Export Options
         run: |
           echo "${{ secrets.PROVISIONING_PROFILE }}" | base64 -d > Water_AI_Manually_Created_Profile.mobileprovision
           echo "Provisioning profile created"
+          
+          # Create exportOptions.plist for proper IPA export
+          echo '<?xml version="1.0" encoding="UTF-8"?>' > exportOptions.plist
+          echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' >> exportOptions.plist
+          echo '<plist version="1.0">' >> exportOptions.plist
+          echo '<dict>' >> exportOptions.plist
+          echo '    <key>method</key>' >> exportOptions.plist
+          echo '    <string>app-store</string>' >> exportOptions.plist
+          echo '    <key>teamID</key>' >> exportOptions.plist
+          echo "    <string>${{ secrets.EXPO_TEAM_ID }}</string>" >> exportOptions.plist
+          echo '    <key>provisioningProfiles</key>' >> exportOptions.plist
+          echo '    <dict>' >> exportOptions.plist
+          echo '        <key>com.hydrate.ai</key>' >> exportOptions.plist
+          echo '        <string>Water_AI_Manually_Created_Profile</string>' >> exportOptions.plist
+          echo '    </dict>' >> exportOptions.plist
+          echo '    <key>signingCertificate</key>' >> exportOptions.plist
+          echo '    <string>Apple Distribution</string>' >> exportOptions.plist
+          echo '    <key>signingStyle</key>' >> exportOptions.plist
+          echo '    <string>manual</string>' >> exportOptions.plist
+          echo '    <key>stripSwiftSymbols</key>' >> exportOptions.plist
+          echo '    <true/>' >> exportOptions.plist
+          echo '    <key>uploadBitcode</key>' >> exportOptions.plist
+          echo '    <false/>' >> exportOptions.plist
+          echo '    <key>uploadSymbols</key>' >> exportOptions.plist
+          echo '    <true/>' >> exportOptions.plist
+          echo '</dict>' >> exportOptions.plist
+          echo '</plist>' >> exportOptions.plist
+          echo "Export options plist created"
 
       - name: 📱 Setup EAS build cache
         uses: actions/cache@v3
@@ -291,24 +319,24 @@ jobs:
           
           # Build using Expo with specific flags - build only, don't run
           echo "Building with Expo..."
-          # Use xcodebuild directly to avoid Metro hanging
+                    # Use xcodebuild to build and archive properly
           cd ios
-          xcodebuild -workspace HydrateAI.xcworkspace -scheme HydrateAI -configuration Release -destination 'generic/platform=iOS' build
+          # Build and archive in one step to ensure proper signing
+          xcodebuild -workspace HydrateAI.xcworkspace -scheme HydrateAI -configuration Release -destination 'generic/platform=iOS' archive -archivePath ../HydrateAI.xcarchive
           cd ..
-            
-            # Look for the built app in the standard Xcode build location
-            echo "Looking for built app in Xcode build directory..."
-            find ~/Library/Developer/Xcode/DerivedData -name "HydrateAI.app" -type d 2>/dev/null | head -1 | while read app_path; do
-              echo "Found built app: $app_path"
-              # Create IPA structure
-              mkdir -p temp_ipa/Payload
-              cp -R "$app_path" temp_ipa/Payload/
-              cd temp_ipa
-              zip -r ../app-ios-prod.ipa Payload/
-              cd ..
-              rm -rf temp_ipa
-              echo "Created IPA from built app"
-            done
+          
+          # Export the archive to IPA with proper signing
+          echo "Exporting archive to IPA with proper signing..."
+          xcodebuild -exportArchive -archivePath HydrateAI.xcarchive -exportPath ./export -exportOptionsPlist exportOptions.plist
+          
+          # Copy the exported IPA to the expected location
+          if [ -f "./export/HydrateAI.ipa" ]; then
+            cp "./export/HydrateAI.ipa" "./app-ios-prod.ipa"
+            echo "✅ Successfully created signed IPA: ./app-ios-prod.ipa"
+          else
+            echo "❌ Failed to create signed IPA"
+            exit 1
+          fi
         env:
           NODE_ENV: production
 
