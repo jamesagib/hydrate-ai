@@ -160,12 +160,18 @@ jobs:
       - name: 🔍 Verify Expo CLI
         run: |
           echo "Verifying Expo CLI is available..."
-          if command -v expo &> /dev/null; then
-            echo "✅ Expo CLI is available"
+          # Try npx expo first (most reliable)
+          if npx expo --version &> /dev/null; then
+            echo "✅ Expo CLI is available via npx"
+            npx expo --version
+          elif command -v expo &> /dev/null; then
+            echo "✅ Expo CLI is available in PATH"
             expo --version
           else
             echo "❌ Expo CLI is not available"
-            exit 1
+            echo "Trying to install Expo CLI again..."
+            npm install -g @expo/cli@latest
+            npx expo --version
           fi
 
       # Build Development (always runs)
