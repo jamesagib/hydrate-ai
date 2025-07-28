@@ -147,24 +147,12 @@ jobs:
           echo "Installing CocoaPods via Homebrew..."
           brew install cocoapods
           
-          # Install Fastlane (required for EAS Build)
-          echo "Installing Fastlane..."
-          sudo gem install fastlane
-          
-          # Verify installations
+          # Verify CocoaPods installation
           if command -v pod &> /dev/null; then
             echo "CocoaPods version:"
             pod --version
           else
             echo "❌ CocoaPods installation failed"
-            exit 1
-          fi
-          
-          if command -v fastlane &> /dev/null; then
-            echo "Fastlane version:"
-            fastlane --version
-          else
-            echo "❌ Fastlane installation failed"
             exit 1
           fi
 
@@ -222,12 +210,12 @@ jobs:
           # Wait a moment for cleanup
           sleep 2
           
-          # Build using EAS Build for development (creates IPA without running server)
+          # Build using Expo run:ios with no-install flag (creates app without hanging)
           echo "Starting iOS development build..."
-          eas build --platform ios --profile development --non-interactive --local || {
+          npx expo run:ios --configuration Debug --no-install || {
             echo "First build attempt failed, retrying..."
             sleep 5
-            eas build --platform ios --profile development --non-interactive --local
+            npx expo run:ios --configuration Debug --no-install
           }
         env:
           NODE_ENV: development
@@ -297,12 +285,12 @@ jobs:
           # Wait a moment for cleanup
           sleep 2
           
-          # Build using EAS Build for production (creates IPA without running server)
+          # Build using Expo run:ios with no-install flag (creates app without hanging)
           echo "Starting iOS production build..."
-          eas build --platform ios --profile production --non-interactive --local || {
+          npx expo run:ios --configuration Release --no-install || {
             echo "First build attempt failed, retrying..."
             sleep 5
-            eas build --platform ios --profile production --non-interactive --local
+            npx expo run:ios --configuration Release --no-install
           }
         env:
           NODE_ENV: production
