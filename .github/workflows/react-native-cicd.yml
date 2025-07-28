@@ -109,17 +109,23 @@ jobs:
           cp Water_AI_Manually_Created_Profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
           echo "Provisioning profile installed for automatic signing"
           
-          # Create minimal exportOptions.plist for automatic signing
+          # Create exportOptions.plist for automatic signing
           echo '<?xml version="1.0" encoding="UTF-8"?>' > exportOptions.plist
           echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' >> exportOptions.plist
           echo '<plist version="1.0">' >> exportOptions.plist
           echo '<dict>' >> exportOptions.plist
           echo '    <key>method</key>' >> exportOptions.plist
-          echo '    <string>app-store</string>' >> exportOptions.plist
+          echo '    <string>app-store-connect</string>' >> exportOptions.plist
           echo '    <key>teamID</key>' >> exportOptions.plist
           echo "    <string>${{ secrets.EXPO_TEAM_ID }}</string>" >> exportOptions.plist
           echo '    <key>signingStyle</key>' >> exportOptions.plist
           echo '    <string>automatic</string>' >> exportOptions.plist
+          echo '    <key>stripSwiftSymbols</key>' >> exportOptions.plist
+          echo '    <true/>' >> exportOptions.plist
+          echo '    <key>uploadBitcode</key>' >> exportOptions.plist
+          echo '    <false/>' >> exportOptions.plist
+          echo '    <key>uploadSymbols</key>' >> exportOptions.plist
+          echo '    <true/>' >> exportOptions.plist
           echo '</dict>' >> exportOptions.plist
           echo '</plist>' >> exportOptions.plist
           echo "Export options plist created with automatic signing"
@@ -243,21 +249,22 @@ jobs:
           
           # Build using Expo with specific flags - build only, don't run
           echo "Building with Expo..."
-                    # Use EAS Build for proper signing and IPA creation
-          echo "Building with EAS Build for proper signing..."
-          eas build --platform ios --profile production --non-interactive
+                    # Build and archive with proper signing
+          echo "Building and archiving with proper signing..."
+          cd ios
+          xcodebuild -workspace HydrateAI.xcworkspace -scheme HydrateAI -configuration Release -destination 'generic/platform=iOS' archive -archivePath ../HydrateAI.xcarchive
+          cd ..
           
-          # Find the built IPA
-          echo "Looking for EAS build output..."
-          find . -name "*.ipa" -type f | head -1 | while read ipa_file; do
-            echo "Found IPA: $ipa_file"
-            cp "$ipa_file" "./app-ios-prod.ipa"
-            echo "✅ Successfully copied signed IPA: ./app-ios-prod.ipa"
-          done
+          # Export the archive to signed IPA
+          echo "Exporting archive to signed IPA..."
+          xcodebuild -exportArchive -archivePath HydrateAI.xcarchive -exportPath ./export -exportOptionsPlist exportOptions.plist
           
-          # Verify the IPA was created
-          if [ ! -f "./app-ios-prod.ipa" ]; then
-            echo "❌ Failed to create signed IPA with EAS"
+          # Copy the exported IPA to the expected location
+          if [ -f "./export/HydrateAI.ipa" ]; then
+            cp "./export/HydrateAI.ipa" "./app-ios-prod.ipa"
+            echo "✅ Successfully created signed IPA: ./app-ios-prod.ipa"
+          else
+            echo "❌ Failed to create signed IPA"
             exit 1
           fi
         env:
