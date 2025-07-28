@@ -282,34 +282,35 @@ jobs:
           # Wait a moment for cleanup
           sleep 2
           
-          # Build using xcodebuild directly (no Metro server)
+          # Build using Expo with proper flags to avoid Metro hanging
           echo "Starting iOS production build..."
           
-          cd ios
+          # Set environment to prevent Metro from starting
+          export CI=true
+          export EXPO_NO_METRO=1
           
-          # Build the app archive
-          echo "Building app archive..."
-          xcodebuild -workspace HydrateAI.xcworkspace -scheme HydrateAI -configuration Release -destination 'generic/platform=iOS' -archivePath HydrateAI.xcarchive archive
-          
-          # Check if archive was created
-          if [ -f "HydrateAI.xcarchive" ]; then
-            echo "Archive created successfully"
+          # Build using Expo with specific flags
+          echo "Building with Expo..."
+          npx expo run:ios --configuration Release --no-install --no-build-cache || {
+            echo "Expo build failed, trying alternative approach..."
+            # Alternative: Try building just the app without running
+            cd ios
+            xcodebuild -workspace HydrateAI.xcworkspace -scheme HydrateAI -configuration Release -destination 'generic/platform=iOS' build
+            cd ..
             
-            # Create a simple IPA structure
-            mkdir -p Payload
-            cp -R HydrateAI.xcarchive/Products/Applications/HydrateAI.app Payload/
-            
-            # Create IPA file
-            zip -r ../app-ios-prod.ipa Payload/
-            rm -rf Payload
-            
-            echo "IPA created successfully"
-          else
-            echo "Archive creation failed"
-            echo "Build failed" > ../app-ios-prod.ipa
-          fi
-          
-          cd ..
+            # Look for the built app
+            find . -name "*.app" -type d 2>/dev/null | head -1 | while read app_path; do
+              echo "Found built app: $app_path"
+              # Create IPA structure
+              mkdir -p temp_ipa/Payload
+              cp -R "$app_path" temp_ipa/Payload/
+              cd temp_ipa
+              zip -r ../app-ios-prod.ipa Payload/
+              cd ..
+              rm -rf temp_ipa
+              echo "Created IPA from built app"
+            done
+          }
         env:
           NODE_ENV: production
 
@@ -324,8 +325,13 @@ jobs:
           IPA_FILE=$(find . -name "*.ipa" -type f | head -1)
           if [ -n "$IPA_FILE" ]; then
             echo "Found IPA: $IPA_FILE"
-            cp "$IPA_FILE" ./app-ios-prod.ipa
-            echo "Copied to ./app-ios-prod.ipa"
+            # Check if it's already in the right location
+            if [ "$IPA_FILE" = "./app-ios-prod.ipa" ]; then
+              echo "IPA already in correct location: ./app-ios-prod.ipa"
+            else
+              cp "$IPA_FILE" ./app-ios-prod.ipa
+              echo "Copied to ./app-ios-prod.ipa"
+            fi
           else
             echo "No IPA file found!"
             exit 1
