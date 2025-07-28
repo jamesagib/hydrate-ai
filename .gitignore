@@ -39,3 +39,38 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# Protect sensitive app directories (optional - uncomment if you want to hide these)
+# app/
+# lib/
+# supabase/functions/
+
+# Build artifacts
+*.ipa
+*.app
+build/
+ios/build/
+android/build/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Temporary folders
+tmp/
+temp/

@@ -38,57 +38,15 @@ env:
 
 jobs:
   build-and-deploy:
-    runs-on: self-hosted
+    runs-on: macos-latest
     if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
-    env:
-      PATH: /usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$PATH
     steps:
-      - name: 🔧 Verify System Utilities
+      - name: 🔧 Setup Environment
         run: |
-          echo "Checking system utilities..."
-          echo "Current PATH: $PATH"
-          echo "System info:"
-          uname -a
-          echo "Checking for tar:"
-          which tar || echo "tar not found in PATH"
-          echo "Checking for common system utilities:"
-          which ls || echo "ls not found"
-          which cp || echo "cp not found"
-          which mv || echo "mv not found"
-          which mkdir || echo "mkdir not found"
-          echo "Checking /usr/bin for tar:"
-          ls -la /usr/bin/tar || echo "tar not in /usr/bin"
-          echo "Checking /bin for tar:"
-          ls -la /bin/tar || echo "tar not in /bin"
-          
-          # Try to fix PATH if needed
-          if ! command -v tar &> /dev/null; then
-            echo "tar not found, attempting to fix PATH..."
-            export PATH="/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
-            echo "Updated PATH: $PATH"
-            which tar || echo "tar still not found after PATH update"
-            
-            # If still not found, try to install it
-            if ! command -v tar &> /dev/null; then
-              echo "tar still not found, attempting to install..."
-              if command -v brew &> /dev/null; then
-                arch -arm64 brew install gnu-tar
-                export PATH="/opt/homebrew/bin:$PATH"
-              else
-                echo "Homebrew not available, cannot install tar"
-              fi
-            fi
-          fi
-          
-          # Final verification
-          echo "Final tar verification:"
-          if command -v tar &> /dev/null; then
-            echo "✅ tar is available at: $(which tar)"
-            tar --version || echo "tar version check failed"
-          else
-            echo "❌ tar is still not available"
-            exit 1
-          fi
+          echo "Setting up build environment..."
+          echo "Node version: $(node --version)"
+          echo "npm version: $(npm --version)"
+          echo "Xcode version: $(xcodebuild -version)"
 
       - name: 🏗 Checkout repository
         uses: actions/checkout@v4
@@ -130,37 +88,11 @@ jobs:
 
 
 
-      - name: 🔧 Setup Xcode and CocoaPods
+      - name: 🔧 Setup CocoaPods
         run: |
-          echo "Current Xcode path:"
-          xcode-select -p
-          echo "Xcode version:"
-          xcodebuild -version
-          echo "Setting Xcode path..."
-          sudo xcode-select -s /Applications/Xcode.app
-          echo "Xcode setup complete"
-          
           echo "Installing CocoaPods..."
-          # Install Homebrew first if not available
-          if ! command -v brew &> /dev/null; then
-            echo "Installing Homebrew..."
-            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-            echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
-            eval "$(/opt/homebrew/bin/brew shellenv)"
-          fi
-          
-          # Install CocoaPods via Homebrew
-          echo "Installing CocoaPods via Homebrew..."
-          brew install cocoapods
-          
-          # Verify CocoaPods installation
-          if command -v pod &> /dev/null; then
-            echo "CocoaPods version:"
-            pod --version
-          else
-            echo "❌ CocoaPods installation failed"
-            exit 1
-          fi
+          sudo gem install cocoapods
+          echo "CocoaPods version: $(pod --version)"
 
       - name: 🗑️ Clear EAS Cache
         run: |
@@ -311,27 +243,21 @@ jobs:
           
           # Build using Expo with specific flags - build only, don't run
           echo "Building with Expo..."
-                    # Build without archiving to avoid signing issues
-          echo "Building without archiving to avoid signing issues..."
-          cd ios
-          xcodebuild -workspace HydrateAI.xcworkspace -scheme HydrateAI -configuration Release -destination 'generic/platform=iOS' build
-          cd ..
+                    # Use EAS Build for proper signing and IPA creation
+          echo "Building with EAS Build for proper signing..."
+          eas build --platform ios --profile production --non-interactive
           
-          # Find the built app and create IPA manually
-          echo "Looking for built app..."
-          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "HydrateAI.app" -type d 2>/dev/null | head -1)
-          if [ -n "$APP_PATH" ]; then
-            echo "Found app: $APP_PATH"
-            # Create IPA structure
-            mkdir -p temp_ipa/Payload
-            cp -R "$APP_PATH" temp_ipa/Payload/
-            cd temp_ipa
-            zip -r ../app-ios-prod.ipa Payload/
-            cd ..
-            rm -rf temp_ipa
-            echo "✅ Successfully created unsigned IPA: ./app-ios-prod.ipa"
-          else
-            echo "❌ Failed to find built app"
+          # Find the built IPA
+          echo "Looking for EAS build output..."
+          find . -name "*.ipa" -type f | head -1 | while read ipa_file; do
+            echo "Found IPA: $ipa_file"
+            cp "$ipa_file" "./app-ios-prod.ipa"
+            echo "✅ Successfully copied signed IPA: ./app-ios-prod.ipa"
+          done
+          
+          # Verify the IPA was created
+          if [ ! -f "./app-ios-prod.ipa" ]; then
+            echo "❌ Failed to create signed IPA with EAS"
             exit 1
           fi
         env:
