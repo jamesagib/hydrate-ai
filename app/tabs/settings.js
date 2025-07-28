@@ -88,6 +88,8 @@ export default function ProfileScreen() {
     router.replace('/');
   };
 
+
+
   const handleEditField = (field, currentValue) => {
     setEditingField(field);
     setEditValue(currentValue || '');
@@ -269,6 +271,8 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
+
+
         <View style={{ paddingHorizontal: 20, marginBottom: 30 }}>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Text style={styles.logoutButtonText}>Logout</Text>
@@ -420,6 +424,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Nunito_600SemiBold',
   },
+
   editIcon: {
     fontSize: 16,
     marginLeft: 8,

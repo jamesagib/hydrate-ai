@@ -41,9 +41,7 @@ jobs:
     runs-on: self-hosted
     if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     env:
-      PATH: /usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$HOME/bin:$HOME/.gem/bin:$PATH
-      RUBYOPT: "-W0"
-      RUBYZIP_V3_API_WARN: "false"
+      PATH: /usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$PATH
     steps:
       - name: 🔧 Verify System Utilities
         run: |
@@ -101,66 +99,11 @@ jobs:
           node-version: "20"
           cache: "npm"
 
-      - name: 🔧 Setup Ruby and Fastlane
+      - name: 🔧 Setup Expo CLI
         run: |
-          # Check architecture and use appropriate approach
-          echo "Current architecture: $(uname -m)"
-          
-          # Use system Ruby and install Fastlane to user directory
-          echo "Using system Ruby..."
-          
-          # Check if system Ruby is available
-          if command -v ruby &> /dev/null; then
-            echo "System Ruby found: $(which ruby)"
-            ruby --version
-          else
-            echo "❌ No Ruby found on system"
-            exit 1
-          fi
-          
-          # Set up user gem directory to avoid permission issues
-          export GEM_HOME="$HOME/.gem"
-          export GEM_PATH="$HOME/.gem"
-          export PATH="$GEM_HOME/bin:$PATH"
-          
-          # Add to shell configuration for persistence
-          echo 'export GEM_HOME="$HOME/.gem"' >> ~/.zshrc
-          echo 'export GEM_PATH="$HOME/.gem"' >> ~/.zshrc
-          echo 'export PATH="$GEM_HOME/bin:$PATH"' >> ~/.zshrc
-          
-          # Create gem directory if it doesn't exist
-          mkdir -p "$GEM_HOME"
-          
-          # Install Fastlane to user directory with suppressed warnings (only if not cached)
-          if ! command -v fastlane &> /dev/null; then
-            echo "Installing Fastlane to user directory..."
-            RUBYOPT="-W0" gem install fastlane --user-install --no-document
-          else
-            echo "Fastlane already installed (from cache)"
-          fi
-          
-          # Create symlink in user's bin directory
-          echo "Creating Fastlane symlink in user bin..."
-          mkdir -p "$HOME/bin"
-          ln -sf "$GEM_HOME/bin/fastlane" "$HOME/bin/fastlane"
-          
-          # Add user bin to PATH
-          export PATH="$HOME/bin:$PATH"
-          echo 'export PATH="$HOME/bin:$PATH"' >> ~/.zshrc
-          
-          # Verify installations
-          echo "Ruby version:"
-          ruby --version
-          echo "Ruby location:"
-          which ruby
-          echo "Fastlane version:"
-          fastlane --version
-          echo "Fastlane location:"
-          which fastlane
-          echo "User gem directory:"
-          ls -la "$GEM_HOME/bin/" | grep fastlane || echo "Fastlane not in gem bin"
-          echo "User bin directory:"
-          ls -la "$HOME/bin/" | grep fastlane || echo "Fastlane not in user bin"
+          echo "Setting up Expo CLI for local builds..."
+          npm install -g @expo/cli@latest
+          expo --version
 
       - name: 📦 Install dependencies
         run: |
@@ -169,15 +112,7 @@ jobs:
           npm ci
           npm install -g eas-cli@latest
 
-      - name: 📦 Cache Ruby gems
-        uses: actions/cache@v3
-        with:
-          path: |
-            $HOME/.gem
-            $HOME/bin
-          key: ${{ runner.os }}-ruby-gems-${{ hashFiles('**/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-ruby-gems-
+
 
       - name: 🔧 Setup Xcode
         run: |
@@ -212,27 +147,14 @@ jobs:
           echo "EAS CLI version:"
           eas --version
 
-      - name: 🔍 Verify Fastlane availability
+      - name: 🔍 Verify Expo CLI
         run: |
-          # Ensure user gem environment is loaded
-          export GEM_HOME="$HOME/.gem"
-          export PATH="$HOME/bin:$GEM_HOME/bin:$PATH"
-          
-          echo "Verifying Fastlane is available..."
-          if command -v fastlane &> /dev/null; then
-            echo "✅ Fastlane is available"
-            fastlane --version
-            echo "Fastlane location:"
-            which fastlane
+          echo "Verifying Expo CLI is available..."
+          if command -v expo &> /dev/null; then
+            echo "✅ Expo CLI is available"
+            expo --version
           else
-            echo "❌ Fastlane is not available in PATH"
-            echo "Current PATH: $PATH"
-            echo "Ruby location:"
-            which ruby
-            echo "Checking user gem directory:"
-            ls -la "$HOME/.gem/bin/" | grep fastlane || echo "Fastlane not in gem bin"
-            echo "Checking user bin directory:"
-            ls -la "$HOME/bin/" | grep fastlane || echo "Fastlane not in user bin"
+            echo "❌ Expo CLI is not available"
             exit 1
           fi
 
@@ -240,19 +162,12 @@ jobs:
       - name: 📱 Build iOS Development
         if: ${{ github.event.inputs.buildType != 'prod-only' }}
         run: |
-          # Ensure Fastlane is in PATH for EAS build
-          export GEM_HOME="$HOME/.gem"
-          export PATH="$HOME/bin:$GEM_HOME/bin:$PATH"
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
           
-          # Verify Fastlane is available before building
-          echo "Verifying Fastlane availability before EAS build..."
-          which fastlane || echo "Fastlane not found in PATH: $PATH"
-          
-          eas build --platform ios --profile development --local --non-interactive
+          # Build using Expo development build (no EAS Build limits)
+          npx expo run:ios --configuration Debug
         env:
           NODE_ENV: development
-          PATH: $HOME/bin:$HOME/.gem/bin:$PATH
 
       - name: 🔍 Find and Copy Development Build
         if: ${{ github.event.inputs.buildType != 'prod-only' }}
@@ -299,19 +214,12 @@ jobs:
       - name: 📱 Build iOS Production
         if: ${{ github.event.inputs.buildType == 'prod-only' || github.event.inputs.buildType == 'both' }}
         run: |
-          # Ensure Fastlane is in PATH for EAS build
-          export GEM_HOME="$HOME/.gem"
-          export PATH="$HOME/bin:$GEM_HOME/bin:$PATH"
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
           
-          # Verify Fastlane is available before building
-          echo "Verifying Fastlane availability before EAS build..."
-          which fastlane || echo "Fastlane not found in PATH: $PATH"
-          
-          eas build --platform ios --profile production --local --non-interactive
+          # Build using Expo production build (no EAS Build limits)
+          npx expo run:ios --configuration Release
         env:
           NODE_ENV: production
-          PATH: $HOME/bin:$HOME/.gem/bin:$PATH
 
       - name: 🔍 Find and Copy Production IPA
         if: ${{ github.event.inputs.buildType == 'prod-only' || github.event.inputs.buildType == 'both' }}

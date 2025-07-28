@@ -128,15 +128,60 @@ export default function StatsScreen() {
           setAverageHydration(avg);
         }
 
-        // Calculate achievements
-        calculateAchievements();
+          // Fetch and calculate achievements
+  fetchAchievements();
 
-      } catch (error) {
-        console.error('Error fetching stats data:', error);
-      } finally {
-        setLoading(false);
+          } catch (error) {
+      console.error('Error fetching stats data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch achievements from database
+  const fetchAchievements = async () => {
+    if (!user) return;
+    
+    try {
+      // Fetch all achievement templates and user's earned achievements
+      const { data: templates, error: templatesError } = await supabase
+        .from('achievement_templates')
+        .select('*')
+        .eq('is_active', true);
+      
+      if (templatesError) {
+        console.error('Error fetching achievement templates:', templatesError);
+        return;
       }
-    };
+
+      const { data: earnedAchievements, error: earnedError } = await supabase
+        .from('achievements')
+        .select('achievement_id')
+        .eq('user_id', user.id);
+      
+      if (earnedError) {
+        console.error('Error fetching earned achievements:', earnedError);
+        return;
+      }
+
+      // Create a set of earned achievement IDs for quick lookup
+      const earnedIds = new Set(earnedAchievements.map(a => a.achievement_id));
+      
+      // Map templates to achievements with earned status
+      const achievementsWithStatus = templates.map(template => ({
+        id: template.id,
+        title: template.title,
+        description: template.description,
+        icon: template.icon,
+        criteria: template.criteria,
+        earned: earnedIds.has(template.id)
+      }));
+
+      setAchievements(achievementsWithStatus);
+    } catch (error) {
+      console.error('Error fetching achievements:', error);
+    }
+  };
 
     fetchStatsData();
   }, [selectedPeriod]);
@@ -173,37 +218,7 @@ export default function StatsScreen() {
     return '🐫';
   };
 
-  // Calculate achievements based on user data
-  const calculateAchievements = () => {
-    const newAchievements = achievements.map(achievement => {
-      let earned = false;
-      
-      switch (achievement.criteria.type) {
-        case 'streak':
-          earned = currentStreak >= achievement.criteria.value;
-          break;
-        case 'goal_streak':
-          // This would need goal streak data from database
-          earned = false; // Placeholder
-          break;
-        case 'total_days':
-          earned = totalDays >= achievement.criteria.value;
-          break;
-        case 'goal_percentage':
-          const goalPercentage = totalDays > 0 ? (goalDays / totalDays) * 100 : 0;
-          earned = goalPercentage >= achievement.criteria.value;
-          break;
-        case 'early_logging':
-          // This would need early logging data
-          earned = false; // Placeholder
-          break;
-      }
-      
-      return { ...achievement, earned };
-    });
-    
-    setAchievements(newAchievements);
-  };
+
 
   // Generate insights based on user data
   const generateInsights = () => {
@@ -246,14 +261,7 @@ export default function StatsScreen() {
     return insights;
   };
 
-  const [achievements, setAchievements] = useState([
-    { id: 1, title: 'First Week', description: 'Complete 7 days', icon: '🏆', earned: false, criteria: { type: 'streak', value: 7 } },
-    { id: 2, title: 'Hydration Hero', description: 'Meet goal 5 days in a row', icon: '🔥', earned: false, criteria: { type: 'goal_streak', value: 5 } },
-    { id: 3, title: 'Perfect Week', description: 'Meet goal every day for a week', icon: '⭐', earned: false, criteria: { type: 'goal_streak', value: 7 } },
-    { id: 4, title: 'Consistency King', description: '30 days of tracking', icon: '👑', earned: false, criteria: { type: 'total_days', value: 30 } },
-    { id: 5, title: 'Early Bird', description: 'Log hydration before 9 AM', icon: '🌅', earned: false, criteria: { type: 'early_logging', value: 1 } },
-    { id: 6, title: 'Hydration Master', description: 'Meet goal 90% of the time', icon: '💎', earned: false, criteria: { type: 'goal_percentage', value: 90 } },
-  ]);
+  const [achievements, setAchievements] = useState([]);
 
   if (loading) {
     return (

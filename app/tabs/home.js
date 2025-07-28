@@ -329,6 +329,18 @@ export default function HomeScreen() {
       // Check if goal is reached and trigger celebration
       if (newTotal >= dailyGoal && !hasReachedGoal) {
         triggerCelebration();
+        
+        // Check and award achievements
+        try {
+          const { error } = await supabase.rpc('check_and_award_achievements', {
+            user_uuid: user.id
+          });
+          if (error) {
+            console.error('Error checking achievements:', error);
+          }
+        } catch (error) {
+          console.error('Error checking achievements:', error);
+        }
       }
       
       return true;
