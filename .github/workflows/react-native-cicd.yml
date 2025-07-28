@@ -103,10 +103,17 @@ jobs:
         run: |
           echo "Setting up Expo CLI for local builds..."
           npm install -g @expo/cli@latest
+          # Find where npm installed the expo CLI
+          echo "npm prefix: $(npm config get prefix)"
+          echo "npm global bin: $(npm bin -g)"
           # Add npm global bin to PATH
-          export PATH="$PATH:$(npm config get prefix)/bin"
+          export PATH="$(npm bin -g):$PATH"
           echo "Updated PATH: $PATH"
-          expo --version
+          # Try to find expo in common locations
+          which expo || echo "expo not found in PATH"
+          ls -la $(npm bin -g)/expo || echo "expo not in npm global bin"
+          # Use npx as fallback
+          npx expo --version
 
       - name: 📦 Install dependencies
         run: |
