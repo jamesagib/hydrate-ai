@@ -83,8 +83,8 @@ jobs:
       - name: 🔐 Configure EAS Credentials
         run: |
           echo "Configuring EAS credentials for iOS..."
-          eas credentials:configure-build --platform ios --profile development --non-interactive
-          eas credentials:configure-build --platform ios --profile production --non-interactive
+          eas credentials:configure-build --platform ios --profile development
+          eas credentials:configure-build --platform ios --profile production
           echo "EAS credentials configured successfully"
       - name: 📱 Setup EAS build cache
         uses: actions/cache@v3
