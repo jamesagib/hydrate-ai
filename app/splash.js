@@ -164,32 +164,13 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
         
         setTimeout(async () => {
           if (onboarding !== 'true') {
-            console.log('Splash: Navigating to onboarding');
-            router.replace('/onboarding/name');
+            console.log('Splash: Navigating to welcome screen');
+            router.replace('/onboarding/welcome');
           } else if (finalSession) {
             console.log('Splash: Navigating to main app');
             
-            // Schedule notifications if user has completed onboarding and wants coaching
-            // Add a small delay to prevent race conditions with settings changes
-            setTimeout(async () => {
-              try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (user) {
-                  const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('wants_coaching')
-                    .eq('user_id', user.id)
-                    .single();
-                  
-                  if (profile?.wants_coaching) {
-                    console.log('Splash: Scheduling notifications for user');
-                    await notificationService.scheduleNotifications(user.id);
-                  }
-                }
-              } catch (error) {
-                console.error('Splash: Error scheduling notifications:', error);
-              }
-            }, 1000); // 1 second delay
+            // Push notifications are already initialized during onboarding
+            // No need to re-initialize here
             
             router.replace('/tabs/home');
           } else {
@@ -224,9 +205,13 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
 
   if (!fontsLoaded || loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F2EFEB' }}>
-        <ActivityIndicator size="large" color="black" />
-        <Text style={{ fontSize: 18, color: 'black', fontFamily: 'Nunito_600SemiBold' }}>Loading...</Text>
+      <View style={styles.container}>
+        <Image 
+          source={require('../assets/icon.png')} 
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 32, color: 'black' }}>Hydrate AI</Text>
       </View>
     );
   }

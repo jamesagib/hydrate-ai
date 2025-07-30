@@ -367,7 +367,21 @@ export default function ProfileScreen() {
                   
                   const newValue = !profile?.wants_coaching;
                   try {
-                    await notificationService.updateNotificationPreferences(user.id, newValue);
+                    // DISABLED: Local notification scheduling - using push notifications instead
+                    // await notificationService.updateNotificationPreferences(user.id, newValue);
+                    
+                    // Just update the database preference - push notifications will respect this
+                    const { error } = await supabase
+                      .from('profiles')
+                      .update({ wants_coaching: newValue })
+                      .eq('user_id', user.id);
+                    
+                    if (error) {
+                      console.error('Error updating coaching preference:', error);
+                      Alert.alert('Error', 'Failed to update notification preferences.');
+                      return;
+                    }
+                    
                     setProfile(prev => ({ ...prev, wants_coaching: newValue }));
                     
                     if (newValue) {
@@ -432,38 +446,7 @@ export default function ProfileScreen() {
               <Text style={{ color: 'white', fontSize: 18, fontFamily: 'Nunito_600SemiBold' }}>Reset Onboarding (DEV)</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity
-              style={{ backgroundColor: '#4FC3F7', paddingVertical: 16, paddingHorizontal: 32, borderRadius: 12, alignItems: 'center', marginBottom: 12 }}
-              onPress={async () => {
-                if (!user) return;
-                try {
-                  await notificationService.scheduleNotifications(user.id);
-                  Alert.alert('Test', 'Notifications scheduled! Check your device in a few minutes.');
-                } catch (error) {
-                  console.error('Error testing notifications:', error);
-                  Alert.alert('Error', 'Failed to test notifications.');
-                }
-              }}
-            >
-              <Text style={{ color: 'white', fontSize: 18, fontFamily: 'Nunito_600SemiBold' }}>Test Notifications (DEV)</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={{ backgroundColor: '#FF9800', paddingVertical: 16, paddingHorizontal: 32, borderRadius: 12, alignItems: 'center' }}
-              onPress={async () => {
-                if (!user) return;
-                try {
-                  const count = await notificationService.getScheduledNotificationCount(user.id);
-                  await notificationService.listAllScheduledNotifications();
-                  Alert.alert('Debug Info', `User has ${count} scheduled notifications. Check console for details.`);
-                } catch (error) {
-                  console.error('Error getting debug info:', error);
-                  Alert.alert('Error', 'Failed to get debug info.');
-                }
-              }}
-            >
-              <Text style={{ color: 'white', fontSize: 18, fontFamily: 'Nunito_600SemiBold' }}>Debug Notifications (DEV)</Text>
-            </TouchableOpacity>
+
           </View>
         )}
 

@@ -21,6 +21,12 @@ alter table profiles enable row level security;
 create policy if not exists "Users can manage their own profile" on profiles
   for all using (user_id = auth.uid());
 
+-- Add push_token column to profiles table
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS push_token TEXT;
+
+-- Add timezone column to profiles table
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'UTC';
+
 -- 2. Hydration Plans
 create table if not exists hydration_plans (
     id uuid primary key default gen_random_uuid(),
@@ -255,5 +261,96 @@ begin
       end case;
     end if;
   end loop;
+end;
+$$ language plpgsql security definer; 
+
+-- Function to update user streaks when they log hydration check-ins
+create or replace function update_user_streaks(user_uuid uuid)
+returns void as $$
+declare
+  user_plan record;
+  today_total numeric := 0;
+  goal_oz numeric := 80; -- default
+  current_streak_record record;
+  new_current_streak int := 0;
+  new_longest_streak int := 0;
+  new_goal_days int := 0;
+  new_total_days int := 0;
+  today_date date := current_date;
+begin
+  -- Get user's daily goal from their hydration plan
+  select daily_goal into user_plan
+  from hydration_plans
+  where user_id = user_uuid
+  order by created_at desc
+  limit 1;
+  
+  -- Parse daily goal (e.g., "80oz/day" -> 80)
+  if user_plan.daily_goal is not null then
+    select substring(user_plan.daily_goal from '(\d+)')::numeric into goal_oz;
+  end if;
+  
+  -- Calculate today's total intake
+  select coalesce(sum(value), 0) into today_total
+  from hydration_checkins
+  where user_id = user_uuid
+    and date(created_at) = today_date;
+  
+  -- Get current streak data
+  select * into current_streak_record
+  from streaks
+  where user_id = user_uuid;
+  
+  -- Initialize with current values or defaults
+  new_current_streak := coalesce(current_streak_record.current_streak, 0);
+  new_longest_streak := coalesce(current_streak_record.longest_streak, 0);
+  new_goal_days := coalesce(current_streak_record.goal_days, 0);
+  new_total_days := coalesce(current_streak_record.total_days, 0);
+  
+  -- Update streak based on today's performance
+  if today_total >= goal_oz then
+    -- User met goal today, increment streak
+    new_current_streak := new_current_streak + 1;
+    new_goal_days := new_goal_days + 1;
+    new_total_days := new_total_days + 1;
+  elsif today_total > 0 then
+    -- User logged something but didn't meet goal, break streak
+    new_current_streak := 0;
+    new_total_days := new_total_days + 1;
+  end if;
+  
+  -- Update longest streak if current streak is longer
+  if new_current_streak > new_longest_streak then
+    new_longest_streak := new_current_streak;
+  end if;
+  
+  -- Insert or update streak record
+  insert into streaks (
+    user_id,
+    current_streak,
+    longest_streak,
+    last_checkin_date,
+    goal_days,
+    total_days,
+    updated_at
+  ) values (
+    user_uuid,
+    new_current_streak,
+    new_longest_streak,
+    today_date,
+    new_goal_days,
+    new_total_days,
+    now()
+  )
+  on conflict (user_id) do update set
+    current_streak = excluded.current_streak,
+    longest_streak = excluded.longest_streak,
+    last_checkin_date = excluded.last_checkin_date,
+    goal_days = excluded.goal_days,
+    total_days = excluded.total_days,
+    updated_at = excluded.updated_at;
+    
+  raise notice 'Updated streaks for user %: current=%, longest=%, goal_days=%, total_days=%', 
+    user_uuid, new_current_streak, new_longest_streak, new_goal_days, new_total_days;
 end;
 $$ language plpgsql security definer; 

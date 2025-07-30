@@ -1,0 +1,4 @@
+{
+  "cron": "* * * * *",
+  "function": "send-hydration-reminder"
+} 

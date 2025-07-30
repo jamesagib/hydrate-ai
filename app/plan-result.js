@@ -56,19 +56,28 @@ export default function PlanResultScreen() {
     },
     onDismiss: (info, result) => {
       console.log('Paywall dismissed:', info, result);
-      setPaywallMessage('Paywall dismissed');
-      setTimeout(() => setPaywallMessage(null), 2000);
       
-      // Only allow dismissal in review mode or after successful purchase
-      const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
+      // Check if it was a successful purchase
       const isSuccessfulPurchase = result?.outcome === 'purchased';
       
-      if (isReviewMode || isSuccessfulPurchase) {
-        console.log('Paywall dismissed - navigating to home');
-        setTimeout(() => router.replace('/tabs/home'), 1000);
+      if (isSuccessfulPurchase) {
+        setPaywallMessage('Purchase successful! Navigating to app...');
+        console.log('Successful purchase - navigating to home');
+        setTimeout(() => {
+          router.replace('/tabs/home');
+        }, 1500);
       } else {
-        console.log('Paywall dismissed without purchase - staying on paywall');
-        // In production, this shouldn't happen if paywall is non-dismissible
+        setPaywallMessage('Paywall dismissed');
+        setTimeout(() => setPaywallMessage(null), 2000);
+        
+        // Only allow dismissal in review mode
+        const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
+        if (isReviewMode) {
+          console.log('Review mode: Paywall dismissed, navigating to home');
+          setTimeout(() => router.replace('/tabs/home'), 1000);
+        } else {
+          console.log('Paywall dismissed without purchase - staying on paywall');
+        }
       }
     },
     onError: (error) => {

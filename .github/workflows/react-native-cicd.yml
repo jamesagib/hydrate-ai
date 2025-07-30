@@ -79,6 +79,13 @@ jobs:
         run: |
           echo "${{ secrets.PROVISIONING_PROFILE }}" | base64 -d > Water_AI_Manually_Created_Profile.mobileprovision
           echo "Provisioning profile created"
+      
+      - name: 🔐 Configure EAS Credentials
+        run: |
+          echo "Configuring EAS credentials for iOS..."
+          eas credentials:configure-build --platform ios --profile development --non-interactive
+          eas credentials:configure-build --platform ios --profile production --non-interactive
+          echo "EAS credentials configured successfully"
       - name: 📱 Setup EAS build cache
         uses: actions/cache@v3
         with:
@@ -90,6 +97,30 @@ jobs:
         run: |
           echo "EAS CLI version:"
           eas --version
+      
+      - name: 🔔 Verify Push Notification Configuration
+        run: |
+          echo "=== PUSH NOTIFICATION CONFIGURATION ==="
+          echo "Checking iOS entitlements..."
+          if [ -f "ios/HydrateAI/HydrateAI.entitlements" ]; then
+            echo "✅ Entitlements file found"
+            cat ios/HydrateAI/HydrateAI.entitlements
+          else
+            echo "❌ Entitlements file not found!"
+            exit 1
+          fi
+          echo "Checking app.json configuration..."
+          echo "Expo notifications plugin:"
+          node -e "
+            const appJson = require('./app.json');
+            const plugins = appJson.expo.plugins || [];
+            const notificationsPlugin = plugins.find(p => 
+              typeof p === 'string' ? p === 'expo-notifications' : p[0] === 'expo-notifications'
+            );
+            console.log(notificationsPlugin ? '✅ expo-notifications plugin found' : '❌ expo-notifications plugin not found');
+          "
+          echo "EXPO_PROJECT_ID: $EXPO_PROJECT_ID"
+          echo "======================================"
       
       - name: 📋 Show Build Info
         run: |
@@ -162,17 +193,22 @@ jobs:
           cat app.json | grep -A 1 -B 1 "version"
           echo "================================="
       
-      - name: 🔧 Force Build Number 14
+      - name: 🔧 Auto-Increment Build Number
         run: |
-          echo "Forcing build number to 14..."
-          # Update app.json to set build number to 14
+          echo "Auto-incrementing build number..."
+          # Read current build number from app.json or default to 15
           node -e "
             const fs = require('fs');
             const appJson = JSON.parse(fs.readFileSync('app.json', 'utf8'));
             if (!appJson.expo.ios) appJson.expo.ios = {};
-            appJson.expo.ios.buildNumber = '14';
+            
+            // Get current build number or default to 15
+            const currentBuild = appJson.expo.ios.buildNumber || '15';
+            const nextBuild = (parseInt(currentBuild) + 1).toString();
+            
+            appJson.expo.ios.buildNumber = nextBuild;
             fs.writeFileSync('app.json', JSON.stringify(appJson, null, 2));
-            console.log('Updated app.json with build number 14');
+            console.log('Updated app.json with build number ' + nextBuild);
           "
           echo "Updated app.json:"
           cat app.json | grep -A 2 -B 2 "buildNumber"

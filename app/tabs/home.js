@@ -430,6 +430,20 @@ export default function HomeScreen() {
         }
       }
       
+      // Update streaks after logging check-in
+      try {
+        const { error } = await supabase.rpc('update_user_streaks', {
+          user_uuid: user.id
+        });
+        if (error) {
+          console.error('Error updating streaks:', error);
+        } else {
+          console.log('Streaks updated successfully');
+        }
+      } catch (error) {
+        console.error('Error updating streaks:', error);
+      }
+      
       return true;
     } catch (error) {
       console.error('Error adding check-in:', error);

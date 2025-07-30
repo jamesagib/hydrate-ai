@@ -188,8 +188,12 @@ export default function StatsScreen() {
 
   const getPeriodLabel = (index) => {
     if (selectedPeriod === 'week') {
-      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      return days[index];
+      // Calculate the actual day of the week for each index
+      const today = new Date();
+      const date = new Date(today);
+      date.setDate(date.getDate() - (6 - index)); // 6 is the last day (Sunday), 0 is Monday
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      return days[date.getDay()];
     } else if (selectedPeriod === 'month') {
       const today = new Date();
       const date = new Date(today);

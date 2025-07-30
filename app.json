@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#F2EFEB"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -18,8 +18,13 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.hydrate.ai",
       "usesAppleSignIn": true,
+      "icon": "./assets/icon.png",
       "entitlements": {
-        "com.apple.developer.applesignin": ["Default"]
+        "com.apple.developer.applesignin": [
+          "Default",
+          "Default"
+        ],
+        "aps-environment": "development"
       },
       "infoPlist": {
         "NSUserAuthenticationUsageDescription": "Sign in with Apple is used to authenticate your account.",
@@ -28,16 +33,25 @@
             "CFBundleURLSchemes": [
               "com.googleusercontent.apps.786448900175-t4l077b9dii6m9fp4e716ro93vnj9lqq"
             ]
+          },
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.786448900175-t4l077b9dii6m9fp4e716ro93vnj9lqq"
+            ]
           }
         ]
-      }
+      },
+      "runtimeVersion": "1.0.0"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/splash-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#F2EFEB"
       },
-      "package": "com.hydrate.ai"
+      "package": "com.hydrate.ai",
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
     "scheme": "water-ai",
     "web": {
@@ -54,14 +68,14 @@
             "minSdkVersion": 26
           },
           "ios": {
-              "deploymentTarget": "15.1"
+            "deploymentTarget": "15.1"
           }
         }
       ],
       [
         "expo-notifications",
         {
-          "icon": "./assets/splash-icon.png",
+          "icon": "./assets/icon.png",
           "color": "#ffffff"
         }
       ]
@@ -76,6 +90,9 @@
         "projectId": "b4f22400-7632-4de3-bcd1-76119d301f5d"
       }
     },
-    "owner": "jamesagib"
+    "owner": "jamesagib",
+    "updates": {
+      "url": "https://u.expo.dev/b4f22400-7632-4de3-bcd1-76119d301f5d"
+    }
   }
 }
