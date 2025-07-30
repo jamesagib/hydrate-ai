@@ -13,6 +13,7 @@ import {
 } from '@expo-google-fonts/nunito';
 import * as SecureStore from 'expo-secure-store';
 import { saveOnboardingData, loadOnboardingData, clearOnboardingData } from '../../lib/onboardingStorage';
+import notificationService from '../../lib/notificationService';
 
 const CLIMATE_OPTIONS = [
   { id: 'cold', title: 'Cold', icon: 'snow-outline' },
@@ -34,6 +35,14 @@ export default function OnboardingPreferencesScreen() {
       const prev = await loadOnboardingData() || {};
       await saveOnboardingData({ ...prev, climate, forgets_water: null, wants_coaching: wantsReminders });
       await SecureStore.setItemAsync('onboarding_complete', 'true');
+      
+      // Request notification permissions if user wants reminders
+      if (wantsReminders) {
+        console.log('User wants reminders, requesting notification permissions...');
+        const permissionsGranted = await notificationService.requestPermissions();
+        console.log('Notification permissions granted:', permissionsGranted);
+      }
+      
       router.replace('/auth');
     }
   };

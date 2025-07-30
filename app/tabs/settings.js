@@ -12,6 +12,7 @@ import {
   Nunito_700Bold,
 } from '@expo-google-fonts/nunito';
 import { clearOnboardingData } from '../../lib/onboardingStorage';
+import notificationService from '../../lib/notificationService';
 
 export default function ProfileScreen() {
   const [user, setUser] = useState(null);
@@ -86,6 +87,73 @@ export default function ProfileScreen() {
     await supabase.auth.signOut();
     Alert.alert('Onboarding reset', 'Restart the app to begin onboarding again.');
     router.replace('/');
+  };
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
+
+  const handleDeleteAccount = async () => {
+    // First confirmation
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone and will permanently remove all your data.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            setShowDeleteModal(true);
+          }
+        }
+      ]
+    );
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteConfirmationText === 'DELETE') {
+      try {
+        // Cancel all notifications for the user
+        if (user) {
+          await notificationService.cancelUserNotifications(user.id);
+        }
+        
+        // Call the delete-account Edge Function
+        const { data, error } = await supabase.functions.invoke('delete-account');
+        
+        if (error) {
+          console.error('Error calling delete-account function:', error);
+          Alert.alert('Error', 'Failed to delete account. Please try again.');
+          return;
+        }
+        
+        // Clear local storage
+        await SecureStore.deleteItemAsync('onboarding_complete');
+        await clearOnboardingData();
+        
+        setShowDeleteModal(false);
+        setDeleteConfirmationText('');
+        
+        Alert.alert(
+          'Account Deleted',
+          'Your account has been permanently deleted. Thank you for using HydrateAI.',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/auth')
+            }
+          ]
+        );
+      } catch (error) {
+        console.error('Error deleting account:', error);
+        Alert.alert('Error', 'Failed to delete account. Please try again.');
+      }
+    } else {
+      Alert.alert('Incorrect Text', 'Please type "DELETE" exactly to confirm account deletion.');
+    }
   };
 
 
@@ -271,6 +339,65 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Notification Preferences Section */}
+        <View style={{ paddingHorizontal: 20, marginBottom: 30 }}>
+          <Text style={{ 
+            fontFamily: 'Nunito_600SemiBold', 
+            fontSize: 18, 
+            color: 'black',
+            marginBottom: 16
+          }}>
+            Notifications
+          </Text>
+          <View style={styles.notificationSection}>
+            <View style={styles.notificationRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.notificationLabel}>Hydration Reminders</Text>
+                <Text style={styles.notificationDescription}>
+                  Get daily reminders based on your hydration plan
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.toggleButton,
+                  { backgroundColor: profile?.wants_coaching ? 'black' : '#E5E5E5' }
+                ]}
+                onPress={async () => {
+                  if (!user) return;
+                  
+                  const newValue = !profile?.wants_coaching;
+                  try {
+                    await notificationService.updateNotificationPreferences(user.id, newValue);
+                    setProfile(prev => ({ ...prev, wants_coaching: newValue }));
+                    
+                    if (newValue) {
+                      Alert.alert(
+                        'Notifications Enabled',
+                        'You\'ll now receive hydration reminders based on your plan!'
+                      );
+                    } else {
+                      Alert.alert(
+                        'Notifications Disabled',
+                        'You\'ve turned off hydration reminders. You can re-enable them anytime.'
+                      );
+                    }
+                  } catch (error) {
+                    console.error('Error updating notification preferences:', error);
+                    Alert.alert('Error', 'Failed to update notification preferences.');
+                  }
+                }}
+              >
+                <Text style={[
+                  styles.toggleText,
+                  { color: profile?.wants_coaching ? 'white' : '#666' }
+                ]}>
+                  {profile?.wants_coaching ? 'ON' : 'OFF'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
 
 
         <View style={{ paddingHorizontal: 20, marginBottom: 30 }}>
@@ -278,13 +405,64 @@ export default function ProfileScreen() {
             <Text style={styles.logoutButtonText}>Logout</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Delete Account Section */}
+        <View style={{ paddingHorizontal: 20, marginBottom: 30 }}>
+          <Text style={{ 
+            fontFamily: 'Nunito_600SemiBold', 
+            fontSize: 18, 
+            color: 'black',
+            marginBottom: 16
+          }}>
+            Danger Zone
+          </Text>
+          <TouchableOpacity 
+            style={styles.deleteAccountButton} 
+            onPress={handleDeleteAccount}
+          >
+            <Text style={styles.deleteAccountButtonText}>Delete Account</Text>
+          </TouchableOpacity>
+        </View>
         {userEmail === 'jamesmagib@gmail.com' && (
           <View style={{ paddingHorizontal: 20, marginBottom: 30 }}>
             <TouchableOpacity
-              style={{ backgroundColor: 'black', paddingVertical: 16, paddingHorizontal: 32, borderRadius: 12, alignItems: 'center' }}
+              style={{ backgroundColor: 'black', paddingVertical: 16, paddingHorizontal: 32, borderRadius: 12, alignItems: 'center', marginBottom: 12 }}
               onPress={handleResetOnboarding}
             >
               <Text style={{ color: 'white', fontSize: 18, fontFamily: 'Nunito_600SemiBold' }}>Reset Onboarding (DEV)</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={{ backgroundColor: '#4FC3F7', paddingVertical: 16, paddingHorizontal: 32, borderRadius: 12, alignItems: 'center', marginBottom: 12 }}
+              onPress={async () => {
+                if (!user) return;
+                try {
+                  await notificationService.scheduleNotifications(user.id);
+                  Alert.alert('Test', 'Notifications scheduled! Check your device in a few minutes.');
+                } catch (error) {
+                  console.error('Error testing notifications:', error);
+                  Alert.alert('Error', 'Failed to test notifications.');
+                }
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 18, fontFamily: 'Nunito_600SemiBold' }}>Test Notifications (DEV)</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={{ backgroundColor: '#FF9800', paddingVertical: 16, paddingHorizontal: 32, borderRadius: 12, alignItems: 'center' }}
+              onPress={async () => {
+                if (!user) return;
+                try {
+                  const count = await notificationService.getScheduledNotificationCount(user.id);
+                  await notificationService.listAllScheduledNotifications();
+                  Alert.alert('Debug Info', `User has ${count} scheduled notifications. Check console for details.`);
+                } catch (error) {
+                  console.error('Error getting debug info:', error);
+                  Alert.alert('Error', 'Failed to get debug info.');
+                }
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 18, fontFamily: 'Nunito_600SemiBold' }}>Debug Notifications (DEV)</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -352,6 +530,53 @@ export default function ProfileScreen() {
                   onPress={handleSaveEdit}
                 >
                   <Text style={styles.saveButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Delete Account Confirmation Modal */}
+        <Modal
+          visible={showDeleteModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowDeleteModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>
+                Final Confirmation
+              </Text>
+              
+              <Text style={styles.deleteWarningText}>
+                To confirm deletion, please type "DELETE" in the field below:
+              </Text>
+              
+              <TextInput
+                style={styles.textInput}
+                value={deleteConfirmationText}
+                onChangeText={setDeleteConfirmationText}
+                placeholder="Type DELETE to confirm"
+                placeholderTextColor="#999"
+                autoFocus
+              />
+              
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => {
+                    setShowDeleteModal(false);
+                    setDeleteConfirmationText('');
+                  }}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.saveButton, { backgroundColor: '#FF4444' }]}
+                  onPress={handleConfirmDelete}
+                >
+                  <Text style={styles.saveButtonText}>Delete Account</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -488,6 +713,39 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
+  notificationSection: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+  },
+  notificationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  notificationLabel: {
+    fontSize: 16,
+    fontFamily: 'Nunito_600SemiBold',
+    color: 'black',
+    marginBottom: 4,
+  },
+  notificationDescription: {
+    fontSize: 14,
+    fontFamily: 'Nunito_400Regular',
+    color: '#666',
+    lineHeight: 18,
+  },
+  toggleButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  toggleText: {
+    fontSize: 14,
+    fontFamily: 'Nunito_600SemiBold',
+  },
   cancelButton: {
     flex: 1,
     padding: 12,
@@ -513,5 +771,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Nunito_600SemiBold',
     color: 'white',
+  },
+  deleteAccountButton: {
+    backgroundColor: '#FF4444',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FF4444',
+  },
+  deleteAccountButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontFamily: 'Nunito_600SemiBold',
+  },
+  deleteWarningText: {
+    fontSize: 16,
+    fontFamily: 'Nunito_400Regular',
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 22,
   },
 }); 

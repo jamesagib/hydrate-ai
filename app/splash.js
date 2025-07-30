@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { supabase } from '../lib/supabase';
 import { useUser, useSuperwallEvents, usePlacement } from 'expo-superwall';
+import notificationService from '../lib/notificationService';
 
 function SubscriptionStatusBanner() {
   const { subscriptionStatus, user } = useUser();
@@ -161,12 +162,35 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
           }
         }
         
-        setTimeout(() => {
+        setTimeout(async () => {
           if (onboarding !== 'true') {
             console.log('Splash: Navigating to onboarding');
             router.replace('/onboarding/name');
           } else if (finalSession) {
             console.log('Splash: Navigating to main app');
+            
+            // Schedule notifications if user has completed onboarding and wants coaching
+            // Add a small delay to prevent race conditions with settings changes
+            setTimeout(async () => {
+              try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                  const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('wants_coaching')
+                    .eq('user_id', user.id)
+                    .single();
+                  
+                  if (profile?.wants_coaching) {
+                    console.log('Splash: Scheduling notifications for user');
+                    await notificationService.scheduleNotifications(user.id);
+                  }
+                }
+              } catch (error) {
+                console.error('Splash: Error scheduling notifications:', error);
+              }
+            }, 1000); // 1 second delay
+            
             router.replace('/tabs/home');
           } else {
             console.log('Splash: Navigating to auth');
