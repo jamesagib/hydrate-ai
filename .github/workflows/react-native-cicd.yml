@@ -83,7 +83,7 @@ jobs:
       - name: 🔐 Verify EAS Credentials
         run: |
           echo "Verifying EAS credentials are configured..."
-          eas credentials:list --platform ios
+          eas credentials --platform ios
           echo "EAS credentials verified"
       - name: 📱 Setup EAS build cache
         uses: actions/cache@v3
