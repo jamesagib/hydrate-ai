@@ -162,6 +162,21 @@ jobs:
           cat app.json | grep -A 1 -B 1 "version"
           echo "================================="
       
+      - name: 🔧 Force Build Number 14
+        run: |
+          echo "Forcing build number to 14..."
+          # Update app.json to set build number to 14
+          node -e "
+            const fs = require('fs');
+            const appJson = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+            if (!appJson.expo.ios) appJson.expo.ios = {};
+            appJson.expo.ios.buildNumber = '14';
+            fs.writeFileSync('app.json', JSON.stringify(appJson, null, 2));
+            console.log('Updated app.json with build number 14');
+          "
+          echo "Updated app.json:"
+          cat app.json | grep -A 2 -B 2 "buildNumber"
+      
       - name: 📱 Build iOS Production
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
