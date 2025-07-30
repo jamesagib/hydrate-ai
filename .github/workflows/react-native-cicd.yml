@@ -80,11 +80,7 @@ jobs:
           echo "${{ secrets.PROVISIONING_PROFILE }}" | base64 -d > Water_AI_Manually_Created_Profile.mobileprovision
           echo "Provisioning profile created"
       
-      - name: 🔐 Verify EAS Credentials
-        run: |
-          echo "Verifying EAS credentials are configured..."
-          eas credentials --platform ios
-          echo "EAS credentials verified"
+
       - name: 📱 Setup EAS build cache
         uses: actions/cache@v3
         with:
