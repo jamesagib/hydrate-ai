@@ -86,6 +86,16 @@ jobs:
         run: |
           echo "EAS CLI version:"
           eas --version
+      
+      - name: 📋 Show Build Info
+        run: |
+          echo "=== BUILD INFORMATION ==="
+          echo "App version: $(node -p "require('./app.json').expo.version")"
+          echo "App name: $(node -p "require('./app.json').expo.name")"
+          echo "Bundle ID: $(node -p "require('./app.json').expo.ios.bundleIdentifier")"
+          echo "Build profile: development"
+          echo "Platform: iOS"
+          echo "=========================="
       - name: 📱 Build iOS Development
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
@@ -132,6 +142,18 @@ jobs:
             echo "❌ Development build not found!"
             exit 1
           fi
+      
+      - name: 📋 Show Production Build Info
+        run: |
+          echo "=== PRODUCTION BUILD INFORMATION ==="
+          echo "App version: $(node -p "require('./app.json').expo.version")"
+          echo "App name: $(node -p "require('./app.json').expo.name")"
+          echo "Bundle ID: $(node -p "require('./app.json').expo.ios.bundleIdentifier")"
+          echo "Build profile: production"
+          echo "Platform: iOS"
+          echo "This is the build that will be uploaded to App Store"
+          echo "================================================"
+      
       - name: 📱 Build iOS Production
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
