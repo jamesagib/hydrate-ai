@@ -71,6 +71,10 @@ jobs:
         run: |
           echo "Clearing EAS cache to force fresh credential creation..."
           rm -rf ~/.eas-build-local
+          echo "Clearing npm cache..."
+          npm cache clean --force
+          echo "Clearing expo cache..."
+          npx expo install --fix
       - name: 📁 Setup Provisioning Profile
         run: |
           echo "${{ secrets.PROVISIONING_PROFILE }}" | base64 -d > Water_AI_Manually_Created_Profile.mobileprovision
@@ -153,6 +157,10 @@ jobs:
           echo "Platform: iOS"
           echo "This is the build that will be uploaded to App Store"
           echo "================================================"
+          echo ""
+          echo "=== VERIFYING VERSION FILE ==="
+          cat app.json | grep -A 1 -B 1 "version"
+          echo "================================="
       
       - name: 📱 Build iOS Production
         run: |
