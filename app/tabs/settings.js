@@ -54,7 +54,63 @@ export default function ProfileScreen() {
     };
 
     getUser();
+    checkAdminStatus();
   }, []);
+
+  const checkAdminStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email === 'jagib07@gmail.com') {
+        setIsAdmin(true);
+        // Also fetch current review mode status
+        fetchReviewModeStatus();
+      }
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+    }
+  };
+
+  const fetchReviewModeStatus = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('review_mode')
+        .eq('user_id', user?.id)
+        .single();
+      
+      if (!error && data) {
+        setReviewMode(data.review_mode || false);
+      }
+    } catch (error) {
+      console.error('Error fetching review mode status:', error);
+    }
+  };
+
+  const toggleReviewMode = async () => {
+    try {
+      const newReviewMode = !reviewMode;
+      
+      // Call the edge function to toggle review mode for all users
+      const { data, error } = await supabase.functions.invoke('toggle-review-mode', {
+        body: { reviewMode: newReviewMode }
+      });
+
+      if (error) {
+        console.error('Error toggling review mode:', error);
+        Alert.alert('Error', 'Failed to toggle review mode');
+        return;
+      }
+
+      setReviewMode(newReviewMode);
+      Alert.alert(
+        'Review Mode Updated',
+        `Review mode ${newReviewMode ? 'enabled' : 'disabled'} for all users`
+      );
+    } catch (error) {
+      console.error('Error toggling review mode:', error);
+      Alert.alert('Error', 'Failed to toggle review mode');
+    }
+  };
 
   const handleLogout = async () => {
     Alert.alert(
@@ -70,7 +126,7 @@ export default function ProfileScreen() {
               await supabase.auth.signOut();
               await SecureStore.deleteItemAsync('supabase_session');
               await SecureStore.deleteItemAsync('supabase_refresh_token');
-              router.replace('/auth');
+              router.replace('/onboarding/welcome');
             } catch (error) {
               console.error('Error logging out:', error);
               Alert.alert('Error', 'Failed to logout. Please try again.');
@@ -91,6 +147,8 @@ export default function ProfileScreen() {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
+  const [reviewMode, setReviewMode] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const handleDeleteAccount = async () => {
     // First confirmation
@@ -143,7 +201,7 @@ export default function ProfileScreen() {
           [
             {
               text: 'OK',
-              onPress: () => router.replace('/auth')
+              onPress: () => router.replace('/onboarding/welcome')
             }
           ]
         );
@@ -447,6 +505,40 @@ export default function ProfileScreen() {
             </TouchableOpacity>
             
 
+          </View>
+        )}
+
+        {/* Admin Section - Only visible to jagib07@gmail.com */}
+        {isAdmin && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 30 }}>
+            <Text style={{ 
+              fontFamily: 'Nunito_600SemiBold', 
+              fontSize: 18, 
+              color: 'black',
+              marginBottom: 16
+            }}>
+              Admin Controls
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.logoutButton,
+                { backgroundColor: reviewMode ? '#4CAF50' : '#FF9800' }
+              ]}
+              onPress={toggleReviewMode}
+            >
+              <Text style={styles.logoutButtonText}>
+                {reviewMode ? 'Disable' : 'Enable'} Review Mode
+              </Text>
+            </TouchableOpacity>
+            <Text style={{ 
+              fontFamily: 'Nunito_400Regular', 
+              fontSize: 14, 
+              color: '#666',
+              marginTop: 8,
+              textAlign: 'center'
+            }}>
+              Review Mode: {reviewMode ? 'ON' : 'OFF'} (affects all users)
+            </Text>
           </View>
         )}
 

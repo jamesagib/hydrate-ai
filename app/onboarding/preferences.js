@@ -33,7 +33,12 @@ export default function OnboardingPreferencesScreen() {
   const handleFinish = async () => {
     if (climate && wantsReminders !== null) {
       const prev = await loadOnboardingData() || {};
-      await saveOnboardingData({ ...prev, climate, forgets_water: null, wants_coaching: wantsReminders });
+      const onboardingData = { ...prev, climate, forgets_water: null, wants_coaching: wantsReminders };
+      
+      console.log('Saving onboarding data:', onboardingData);
+      console.log('wantsReminders value:', wantsReminders, 'type:', typeof wantsReminders);
+      
+      await saveOnboardingData(onboardingData);
       await SecureStore.setItemAsync('onboarding_complete', 'true');
       
       // Request notification permissions if user wants reminders
@@ -43,6 +48,7 @@ export default function OnboardingPreferencesScreen() {
         console.log('Notification permissions granted:', permissionsGranted);
       }
       
+      // Go to auth to create account after onboarding
       router.replace('/auth');
     }
   };

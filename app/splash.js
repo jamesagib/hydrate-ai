@@ -7,6 +7,7 @@ import * as SecureStore from 'expo-secure-store';
 import { supabase } from '../lib/supabase';
 import { useUser, useSuperwallEvents, usePlacement } from 'expo-superwall';
 import notificationService from '../lib/notificationService';
+import { loadOnboardingData } from '../lib/onboardingStorage';
 
 function SubscriptionStatusBanner() {
   const { subscriptionStatus, user } = useUser();
@@ -104,7 +105,9 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
         
         // Check onboarding state
         const onboarding = await SecureStore.getItemAsync('onboarding_complete');
+        const onboardingData = await loadOnboardingData();
         console.log('Splash: Onboarding complete:', onboarding === 'true');
+        console.log('Splash: Onboarding data:', onboardingData);
         
         // Check authentication state
         let { data: { session } } = await supabase.auth.getSession();
@@ -148,15 +151,35 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
         // Get final session state
         const { data: { session: finalSession } } = await supabase.auth.getSession();
         
-        // Navigate based on state
-        console.log('Splash: Final decision - onboarding:', onboarding, 'session:', !!finalSession);
+        // Check if user has a profile in database
+        let userProfile = null;
+        let isReviewMode = false;
+        if (finalSession?.user) {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', finalSession.user.id)
+            .single();
+          
+          if (!error && profile) {
+            userProfile = profile;
+            isReviewMode = profile.review_mode || false;
+            console.log('Splash: User profile found:', profile.name);
+            console.log('Splash: Review mode from profile:', isReviewMode);
+          } else {
+            console.log('Splash: No user profile found, error:', error?.message);
+          }
+        }
         
-        // Development mode: Skip auth for easier testing
-        if (__DEV__) {
-          console.log('Splash: Development mode - checking for dev bypass');
+        // Navigate based on state
+        console.log('Splash: Final decision - onboarding:', onboarding, 'session:', !!finalSession, 'profile:', !!userProfile);
+        
+        // Development mode or review mode: Skip auth for easier testing
+        if (__DEV__ || isReviewMode) {
+          console.log('Splash: Development mode or review mode - checking for dev bypass');
           const devBypass = await SecureStore.getItemAsync('dev_auth_bypass');
-          if (devBypass === 'true') {
-            console.log('Splash: Dev bypass enabled, going to main app');
+          if (devBypass === 'true' || isReviewMode) {
+            console.log('Splash: Dev bypass or review mode enabled, going to main app');
             router.replace('/tabs/home');
             return;
           }
@@ -166,16 +189,22 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
           if (onboarding !== 'true') {
             console.log('Splash: Navigating to welcome screen');
             router.replace('/onboarding/welcome');
-          } else if (finalSession) {
+          } else if (finalSession && userProfile) {
             console.log('Splash: Navigating to main app');
             
             // Push notifications are already initialized during onboarding
             // No need to re-initialize here
             
             router.replace('/tabs/home');
+          } else if (finalSession && !userProfile) {
+            console.log('Splash: User logged in but no profile found, going to plan setup');
+            router.replace('/plan-setup');
+          } else if (onboarding === 'true' && !finalSession) {
+            console.log('Splash: Onboarding complete but no session, going to login');
+            router.replace('/login');
           } else {
-            console.log('Splash: Navigating to auth');
-            router.replace('/auth');
+            console.log('Splash: Navigating to welcome screen');
+            router.replace('/onboarding/welcome');
           }
         }, 0);
         didNavigate = true;
@@ -187,7 +216,7 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
       } catch (error) {
         setTimeout(() => {
           console.error('Splash: Error during initialization:', error);
-          router.replace('/auth');
+          router.replace('/onboarding/welcome');
         }, 0);
       } finally {
         setLoading(false);

@@ -27,6 +27,9 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS push_token TEXT;
 -- Add timezone column to profiles table
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'UTC';
 
+-- Add review mode flag to profiles table
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS review_mode BOOLEAN DEFAULT false;
+
 -- 2. Hydration Plans
 create table if not exists hydration_plans (
     id uuid primary key default gen_random_uuid(),

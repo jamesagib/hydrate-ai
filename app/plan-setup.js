@@ -83,6 +83,8 @@ export default function PlanSetupScreen() {
 
         // 6. Upsert profile
         console.log('Onboarding data for profile:', onboarding);
+        console.log('wants_coaching from onboarding:', onboarding.wants_coaching, 'type:', typeof onboarding.wants_coaching);
+        
         const profileData = {
           user_id: user.id, 
           name: onboarding.name,
@@ -93,9 +95,10 @@ export default function PlanSetupScreen() {
           activity_level: onboarding.activity_level,
           climate: onboarding.climate,
           forgets_water: onboarding.forgets_water || false,
-          wants_coaching: onboarding.wants_coaching || false
+          wants_coaching: Boolean(onboarding.wants_coaching)
         };
         console.log('Profile data to insert:', profileData);
+        console.log('Final wants_coaching value:', profileData.wants_coaching, 'type:', typeof profileData.wants_coaching);
         
         // Debug: Check if user exists
         const { data: userCheck, error: userCheckError } = await supabase.auth.getUser();

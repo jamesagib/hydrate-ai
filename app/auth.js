@@ -87,7 +87,7 @@ export default function AuthScreen() {
       
       if (error) throw error;
       if (data.session) {
-        // After sign-in, go to plan setup screen
+        // After sign-in, go to plan setup to generate and show the plan
         router.replace('/plan-setup');
         return;
       } else {
@@ -134,7 +134,7 @@ export default function AuthScreen() {
       
       if (data.session) {
         console.log('Apple sign-in successful, session created');
-        // After sign-in, go to plan setup screen
+        // After sign-in, go to plan setup to generate and show the plan
         router.replace('/plan-setup');
         return;
       } else {
@@ -172,8 +172,8 @@ export default function AuthScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Save your progress</Text>
-      <Text style={styles.subtitle}>Sign up to view your personalized water plan, customized just for you.</Text>
+      <Text style={styles.title}>Create your account</Text>
+      <Text style={styles.subtitle}>Sign up to save your progress and view your personalized water plan.</Text>
       <TouchableOpacity style={styles.googleButton} onPress={handleGoogleSignIn}>
         <Image source={require('../assets/googleLogo.png')} style={styles.googleLogo} />
         <Text style={styles.buttonText}>Sign in with Google</Text>
@@ -198,6 +198,16 @@ export default function AuthScreen() {
                </Text>
              )}
              
+             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 32 }}>
+               <Text style={{ fontSize: 14, fontFamily: 'Nunito_400Regular', color: '#666' }}>
+                 Already have an account?{' '}
+               </Text>
+               <TouchableOpacity onPress={() => router.push('/login')}>
+                 <Text style={{ fontSize: 14, fontFamily: 'Nunito_600SemiBold', color: 'black' }}>
+                   Sign in
+                 </Text>
+               </TouchableOpacity>
+             </View>
 
     </View>
   );

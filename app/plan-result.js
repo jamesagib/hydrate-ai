@@ -46,6 +46,7 @@ export default function PlanResultScreen() {
   const [loading, setLoading] = useState(true);
   const [paywallError, setPaywallError] = useState(null);
   const [paywallMessage, setPaywallMessage] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
   const isFromSettings = params.from === 'settings';
 
   const { registerPlacement, state } = usePlacement({
@@ -71,7 +72,7 @@ export default function PlanResultScreen() {
         setTimeout(() => setPaywallMessage(null), 2000);
         
         // Only allow dismissal in review mode
-        const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
+        const isReviewMode = __DEV__ || userProfile?.review_mode;
         if (isReviewMode) {
           console.log('Review mode: Paywall dismissed, navigating to home');
           setTimeout(() => router.replace('/tabs/home'), 1000);
@@ -87,7 +88,7 @@ export default function PlanResultScreen() {
       setTimeout(() => setPaywallMessage(null), 2000);
       
       // REVIEW MODE: Allow access even if paywall errors
-      const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
+      const isReviewMode = __DEV__ || userProfile?.review_mode;
       if (isReviewMode) {
         console.log('Review mode: Paywall error, navigating to home');
         setTimeout(() => router.replace('/tabs/home'), 1000);
@@ -99,7 +100,7 @@ export default function PlanResultScreen() {
       setTimeout(() => setPaywallMessage(null), 2000);
       
       // Only allow skip in review mode
-      const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
+      const isReviewMode = __DEV__ || userProfile?.review_mode;
       if (isReviewMode) {
         console.log('Review mode: Paywall skipped, navigating to home');
         setTimeout(() => router.replace('/tabs/home'), 1000);
@@ -115,6 +116,18 @@ export default function PlanResultScreen() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('No user found');
+        
+        // Fetch user profile for review mode
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (!profileError && profile) {
+          setUserProfile(profile);
+        }
+        
         const { data, error } = await supabase
           .from('hydration_plans')
           .select('plan_text')
