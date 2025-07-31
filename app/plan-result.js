@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { SafeAreaView, Text, ActivityIndicator, ScrollView, Alert, TouchableOpacity, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../lib/supabase';
-import { usePlacement } from 'expo-superwall';
+import { usePlacement, useUser } from 'expo-superwall';
 
 function parseHydrationPlan(planText) {
   const dailyGoalMatch = planText.match(/🌊 Daily Goal: (.+?)\s+_(.+?)_\s+🕒/s);
@@ -47,6 +47,7 @@ export default function PlanResultScreen() {
   const [paywallError, setPaywallError] = useState(null);
   const [paywallMessage, setPaywallMessage] = useState(null);
   const isFromSettings = params.from === 'settings';
+  const { subscriptionStatus } = useUser();
 
   const { registerPlacement, state } = usePlacement({
     onPresent: (info) => {
@@ -144,6 +145,27 @@ export default function PlanResultScreen() {
     registerPlacement({ placement: 'campaign_trigger' }); // Replace with your actual paywall ID
   };
 
+  // Check if user has already purchased
+  const handleLetsGo = () => {
+    if (isFromSettings) {
+      router.back();
+      return;
+    }
+    
+    // Check if user has already purchased
+    if (subscriptionStatus?.status === 'active') {
+      console.log('User already has active subscription, navigating to home');
+      router.replace('/tabs/home');
+    } else if (__DEV__) {
+      // In development mode, allow access without purchase
+      console.log('Development mode: Allowing access without purchase');
+      router.replace('/tabs/home');
+    } else {
+      console.log('User needs to purchase, showing paywall');
+      showPaywall();
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -211,10 +233,10 @@ export default function PlanResultScreen() {
         <View style={styles.stickyBarBg} />
         <TouchableOpacity 
           style={styles.stickyButton} 
-          onPress={isFromSettings ? () => router.back() : showPaywall}
+          onPress={handleLetsGo}
         >
           <Text style={styles.bottomButtonText}>
-            {isFromSettings ? 'Go Back' : "Let's go"}
+            {isFromSettings ? 'Go Back' : (subscriptionStatus?.status === 'active' ? 'Continue to App' : "Let's go")}
           </Text>
         </TouchableOpacity>
         {paywallError && <Text style={styles.paywallError}>{paywallError}</Text>}

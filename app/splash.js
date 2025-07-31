@@ -48,46 +48,6 @@ function SuperwallEventLogger() {
 export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
   const [loading, setLoading] = useState(true);
   const { subscriptionStatus } = useUser();
-  const { registerPlacement, state } = usePlacement({
-    onPresent: (info) => {
-      console.log('Splash: Paywall presented:', info);
-    },
-    onDismiss: (info, result) => {
-      console.log('Splash: Paywall dismissed:', info, result);
-      // Only allow dismissal in review mode or after successful purchase
-      const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
-      const isSuccessfulPurchase = result?.outcome === 'purchased';
-      
-      if (isReviewMode || isSuccessfulPurchase) {
-        console.log('Splash: Review mode or successful purchase - allowing app access');
-        setLoading(false);
-      } else {
-        console.log('Splash: Paywall dismissed without purchase - staying on paywall');
-        // In production, this shouldn't happen if paywall is non-dismissible
-      }
-    },
-    onError: (error) => {
-      console.error('Splash: Paywall error:', error);
-      // REVIEW MODE: Allow access even if paywall errors
-      const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
-      if (isReviewMode) {
-        console.log('Splash: Review mode - paywall error, allowing app access');
-        setLoading(false);
-      }
-    },
-    onSkip: (reason) => {
-      console.log('Splash: Paywall skipped:', reason);
-      // Only allow skip in review mode
-      const isReviewMode = __DEV__ || process.env.EXPO_PUBLIC_REVIEW_MODE === 'true';
-      if (isReviewMode) {
-        console.log('Splash: Review mode - paywall skipped, allowing app access');
-        setLoading(false);
-      } else {
-        console.log('Splash: Paywall skipped in production - this should not happen');
-        // In production, this shouldn't happen if paywall is non-dismissible
-      }
-    },
-  });
 
   // App initialization (paywall only shows after plan creation)
   useEffect(() => {
