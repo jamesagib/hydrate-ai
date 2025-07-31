@@ -46,6 +46,7 @@ export default function PlanResultScreen() {
   const [loading, setLoading] = useState(true);
   const [paywallError, setPaywallError] = useState(null);
   const [paywallMessage, setPaywallMessage] = useState(null);
+  const [purchaseSuccessful, setPurchaseSuccessful] = useState(false);
   const isFromSettings = params.from === 'settings';
   const { subscriptionStatus } = useUser();
 
@@ -58,12 +59,17 @@ export default function PlanResultScreen() {
     onDismiss: (info, result) => {
       console.log('Paywall dismissed:', info, result);
       
-      // Check if it was a successful purchase
-      const isSuccessfulPurchase = result?.outcome === 'purchased';
+      // Check if it was a successful purchase (including test purchases)
+      // In TestFlight/sandbox, purchases might show as 'dismissed' instead of 'purchased'
+      const isSuccessfulPurchase = result?.outcome === 'purchased' || 
+                                  (result?.outcome === 'dismissed' && result?.products?.length > 0) || 
+                                  result?.outcome === 'restored' ||
+                                  (result?.outcome === 'skipped' && result?.products?.length > 0);
       
       if (isSuccessfulPurchase) {
+        setPurchaseSuccessful(true);
         setPaywallMessage('Purchase successful! Navigating to app...');
-        console.log('Successful purchase - navigating to home');
+        console.log('Successful purchase (outcome:', result?.outcome, ') - navigating to home');
         setTimeout(() => {
           router.replace('/tabs/home');
         }, 1500);
@@ -152,9 +158,9 @@ export default function PlanResultScreen() {
       return;
     }
     
-    // Check if user has already purchased
-    if (subscriptionStatus?.status === 'active') {
-      console.log('User already has active subscription, navigating to home');
+    // Check if user has already purchased (including recent successful purchase)
+    if (subscriptionStatus?.status === 'active' || purchaseSuccessful) {
+      console.log('User has active subscription or recent purchase, navigating to home');
       router.replace('/tabs/home');
     } else if (__DEV__) {
       // In development mode, allow access without purchase
@@ -236,7 +242,7 @@ export default function PlanResultScreen() {
           onPress={handleLetsGo}
         >
           <Text style={styles.bottomButtonText}>
-            {isFromSettings ? 'Go Back' : (subscriptionStatus?.status === 'active' ? 'Continue to App' : "Let's go")}
+            {isFromSettings ? 'Go Back' : (subscriptionStatus?.status === 'active' || purchaseSuccessful ? 'Continue to App' : "Let's go")}
           </Text>
         </TouchableOpacity>
         {paywallError && <Text style={styles.paywallError}>{paywallError}</Text>}
