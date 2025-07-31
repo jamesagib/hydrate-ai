@@ -169,7 +169,9 @@ serve(async (req) => {
           // Send push notification if user has a push token
           if (user.push_token) {
             try {
-              const { error: pushError } = await supabase.functions.invoke('send-push-notification', {
+              console.log(`Attempting to send push notification to user ${user.user_id} with token: ${user.push_token.substring(0, 20)}...`)
+              
+              const { data: pushData, error: pushError } = await supabase.functions.invoke('send-push-notification', {
                 body: {
                   token: user.push_token,
                   title,
@@ -184,7 +186,11 @@ serve(async (req) => {
                 }
               })
 
-              if (!pushError) {
+              if (pushError) {
+                console.error(`Push notification error for user ${user.user_id}:`, pushError)
+              } else {
+                console.log(`Push notification sent successfully to user ${user.user_id}:`, pushData)
+                
                 // Save notification to database
                 await supabase
                   .from('notifications')
@@ -208,8 +214,10 @@ serve(async (req) => {
                 })
               }
             } catch (error) {
-              console.error('Error sending push notification:', error)
+              console.error(`Error sending push notification to user ${user.user_id}:`, error)
             }
+          } else {
+            console.log(`No push token found for user ${user.user_id}`)
           }
         }
       }

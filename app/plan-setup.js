@@ -3,6 +3,7 @@ import { View, Text, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { loadOnboardingData, clearOnboardingData } from '../lib/onboardingStorage';
+import notificationService from '../lib/notificationService';
 
 function parseHydrationPlan(planText) {
   const dailyGoalMatch = planText.match(/🌊 Daily Goal: (.+?)\s+_(.+?)_\s+🕒/s);
@@ -118,9 +119,17 @@ export default function PlanSetupScreen() {
         } else {
           console.log('Profile created successfully:', profileResult);
         }
+
+        // 7. Save pending push token if user wants coaching
+        if (onboarding.wants_coaching) {
+          console.log('User wants coaching, saving pending push token...');
+          const tokenSaved = await notificationService.savePendingPushToken();
+          console.log('Pending push token saved:', tokenSaved);
+        }
+
         await clearOnboardingData();
 
-        // 7. Navigate to plan result screen
+        // 8. Navigate to plan result screen
         router.replace('/plan-result');
       } catch (error) {
         Alert.alert('Setup Error', error.message || 'Failed to create your plan.');
