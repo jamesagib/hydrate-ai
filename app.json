@@ -17,6 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hydrate.ai",
+      "buildNumber": "18",
       "usesAppleSignIn": true,
       "icon": "./assets/icon.png",
       "entitlements": {
@@ -28,6 +29,7 @@
       },
       "infoPlist": {
         "NSUserAuthenticationUsageDescription": "Sign in with Apple is used to authenticate your account.",
+        "NSUserNotificationUsageDescription": "We'll send you personalized hydration reminders to help you stay healthy and hydrated throughout the day.",
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
