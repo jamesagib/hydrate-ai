@@ -153,7 +153,6 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
         
         // Check if user has a profile in database
         let userProfile = null;
-        let isReviewMode = false;
         if (finalSession?.user) {
           const { data: profile, error } = await supabase
             .from('profiles')
@@ -163,9 +162,7 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
           
           if (!error && profile) {
             userProfile = profile;
-            isReviewMode = profile.review_mode || false;
             console.log('Splash: User profile found:', profile.name);
-            console.log('Splash: Review mode from profile:', isReviewMode);
           } else {
             console.log('Splash: No user profile found, error:', error?.message);
           }
@@ -174,12 +171,12 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
         // Navigate based on state
         console.log('Splash: Final decision - onboarding:', onboarding, 'session:', !!finalSession, 'profile:', !!userProfile);
         
-        // Development mode or review mode: Skip auth for easier testing
-        if (__DEV__ || isReviewMode) {
-          console.log('Splash: Development mode or review mode - checking for dev bypass');
+        // Development mode: Skip auth for easier testing
+        if (__DEV__) {
+          console.log('Splash: Development mode - checking for dev bypass');
           const devBypass = await SecureStore.getItemAsync('dev_auth_bypass');
-          if (devBypass === 'true' || isReviewMode) {
-            console.log('Splash: Dev bypass or review mode enabled, going to main app');
+          if (devBypass === 'true') {
+            console.log('Splash: Dev bypass enabled, going to main app');
             router.replace('/tabs/home');
             return;
           }
@@ -240,7 +237,7 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
           style={styles.logo}
           resizeMode="contain"
         />
-        <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 32, color: 'black' }}>Hydrate AI</Text>
+        <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 32, color: 'black' }}>Water AI</Text>
       </View>
     );
   }
@@ -252,7 +249,7 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
         style={styles.logo}
         resizeMode="contain"
       />
-      <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 32 }}>Hydrate AI</Text>
+      <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 32 }}>Water AI</Text>
     </View>
   );
 }

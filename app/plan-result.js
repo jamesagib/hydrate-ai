@@ -46,7 +46,6 @@ export default function PlanResultScreen() {
   const [loading, setLoading] = useState(true);
   const [paywallError, setPaywallError] = useState(null);
   const [paywallMessage, setPaywallMessage] = useState(null);
-  const [userProfile, setUserProfile] = useState(null);
   const isFromSettings = params.from === 'settings';
 
   const { registerPlacement, state } = usePlacement({
@@ -71,10 +70,9 @@ export default function PlanResultScreen() {
         setPaywallMessage('Paywall dismissed');
         setTimeout(() => setPaywallMessage(null), 2000);
         
-        // Only allow dismissal in review mode
-        const isReviewMode = __DEV__ || userProfile?.review_mode;
-        if (isReviewMode) {
-          console.log('Review mode: Paywall dismissed, navigating to home');
+        // Only allow dismissal in development mode
+        if (__DEV__) {
+          console.log('Development mode: Paywall dismissed, navigating to home');
           setTimeout(() => router.replace('/tabs/home'), 1000);
         } else {
           console.log('Paywall dismissed without purchase - staying on paywall');
@@ -87,10 +85,9 @@ export default function PlanResultScreen() {
       setPaywallMessage('Paywall error');
       setTimeout(() => setPaywallMessage(null), 2000);
       
-      // REVIEW MODE: Allow access even if paywall errors
-      const isReviewMode = __DEV__ || userProfile?.review_mode;
-      if (isReviewMode) {
-        console.log('Review mode: Paywall error, navigating to home');
+      // DEVELOPMENT MODE: Allow access even if paywall errors
+      if (__DEV__) {
+        console.log('Development mode: Paywall error, navigating to home');
         setTimeout(() => router.replace('/tabs/home'), 1000);
       }
     },
@@ -99,10 +96,9 @@ export default function PlanResultScreen() {
       setPaywallMessage('Paywall skipped');
       setTimeout(() => setPaywallMessage(null), 2000);
       
-      // Only allow skip in review mode
-      const isReviewMode = __DEV__ || userProfile?.review_mode;
-      if (isReviewMode) {
-        console.log('Review mode: Paywall skipped, navigating to home');
+      // Only allow skip in development mode
+      if (__DEV__) {
+        console.log('Development mode: Paywall skipped, navigating to home');
         setTimeout(() => router.replace('/tabs/home'), 1000);
       } else {
         console.log('Paywall skipped in production - this should not happen');
@@ -116,17 +112,6 @@ export default function PlanResultScreen() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('No user found');
-        
-        // Fetch user profile for review mode
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-        
-        if (!profileError && profile) {
-          setUserProfile(profile);
-        }
         
         const { data, error } = await supabase
           .from('hydration_plans')

@@ -83,7 +83,6 @@ export default function PlanSetupScreen() {
 
         // 6. Upsert profile
         console.log('Onboarding data for profile:', onboarding);
-        console.log('wants_coaching from onboarding:', onboarding.wants_coaching, 'type:', typeof onboarding.wants_coaching);
         
         const profileData = {
           user_id: user.id, 
@@ -98,7 +97,6 @@ export default function PlanSetupScreen() {
           wants_coaching: Boolean(onboarding.wants_coaching)
         };
         console.log('Profile data to insert:', profileData);
-        console.log('Final wants_coaching value:', profileData.wants_coaching, 'type:', typeof profileData.wants_coaching);
         
         // Debug: Check if user exists
         const { data: userCheck, error: userCheckError } = await supabase.auth.getUser();

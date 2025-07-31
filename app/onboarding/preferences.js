@@ -35,9 +35,6 @@ export default function OnboardingPreferencesScreen() {
       const prev = await loadOnboardingData() || {};
       const onboardingData = { ...prev, climate, forgets_water: null, wants_coaching: wantsReminders };
       
-      console.log('Saving onboarding data:', onboardingData);
-      console.log('wantsReminders value:', wantsReminders, 'type:', typeof wantsReminders);
-      
       await saveOnboardingData(onboardingData);
       await SecureStore.setItemAsync('onboarding_complete', 'true');
       
