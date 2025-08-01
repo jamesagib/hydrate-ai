@@ -60,41 +60,23 @@ export default function PlanResultScreen() {
       console.log('Paywall dismissed:', info, result);
       console.log('Result outcome:', result?.outcome);
       console.log('Result products:', result?.products);
-      console.log('Result keys:', result ? Object.keys(result) : 'No result');
       
-      // Check if it was a successful purchase (including test purchases)
-      // In TestFlight/sandbox, purchases might show as 'dismissed' instead of 'purchased'
+      // Simplified purchase detection - check for actual purchase outcomes
       const isSuccessfulPurchase = result?.outcome === 'purchased' || 
-                                  (result?.outcome === 'dismissed' && result?.products?.length > 0) || 
                                   result?.outcome === 'restored' ||
-                                  (result?.outcome === 'skipped' && result?.products?.length > 0) ||
-                                  // Additional checks for TestFlight purchases
-                                  (result?.outcome === 'dismissed' && result?.transaction) ||
-                                  (result?.outcome === 'dismissed' && result?.purchase) ||
-                                  (result?.outcome === 'dismissed' && result?.success === true);
+                                  (result?.outcome === 'dismissed' && result?.products?.length > 0);
       
       console.log('Is successful purchase:', isSuccessfulPurchase);
       
-      // TEMPORARY: For TestFlight testing, treat any dismissal as successful purchase
-      // This should be removed once we understand the proper purchase detection
-      const isTestFlight = !__DEV__ && result?.outcome === 'dismissed';
-      
-      if (isSuccessfulPurchase || isTestFlight) {
+      if (isSuccessfulPurchase) {
         setPurchaseSuccessful(true);
-        console.log('Successful purchase (outcome:', result?.outcome, ') - navigating to home immediately');
-        // Navigate immediately after successful purchase
+        console.log('Successful purchase detected - navigating to home immediately');
         router.replace('/tabs/home');
       } else {
-        setPaywallMessage('Paywall dismissed');
-        setTimeout(() => setPaywallMessage(null), 2000);
-        
-        // Only allow dismissal in development mode
-        if (__DEV__) {
-          console.log('Development mode: Paywall dismissed, navigating to home');
-          router.replace('/tabs/home');
-        } else {
-          console.log('Paywall dismissed without purchase - staying on paywall');
-        }
+        // User dismissed without purchasing - stay on this screen
+        console.log('Paywall dismissed without purchase');
+        setPaywallMessage('Purchase required to continue');
+        setTimeout(() => setPaywallMessage(null), 3000);
       }
     },
     onError: (error) => {
@@ -111,17 +93,7 @@ export default function PlanResultScreen() {
     },
     onSkip: (reason) => {
       console.log('Paywall skipped:', reason);
-      setPaywallMessage('Paywall skipped');
-      setTimeout(() => setPaywallMessage(null), 2000);
-      
-      // Only allow skip in development mode
-      if (__DEV__) {
-        console.log('Development mode: Paywall skipped, navigating to home');
-        router.replace('/tabs/home');
-      } else {
-        console.log('Paywall skipped in production - this should not happen');
-        // In production, this shouldn't happen if paywall is non-dismissible
-      }
+      // Don't show any message or navigate - just log it
     },
   });
 
@@ -162,25 +134,30 @@ export default function PlanResultScreen() {
     registerPlacement({ placement: 'campaign_trigger' }); // Replace with your actual paywall ID
   };
 
-  // Check if user has already purchased
+  // Handle the "Let's go" button press
   const handleLetsGo = () => {
     if (isFromSettings) {
       router.back();
       return;
     }
     
-    // Check if user has already purchased (including recent successful purchase)
+    // If user has active subscription or just completed a purchase, go to home
     if (subscriptionStatus?.status === 'active' || purchaseSuccessful) {
       console.log('User has active subscription or recent purchase, navigating to home');
       router.replace('/tabs/home');
-    } else if (__DEV__) {
-      // In development mode, allow access without purchase
+      return;
+    }
+    
+    // In development mode, allow access without purchase
+    if (__DEV__) {
       console.log('Development mode: Allowing access without purchase');
       router.replace('/tabs/home');
-    } else {
-      console.log('User needs to purchase, showing paywall');
-      showPaywall();
+      return;
     }
+    
+    // Show paywall for purchase
+    console.log('Showing paywall for purchase');
+    showPaywall();
   };
 
   if (loading) {
