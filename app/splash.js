@@ -48,13 +48,40 @@ function SuperwallEventLogger() {
 export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
   const [loading, setLoading] = useState(true);
   const { subscriptionStatus } = useUser();
+  const { registerPlacement, state } = usePlacement({
+    onPresent: (info) => {
+      console.log('Splash: Paywall presented:', info);
+    },
+    onDismiss: async (info, result) => {
+      console.log('Splash: Paywall dismissed:', info, result);
+      
+      // Check if purchase was successful
+      const isSuccessfulPurchase = result?.outcome === 'purchased' || 
+                                  result?.outcome === 'restored' ||
+                                  (result?.outcome === 'dismissed' && result?.products?.length > 0);
+      
+      if (isSuccessfulPurchase) {
+        console.log('Splash: Purchase successful, navigating to home');
+        router.replace('/tabs/home');
+      } else {
+        console.log('Splash: Purchase not completed, staying on splash');
+      }
+    },
+    onError: (error) => {
+      console.error('Splash: Paywall error:', error);
+      // On error, allow access in development mode
+      if (__DEV__) {
+        console.log('Splash: Development mode - paywall error, navigating to home');
+        router.replace('/tabs/home');
+      }
+    },
+  });
 
-  // App initialization (paywall only shows after plan creation)
+  // App initialization (paywall shows for users who completed onboarding but haven't paid)
   useEffect(() => {
     if (!fontsLoaded) return;
     if (!subscriptionStatus) return;
     
-    // Don't show paywall here - let users complete onboarding and plan creation first
     let didNavigate = false;
     const initializeApp = async () => {
       try {
@@ -147,12 +174,19 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
             console.log('Splash: Navigating to welcome screen');
             router.replace('/onboarding/welcome');
           } else if (finalSession && userProfile) {
-            console.log('Splash: Navigating to main app');
+            // User has completed onboarding and has a profile - check subscription
+            console.log('Splash: User completed onboarding, checking subscription status');
+            console.log('Splash: Subscription status:', subscriptionStatus?.status);
             
-            // Push notifications are already initialized during onboarding
-            // No need to re-initialize here
-            
-            router.replace('/tabs/home');
+            // Check if user has active subscription
+            if (subscriptionStatus?.status === 'active' || subscriptionStatus?.status === 'ACTIVE') {
+              console.log('Splash: User has active subscription, navigating to main app');
+              router.replace('/tabs/home');
+            } else {
+              console.log('Splash: User does not have active subscription, showing paywall');
+              // Show paywall for users who completed onboarding but haven't paid
+              registerPlacement({ placement: 'campaign_trigger' });
+            }
           } else if (finalSession && !userProfile) {
             console.log('Splash: User logged in but no profile found, going to plan setup');
             router.replace('/plan-setup');
