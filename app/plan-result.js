@@ -68,6 +68,9 @@ export default function PlanResultScreen() {
                                   (result?.outcome === 'dismissed' && result?.products?.length > 0);
       
       console.log('Is successful purchase:', isSuccessfulPurchase);
+      console.log('Result outcome:', result?.outcome);
+      console.log('Result products:', result?.products);
+      console.log('Full result object:', JSON.stringify(result, null, 2));
       
       if (isSuccessfulPurchase) {
         setPurchaseSuccessful(true);
@@ -151,13 +154,14 @@ export default function PlanResultScreen() {
            setPaywallMessage('Error verifying purchase. Please try again or contact support.');
            setTimeout(() => setPaywallMessage(null), 5000);
          }
-      } else {
-        // User dismissed without purchasing - stay on this screen
-        console.log('Paywall dismissed without purchase');
-        setPaywallMessage('Purchase required to continue');
-        setTimeout(() => setPaywallMessage(null), 3000);
-      }
-    },
+       }
+       
+       // Fallback: If paywall was dismissed and user has products, navigate to home
+       if (result?.products && result.products.length > 0) {
+         console.log('✅ Fallback: Products detected, navigating to home');
+         router.replace('/tabs/home');
+       }
+      },
     onError: (error) => {
       console.error('Paywall error:', error);
       setPaywallError(error || 'Could not show paywall.');
