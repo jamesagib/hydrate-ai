@@ -201,9 +201,9 @@ export default function PlanResultScreen() {
       return;
     }
     
-    // If user has active subscription or just completed a purchase, go to home
-    if (subscriptionStatus?.status === 'active' || purchaseSuccessful) {
-      console.log('User has active subscription or recent purchase, navigating to home');
+    // If user just completed a purchase, go to home
+    if (purchaseSuccessful) {
+      console.log('User just completed purchase, navigating to home');
       router.replace('/tabs/home');
       return;
     }
@@ -301,7 +301,7 @@ export default function PlanResultScreen() {
           onPress={handleLetsGo}
         >
           <Text style={styles.bottomButtonText}>
-            {isFromSettings ? 'Go Back' : (subscriptionStatus?.status === 'active' || purchaseSuccessful ? 'Continue to App' : "Let's go")}
+            {isFromSettings ? 'Go Back' : (purchaseSuccessful ? 'Continue to App' : "Let's go")}
           </Text>
         </TouchableOpacity>
         {paywallError && <Text style={styles.paywallError}>{paywallError}</Text>}
