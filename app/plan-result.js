@@ -47,6 +47,7 @@ export default function PlanResultScreen() {
   const [paywallError, setPaywallError] = useState(null);
   const [paywallMessage, setPaywallMessage] = useState(null);
   const [purchaseSuccessful, setPurchaseSuccessful] = useState(false);
+  const [isProcessingPurchase, setIsProcessingPurchase] = useState(false);
   const isFromSettings = params.from === 'settings';
   const { subscriptionStatus } = useUser();
 
@@ -70,8 +71,36 @@ export default function PlanResultScreen() {
       
       if (isSuccessfulPurchase) {
         setPurchaseSuccessful(true);
-        console.log('Successful purchase detected - navigating to home immediately');
-        router.replace('/tabs/home');
+        setIsProcessingPurchase(true);
+        console.log('Successful purchase detected - checking subscription status...');
+        
+        // Check subscription status multiple times with increasing delays
+        const checkSubscriptionStatus = (attempts = 0) => {
+          if (attempts >= 5) {
+            // After 5 attempts (10 seconds), just navigate anyway
+            console.log('Subscription status not updated, navigating anyway');
+            setIsProcessingPurchase(false);
+            router.replace('/tabs/home');
+            return;
+          }
+          
+          // Check if subscription status has updated
+          if (subscriptionStatus?.status === 'active') {
+            console.log('Subscription status updated, navigating to home');
+            setIsProcessingPurchase(false);
+            router.replace('/tabs/home');
+            return;
+          }
+          
+          // Wait 2 seconds and try again
+          setTimeout(() => {
+            console.log(`Checking subscription status (attempt ${attempts + 1})`);
+            checkSubscriptionStatus(attempts + 1);
+          }, 2000);
+        };
+        
+        // Start checking
+        checkSubscriptionStatus();
       } else {
         // User dismissed without purchasing - stay on this screen
         console.log('Paywall dismissed without purchase');
@@ -194,6 +223,17 @@ export default function PlanResultScreen() {
         {paywallMessage && (
           <View style={styles.paywallMessageBar}>
             <Text style={styles.paywallMessageText}>{paywallMessage}</Text>
+          </View>
+        )}
+        
+        {/* Loading overlay for purchase processing */}
+        {isProcessingPurchase && (
+          <View style={styles.loadingOverlay}>
+            <View style={styles.loadingContent}>
+              <ActivityIndicator size="large" color="black" />
+              <Text style={styles.loadingText}>Processing your purchase...</Text>
+              <Text style={styles.loadingSubtext}>Please wait while we set up your account</Text>
+            </View>
           </View>
         )}
         <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -382,5 +422,35 @@ const styles = StyleSheet.create({
     color: 'white',
     fontFamily: 'Nunito_700Bold',
     fontSize: 16,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(242, 239, 235, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
+    minWidth: 250,
+  },
+  loadingSubtext: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 8,
+    fontFamily: 'Nunito_400Regular',
   },
 }); 
