@@ -197,7 +197,7 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
           style={styles.logo}
           resizeMode="contain"
         />
-        <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 32, color: 'black' }}>Water AI</Text>
+        <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 30, color: 'black' }}>Water AI</Text>
       </View>
     );
   }
@@ -209,7 +209,7 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
         style={styles.logo}
         resizeMode="contain"
       />
-      <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 32 }}>Water AI</Text>
+      <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 30 }}>Water AI</Text>
     </View>
   );
 }

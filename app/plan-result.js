@@ -76,6 +76,11 @@ export default function PlanResultScreen() {
         console.log('Successful purchase detected - restoring purchases and checking status...');
         console.log('Result object:', JSON.stringify(result, null, 2));
         
+        // Immediately navigate to home for successful purchases
+        console.log('✅ Purchase successful, navigating to home immediately');
+        router.replace('/tabs/home');
+        return;
+        
         try {
           // Force-refresh the user's subscription state
           console.log('Calling Superwall.restorePurchases()...');
@@ -110,7 +115,7 @@ export default function PlanResultScreen() {
               console.log('Status comparison result:', user?.subscriptionStatus === 'active');
               console.log('Full user object:', JSON.stringify(user, null, 2));
               
-              if (user?.subscriptionStatus === 'active') {
+              if (user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'ACTIVE') {
                 console.log('✅ Subscription status is active, navigating to home');
                 setIsProcessingPurchase(false);
                 router.replace('/tabs/home');
