@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 
@@ -18,172 +18,175 @@ export default function StatsScreen() {
   const [totalDays, setTotalDays] = useState(0);
   const [goalDays, setGoalDays] = useState(0);
   const [dailyGoal, setDailyGoal] = useState(80);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Cache for all period data
+  const [allPeriodData, setAllPeriodData] = useState({
+    week: [0, 0, 0, 0, 0, 0, 0],
+    month: new Array(30).fill(0),
+    year: new Array(12).fill(0)
+  });
+  const [allCheckins, setAllCheckins] = useState([]);
 
-  // Fetch user stats data
-  useEffect(() => {
-    const fetchStatsData = async () => {
-      try {
+  // Function to fetch stats data
+  const fetchStatsData = async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
         setLoading(true);
+      }
         
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          console.log('No user found');
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log('No user found');
+        if (isRefresh) {
+          setRefreshing(false);
+        } else {
           setLoading(false);
-          return;
         }
-        setUser(user);
+        return;
+      }
+      setUser(user);
 
-        // Fetch user's hydration plan for daily goal
-        const { data: planData } = await supabase
-          .from('hydration_plans')
-          .select('daily_goal')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+      // Fetch all stats data for the last year (covers all periods)
+      const { data: statsData, error: statsError } = await supabase.rpc('get_stats_screen_data', {
+        user_uuid: user.id,
+        period_type: 'year'
+      });
 
+      if (statsError) {
+        console.error('Error fetching stats data:', statsError);
+      } else if (statsData) {
+        // Set hydration plan data
         let goal = 80; // default
-        if (planData && planData.daily_goal) {
-          const goalMatch = planData.daily_goal.match(/(\d+)/);
+        if (statsData.hydration_plan && statsData.hydration_plan.daily_goal) {
+          const goalMatch = statsData.hydration_plan.daily_goal.match(/(\d+)/);
           if (goalMatch) {
             goal = parseInt(goalMatch[1]);
           }
         }
         setDailyGoal(goal);
 
-        // Fetch period data based on selected period
-        const periodStart = new Date();
-        let dataPoints = 7;
-        
-        switch (selectedPeriod) {
-          case 'week':
-            periodStart.setDate(periodStart.getDate() - 7);
-            dataPoints = 7;
-            break;
-          case 'month':
-            periodStart.setDate(periodStart.getDate() - 30);
-            dataPoints = 30;
-            break;
-          case 'year':
-            periodStart.setFullYear(periodStart.getFullYear() - 1);
-            dataPoints = 12; // Monthly data points
-            break;
-        }
-        
-        const { data: periodCheckins } = await supabase
-          .from('hydration_checkins')
-          .select('value, created_at')
-          .eq('user_id', user.id)
-          .gte('created_at', periodStart.toISOString())
-          .order('created_at', { ascending: true });
-
-        // Process period data
-        if (periodCheckins) {
-          const totals = new Array(dataPoints).fill(0);
-          const today = new Date();
+        // Process all period data at once
+        if (statsData.period_checkins) {
+          setAllCheckins(statsData.period_checkins);
           
-          periodCheckins.forEach(checkin => {
+          const today = new Date();
+          const weekTotals = new Array(7).fill(0);
+          const monthTotals = new Array(30).fill(0);
+          const yearTotals = new Array(12).fill(0);
+          
+          statsData.period_checkins.forEach(checkin => {
             const checkinDate = new Date(checkin.created_at);
-            let index;
             
-            if (selectedPeriod === 'year') {
-              // Monthly data for year view
-              const monthDiff = (today.getFullYear() - checkinDate.getFullYear()) * 12 + 
-                               (today.getMonth() - checkinDate.getMonth());
-              index = 11 - monthDiff;
-            } else {
-              // Daily data for week/month view
-              const daysAgo = Math.floor((today - checkinDate) / (1000 * 60 * 60 * 24));
-              index = dataPoints - 1 - daysAgo;
+            // Calculate week data (last 7 days)
+            const daysAgo = Math.floor((today - checkinDate) / (1000 * 60 * 60 * 24));
+            if (daysAgo >= 0 && daysAgo < 7) {
+              weekTotals[6 - daysAgo] += checkin.value || 0;
             }
             
-            if (index >= 0 && index < dataPoints) {
-              totals[index] += checkin.value || 0;
+            // Calculate month data (last 30 days)
+            if (daysAgo >= 0 && daysAgo < 30) {
+              monthTotals[29 - daysAgo] += checkin.value || 0;
+            }
+            
+            // Calculate year data (last 12 months)
+            const monthDiff = (today.getFullYear() - checkinDate.getFullYear()) * 12 + 
+                             (today.getMonth() - checkinDate.getMonth());
+            if (monthDiff >= 0 && monthDiff < 12) {
+              yearTotals[11 - monthDiff] += checkin.value || 0;
             }
           });
           
-          setPeriodData(totals);
+          // Store all period data
+          setAllPeriodData({
+            week: weekTotals,
+            month: monthTotals,
+            year: yearTotals
+          });
+          
+          // Set current period data
+          const newAllPeriodData = {
+            week: weekTotals,
+            month: monthTotals,
+            year: yearTotals
+          };
+          setAllPeriodData(newAllPeriodData);
+          setPeriodData(newAllPeriodData[selectedPeriod]);
+          
+          // Calculate average hydration for current period
+          const currentTotals = newAllPeriodData[selectedPeriod];
+          if (currentTotals.some(val => val > 0)) {
+            const total = currentTotals.reduce((sum, val) => sum + val, 0);
+            const nonZeroDays = currentTotals.filter(val => val > 0).length;
+            const avg = nonZeroDays > 0 ? Math.round((total / goal) * 100) : 0;
+            setAverageHydration(avg);
+          }
         }
 
-        // Fetch streak data
-        const { data: streakData } = await supabase
-          .from('streaks')
-          .select('current_streak, longest_streak, goal_days, total_days')
-          .eq('user_id', user.id)
-          .single();
-
-        if (streakData) {
-          setCurrentStreak(streakData.current_streak || 0);
-          setBestStreak(streakData.longest_streak || 0);
-          setGoalDays(streakData.goal_days || 0);
-          setTotalDays(streakData.total_days || 0);
+        // Set streak data
+        if (statsData.streak) {
+          setCurrentStreak(statsData.streak.current_streak || 0);
+          setBestStreak(statsData.streak.longest_streak || 0);
+          setGoalDays(statsData.streak.goal_days || 0);
+          setTotalDays(statsData.streak.total_days || 0);
         }
 
-        // Calculate average hydration
-        if (periodData.some(val => val > 0)) {
-          const total = periodData.reduce((sum, val) => sum + val, 0);
-          const nonZeroDays = periodData.filter(val => val > 0).length;
-          const avg = nonZeroDays > 0 ? Math.round((total / dailyGoal) * 100) : 0;
-          setAverageHydration(avg);
+        // Process achievements
+        if (statsData.achievements) {
+          const earnedIds = new Set(statsData.achievements.earned || []);
+          const achievementsWithStatus = (statsData.achievements.templates || []).map(template => ({
+            id: template.id,
+            title: template.title,
+            description: template.description,
+            icon: template.icon,
+            criteria: template.criteria,
+            earned: earnedIds.has(template.id)
+          }));
+          setAchievements(achievementsWithStatus);
         }
+      }
 
-          // Fetch and calculate achievements
-  fetchAchievements();
-
-          } catch (error) {
+    } catch (error) {
       console.error('Error fetching stats data:', error);
     } finally {
-      setLoading(false);
+      if (isRefresh) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
-  // Fetch achievements from database
-  const fetchAchievements = async () => {
-    if (!user) return;
+
+
+  // Function to switch periods instantly
+  const switchPeriod = (newPeriod) => {
+    setSelectedPeriod(newPeriod);
+    setPeriodData(allPeriodData[newPeriod]);
     
-    try {
-      // Fetch all achievement templates and user's earned achievements
-      const { data: templates, error: templatesError } = await supabase
-        .from('achievement_templates')
-        .select('*')
-        .eq('is_active', true);
-      
-      if (templatesError) {
-        console.error('Error fetching achievement templates:', templatesError);
-        return;
-      }
-
-      const { data: earnedAchievements, error: earnedError } = await supabase
-        .from('achievements')
-        .select('achievement_id')
-        .eq('user_id', user.id);
-      
-      if (earnedError) {
-        console.error('Error fetching earned achievements:', earnedError);
-        return;
-      }
-
-      // Create a set of earned achievement IDs for quick lookup
-      const earnedIds = new Set(earnedAchievements.map(a => a.achievement_id));
-      
-      // Map templates to achievements with earned status
-      const achievementsWithStatus = templates.map(template => ({
-        id: template.id,
-        title: template.title,
-        description: template.description,
-        icon: template.icon,
-        criteria: template.criteria,
-        earned: earnedIds.has(template.id)
-      }));
-
-      setAchievements(achievementsWithStatus);
-    } catch (error) {
-      console.error('Error fetching achievements:', error);
+    // Recalculate average hydration for new period
+    const currentTotals = allPeriodData[newPeriod];
+    if (currentTotals.some(val => val > 0)) {
+      const total = currentTotals.reduce((sum, val) => sum + val, 0);
+      const nonZeroDays = currentTotals.filter(val => val > 0).length;
+      const avg = nonZeroDays > 0 ? Math.round((total / dailyGoal) * 100) : 0;
+      setAverageHydration(avg);
+    } else {
+      setAverageHydration(0);
     }
   };
 
+  // Fetch stats data on component mount only
+  useEffect(() => {
     fetchStatsData();
+  }, []);
+
+  // Pull to refresh handler
+  const onRefresh = useCallback(() => {
+    fetchStatsData(true);
   }, [selectedPeriod]);
 
   const getPeriodLabel = (index) => {
@@ -280,7 +283,18 @@ export default function StatsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F2EFEB' }}>
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={{ flex: 1 }} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#4FC3F7"
+            colors={["#4FC3F7"]}
+          />
+        }
+      >
         {/* Header */}
         <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10 }}>
           <Text style={{ 
@@ -319,7 +333,7 @@ export default function StatsScreen() {
                   backgroundColor: selectedPeriod === period ? 'white' : 'transparent',
                   alignItems: 'center'
                 }}
-                onPress={() => setSelectedPeriod(period)}
+                onPress={() => switchPeriod(period)}
               >
                 <Text style={{ 
                   fontFamily: 'Nunito_600SemiBold', 

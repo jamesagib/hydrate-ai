@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, TouchableOpacity, SafeAreaView, ScrollView, TextInput, Image, Modal, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, SafeAreaView, ScrollView, TextInput, Image, Modal, StyleSheet, Dimensions, ActivityIndicator, RefreshControl } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { supabase } from '../../lib/supabase';
@@ -26,6 +27,7 @@ import Animated, {
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [hydrationLevel, setHydrationLevel] = useState(50); // 0-100
   const [dailyGoal, setDailyGoal] = useState(80); // oz - will be fetched from DB
   const [currentIntake, setCurrentIntake] = useState(0); // oz - will be calculated from DB
@@ -39,6 +41,9 @@ export default function HomeScreen() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [hasReachedGoal, setHasReachedGoal] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date().toDateString());
+  const [recentCheckins, setRecentCheckins] = useState([]);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Drink options with hydration values
   const drinkOptions = [
@@ -66,6 +71,7 @@ export default function HomeScreen() {
   ];
   
   const translateY = useSharedValue(SCREEN_HEIGHT);
+  const modalHeight = useSharedValue(SCREEN_HEIGHT * 0.75);
   
   // Confetti animation values
   const confetti1 = useSharedValue(0);
@@ -75,74 +81,122 @@ export default function HomeScreen() {
   const confetti5 = useSharedValue(0);
   const celebrationScale = useSharedValue(0);
 
-  // Fetch user data and daily goal on component mount
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
+    // Function to fetch user data
+  const fetchUserData = async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
         setLoading(true);
-        
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          console.log('No user found');
+      }
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log('No user found');
+        if (isRefresh) {
+          setRefreshing(false);
+        } else {
           setLoading(false);
-          return;
         }
-        setUser(user);
+        return;
+      }
+      setUser(user);
 
-        // Fetch user's hydration plan to get daily goal
-        const { data: planData, error: planError } = await supabase
-          .from('hydration_plans')
-          .select('daily_goal')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+      // Fetch all home screen data in a single call
+      const { data: homeData, error: homeError } = await supabase.rpc('get_home_screen_data', {
+        user_uuid: user.id
+      });
 
-        if (planError && planError.code !== 'PGRST116') {
-          console.error('Error fetching hydration plan:', planError);
-        }
+      console.log('Full home data:', homeData); // Debug log
 
-        if (planData && planData.daily_goal) {
-          // Extract numeric value from daily goal (e.g., "80oz/day" -> 80)
-          const goalMatch = planData.daily_goal.match(/(\d+)/);
+      if (homeError) {
+        console.error('Error fetching home screen data:', homeError);
+      } else if (homeData) {
+        // Set hydration plan data
+        if (homeData.hydration_plan && homeData.hydration_plan.daily_goal) {
+          const goalMatch = homeData.hydration_plan.daily_goal.match(/(\d+)/);
           if (goalMatch) {
             setDailyGoal(parseInt(goalMatch[1]));
           }
         }
 
-        // Fetch today's check-ins to calculate current intake
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const { data: checkins, error: checkinsError } = await supabase
-          .from('hydration_checkins')
-          .select('value')
-          .eq('user_id', user.id)
-          .gte('created_at', today.toISOString());
-
-        if (checkinsError) {
-          console.error('Error fetching check-ins:', checkinsError);
-        } else if (checkins) {
-          const totalIntake = checkins.reduce((sum, checkin) => sum + (checkin.value || 0), 0);
+        // Set check-ins data
+        if (homeData.today_checkins) {
+          const totalIntake = homeData.today_checkins.reduce((sum, checkin) => sum + (checkin.value || 0), 0);
           setCurrentIntake(totalIntake);
+          console.log('Today checkins:', homeData.today_checkins); // Debug log
+          setRecentCheckins(homeData.today_checkins.slice(0, 5)); // Show last 5 entries
+        } else {
+          console.log('No today_checkins found in homeData');
         }
+        
+        // Debug: Check what date we're looking for
+        const today = new Date();
+        console.log('Looking for checkins on date:', today.toISOString().split('T')[0]);
+        console.log('Current date in JS:', today.toDateString());
 
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-      } finally {
+        // Set streak data
+        if (homeData.streak) {
+          setCurrentStreak(homeData.streak.current_streak || 0);
+        }
+      }
+
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    } finally {
+      if (isRefresh) {
+        setRefreshing(false);
+      } else {
         setLoading(false);
       }
-    };
+    }
+  };
 
+  // Fetch user data on component mount
+  useEffect(() => {
     fetchUserData();
+  }, []);
+
+  // Function to handle modal step transitions with height animation
+  const handleStepTransition = useCallback((newStep) => {
+    setModalStep(newStep);
+    
+    // Animate height based on step
+    if (newStep === 1) {
+      // Step 1: Full height for drink selection
+      modalHeight.value = withSpring(SCREEN_HEIGHT * 0.75, {
+        damping: 65,
+        mass: 0.7,
+        stiffness: 65,
+      });
+    } else if (newStep === 2) {
+      // Step 2: Compact height for hydration level
+      modalHeight.value = withSpring(SCREEN_HEIGHT * 0.5, {
+        damping: 65,
+        mass: 0.7,
+        stiffness: 65,
+      });
+    } else if (newStep === 3) {
+      // Step 3: Medium height for custom amount
+      modalHeight.value = withSpring(SCREEN_HEIGHT * 0.6, {
+        damping: 65,
+        mass: 0.7,
+        stiffness: 65,
+      });
+    }
+  }, [modalHeight]);
+
+  // Pull to refresh handler
+  const onRefresh = useCallback(() => {
+    fetchUserData(true);
   }, []);
 
   // Update hydration level when currentIntake or dailyGoal changes
   useEffect(() => {
     if (dailyGoal > 0) {
       const percentage = (currentIntake / dailyGoal) * 100;
-      setHydrationLevel(Math.min(percentage, 100));
+      setHydrationLevel(Math.round(Math.min(percentage, 100)));
       
       // Reset hasReachedGoal if current intake drops below goal (new day)
       if (currentIntake < dailyGoal && hasReachedGoal) {
@@ -311,7 +365,12 @@ export default function HomeScreen() {
       stiffness: 65,
       overshootClamping: true,
     });
-  }, [translateY]);
+    modalHeight.value = withSpring(SCREEN_HEIGHT * 0.75, {
+      damping: 65,
+      mass: 0.7,
+      stiffness: 65,
+    });
+  }, [translateY, modalHeight]);
 
   const handleCloseModal = useCallback(() => {
     translateY.value = withTiming(SCREEN_HEIGHT, {
@@ -323,13 +382,18 @@ export default function HomeScreen() {
         runOnJS(setSelectedDrink)(null);
         runOnJS(setSelectedDrinkObject)(null);
         runOnJS(setCustomAmount)('');
+        runOnJS(setHydrationLevel)(50); // Reset hydration level to default
       }
     });
-  }, [translateY, SCREEN_HEIGHT]);
+    modalHeight.value = withTiming(SCREEN_HEIGHT * 0.75, {
+      duration: 250,
+    });
+  }, [translateY, modalHeight, SCREEN_HEIGHT]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ translateY: translateY.value }],
+      height: modalHeight.value,
     };
   });
 
@@ -386,19 +450,55 @@ export default function HomeScreen() {
 
   const bottleFillPercentage = (currentIntake / dailyGoal) * 100;
 
+  // Helper function to format time
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = (now - date) / (1000 * 60 * 60);
+    
+    if (diffInHours < 1) {
+      const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+      return `${diffInMinutes}m ago`;
+    } else if (diffInHours < 24) {
+      return `${Math.floor(diffInHours)}h ago`;
+    } else {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+  };
+
+  // Helper function to get drink emoji and color
+  const getDrinkInfo = (drinkName) => {
+    const name = drinkName?.toLowerCase() || '';
+    if (name.includes('coconut')) return { emoji: '🥥', color: '#8B4513' }; // Brown
+    if (name.includes('tea')) return { emoji: '🫖', color: '#228B22' }; // Green
+    if (name.includes('coffee')) return { emoji: '☕', color: '#654321' }; // Dark brown
+    if (name.includes('juice')) return { emoji: '🧃', color: '#FF8C00' }; // Orange
+    if (name.includes('milk')) return { emoji: '🥛', color: '#F5F5DC' }; // Cream
+    if (name.includes('smoothie')) return { emoji: '🥤', color: '#FF69B4' }; // Pink
+    if (name.includes('soda')) return { emoji: '🥤', color: '#DC143C' }; // Crimson
+    if (name.includes('beer')) return { emoji: '🍺', color: '#FFD700' }; // Gold
+    if (name.includes('energy')) return { emoji: '⚡', color: '#FF4500' }; // Orange red
+    if (name.includes('sports')) return { emoji: '🏃', color: '#00CED1' }; // Dark turquoise
+    if (name.includes('sparkling')) return { emoji: '💧', color: '#87CEEB' }; // Sky blue
+    return { emoji: '💧', color: '#4FC3F7' }; // Default blue for water
+  };
+
   // Function to add hydration check-in to database
   const addHydrationCheckin = async (amount, checkinType = 'slider') => {
     if (!user) return;
     
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('hydration_checkins')
         .insert([{
           user_id: user.id,
           checkin_type: checkinType,
           value: amount,
-          raw_input: `${amount}oz`
-        }]);
+          raw_input: selectedDrinkObject?.name || `${amount}oz`,
+          ai_estimate_oz: Math.round(hydrationLevel) // Round the hydration level to avoid decimals
+        }])
+        .select()
+        .single();
 
       if (error) {
         console.error('Error adding check-in:', error);
@@ -413,11 +513,21 @@ export default function HomeScreen() {
       const newPercentage = (newTotal / dailyGoal) * 100;
       setHydrationLevel(Math.min(newPercentage, 100));
       
+      // Update recent checkins list
+      const newCheckin = {
+        value: amount,
+        ai_estimate_oz: Math.round(hydrationLevel),
+        raw_input: selectedDrinkObject?.name || `${amount}oz`,
+        created_at: new Date().toISOString()
+      };
+      console.log('New checkin being added:', newCheckin); // Debug log
+      setRecentCheckins(prev => [newCheckin, ...prev.slice(0, 4)]);
+      
       // Check if goal is reached and trigger celebration
       if (newTotal >= dailyGoal && !hasReachedGoal) {
         triggerCelebration();
         
-        // Check and award achievements
+        // Check and award achievements (only if user has been using the app for a while)
         try {
           const { error } = await supabase.rpc('check_and_award_achievements', {
             user_uuid: user.id
@@ -470,8 +580,21 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F2EFEB' }}>
-      {/* Confetti Animation */}
-      {showCelebration && (
+      <ScrollView 
+        style={{ flex: 1 }} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 50 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#4FC3F7"
+            colors={["#4FC3F7"]}
+          />
+        }
+      >
+        {/* Confetti Animation */}
+        {showCelebration && (
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, pointerEvents: 'none' }}>
           <Animated.View style={[confetti1Style, { position: 'absolute', top: '50%', left: '20%' }]}>
             <Text style={{ fontSize: 24 }}>🎉</Text>
@@ -518,15 +641,40 @@ export default function HomeScreen() {
       )}
       
       {/* Logo Row */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, marginBottom: 40 }}>
-        <Image source={require('../../assets/icon.png')} style={{ width: 45, height: 45, marginRight: 5 }} />
-        <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 28, color: 'black', letterSpacing: -1 }}>Water AI</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 12, marginBottom: 40 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Image source={require('../../assets/icon.png')} style={{ width: 45, height: 45, marginRight: 5 }} />
+          <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 28, color: 'black', letterSpacing: -1 }}>Water AI</Text>
+        </View>
+        
+        {/* Streak Display */}
+        <TouchableOpacity
+          style={{ 
+            flexDirection: 'row', 
+            alignItems: 'center', 
+            backgroundColor: 'white', 
+            paddingHorizontal: 12, 
+            paddingVertical: 6, 
+            borderRadius: 16 
+          }}
+          onPress={() => router.push('/tabs/stats')}
+          activeOpacity={0.7}
+        >
+          <Text style={{ fontSize: 16, marginRight: 4 }}>🔥</Text>
+          <Text style={{ 
+            fontFamily: 'Nunito_600SemiBold', 
+            fontSize: 14, 
+            color: 'black' 
+          }}>
+            {currentStreak}
+          </Text>
+        </TouchableOpacity>
       </View>
       {/* Water Intake Info Above Container */}
       <View style={{ alignItems: 'center', marginBottom: 20 }}>
-        <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 36, color: 'black' }}>{currentIntake} oz</Text>
+        <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 36, color: 'black' }}>{Math.round(currentIntake)} oz</Text>
         <Text style={{ fontFamily: 'Nunito_400Regular', fontSize: 16, color: '#666', marginTop: 2 }}>
-          {Math.round((currentIntake / dailyGoal) * 100)}% of daily goal – {dailyGoal - currentIntake} oz left
+          {Math.round((currentIntake / dailyGoal) * 100)}% of daily goal – {Math.round(Math.max(0, dailyGoal - currentIntake))} oz left
         </Text>
       </View>
       <View style={{ flex: 1, justifyContent: 'flex-start', alignItems: 'center' }}>
@@ -602,12 +750,141 @@ export default function HomeScreen() {
           </View>
         </View>
       </View>
+      
+      {/* Recently Logged Section */}
+      <View style={{ paddingHorizontal: 20, marginTop: 50, marginBottom: 120 }}>
+        <Text style={{ 
+          fontFamily: 'Nunito_700Bold', 
+          fontSize: 20, 
+          color: 'black', 
+          marginBottom: 16 
+        }}>
+          Recently logged
+        </Text>
+        
+        {recentCheckins.length > 0 ? (
+          <View style={{ gap: 12 }}>
+            {recentCheckins.map((checkin, index) => {
+              const hydrationEmoji = getHydrationEmoji(checkin.ai_estimate_oz || 50);
+              const drinkInfo = getDrinkInfo(checkin.raw_input);
+              // Extract just the drink name without the amount
+              let drinkName = checkin.raw_input || 'Water';
+              
+              // If raw_input is just an amount (like "7.5oz", "8oz"), default to "Water"
+              if (drinkName.match(/^\d+\.?\d*oz$/)) {
+                drinkName = 'Water';
+              } else if (drinkName.match(/^\d+\.?\d* oz$/)) {
+                // Handle "8 oz" format
+                drinkName = 'Water';
+              } else {
+                // Remove any amount suffix if it exists (e.g., "Black Coffee (8 oz)" -> "Black Coffee")
+                drinkName = drinkName.replace(/\s*\(\d+.*?\)$/, '');
+                drinkName = drinkName.replace(/\s*\d+.*?oz.*?$/, '');
+                drinkName = drinkName.replace(/\s*\d+.*? oz.*?$/, '');
+              }
+              return (
+                <View key={index} style={{
+                  backgroundColor: 'white',
+                  borderRadius: 16,
+                  padding: 16,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 2,
+                  elevation: 2
+                }}>
+                  {/* Drink Icon */}
+                  <View style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 24,
+                    backgroundColor: drinkInfo.color,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 16
+                  }}>
+                    <Text style={{ fontSize: 20 }}>{drinkInfo.emoji}</Text>
+                  </View>
+                  
+                  {/* Content */}
+                  <View style={{ flex: 1 }}>
+                    <Text style={{
+                      fontFamily: 'Nunito_600SemiBold',
+                      fontSize: 16,
+                      color: 'black',
+                      marginBottom: 4
+                    }}>
+                      {drinkName} - {checkin.value} oz
+                    </Text>
+                    
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={{
+                        fontFamily: 'Nunito_400Regular',
+                        fontSize: 14,
+                        color: '#666'
+                      }}>
+                        {formatTime(checkin.created_at)}
+                      </Text>
+                      
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Text style={{ fontSize: 16 }}>{hydrationEmoji}</Text>
+                        <Text style={{
+                          fontFamily: 'Nunito_400Regular',
+                          fontSize: 14,
+                          color: '#666'
+                        }}>
+                          {checkin.ai_estimate_oz || 50}% hydrated
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={{
+            backgroundColor: 'white',
+            borderRadius: 16,
+            padding: 32,
+            alignItems: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.1,
+            shadowRadius: 2,
+            elevation: 2
+          }}>
+            <Text style={{ fontSize: 48, marginBottom: 16 }}>💧</Text>
+            <Text style={{
+              fontFamily: 'Nunito_600SemiBold',
+              fontSize: 16,
+              color: '#666',
+              textAlign: 'center',
+              marginBottom: 8
+            }}>
+              No water logged yet today
+            </Text>
+            <Text style={{
+              fontFamily: 'Nunito_400Regular',
+              fontSize: 14,
+              color: '#999',
+              textAlign: 'center'
+            }}>
+              Tap the + button to log your first drink
+            </Text>
+          </View>
+        )}
+      </View>
+      </ScrollView>
+      
       {/* Floating Action Button for logging water */}
       <TouchableOpacity
         style={{
           position: 'absolute',
           right: 24,
-          bottom: 36,
+          bottom: 20,
           width: 64,
           height: 64,
           backgroundColor: 'black',
@@ -655,7 +932,7 @@ export default function HomeScreen() {
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                   <Text style={styles.stepTitle}>What did you drink?</Text>
                   <TouchableOpacity
-                    onPress={() => setModalStep(3)}
+                    onPress={() => handleStepTransition(3)}
                     style={{ paddingHorizontal: 12, paddingVertical: 6 }}
                   >
                     <Text style={{ 
@@ -684,7 +961,7 @@ export default function HomeScreen() {
                         ]}
                         onPress={() => {
                           setSelectedDrinkObject(drink);
-                          setModalStep(2);
+                          handleStepTransition(2);
                         }}
                       >
                         <Text style={[
@@ -723,7 +1000,7 @@ export default function HomeScreen() {
                 </View>
                 
                 <Slider
-                  style={{ width: '100%', height: 40, marginBottom: 32 }}
+                  style={{ width: '100%', height: 40, marginBottom: 20 }}
                   minimumValue={0}
                   maximumValue={100}
                   step={1}
@@ -734,10 +1011,10 @@ export default function HomeScreen() {
                   thumbTintColor={'#fff'}
                 />
                 
-                <View style={styles.buttonRow}>
+                <View style={[styles.buttonRow, { marginBottom: 20 }]}>
                   <TouchableOpacity
                     style={styles.backButton}
-                    onPress={() => setModalStep(1)}
+                    onPress={() => handleStepTransition(1)}
                   >
                     <Text style={styles.backButtonText}>Back</Text>
                   </TouchableOpacity>
@@ -774,7 +1051,7 @@ export default function HomeScreen() {
                 <View style={styles.buttonRow}>
                   <TouchableOpacity
                     style={styles.backButton}
-                    onPress={() => setModalStep(1)}
+                    onPress={() => handleStepTransition(1)}
                   >
                     <Text style={styles.backButtonText}>Back</Text>
                   </TouchableOpacity>
@@ -820,7 +1097,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     padding: 20,
     paddingBottom: 40,
-    height: SCREEN_HEIGHT * 0.75,
+    maxHeight: SCREEN_HEIGHT * 0.75,
     width: '100%',
     position: 'absolute',
     bottom: 0,

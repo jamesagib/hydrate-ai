@@ -174,28 +174,22 @@ begin
   -- Get user's current streak and stats (handle case where user doesn't have streak record)
   select * into user_streak from streaks where user_id = user_uuid;
   
-  -- Initialize user_stats with default values if no data found
-  user_stats.total_goals := 0;
-  user_stats.monthly_goals := 0;
-  user_stats.weekend_goals := 0;
-  user_stats.early_checkins := 0;
-  user_stats.late_checkins := 0;
-  user_stats.exceeded_goals := 0;
-  
-  -- Get user's goal achievement stats (only if they have hydration data)
-  select 
-    count(*) as total_goals,
-    count(*) filter (where date(created_at) >= date_trunc('month', current_date)) as monthly_goals,
-    count(*) filter (where extract(dow from created_at) in (0, 6)) as weekend_goals,
-    count(*) filter (where extract(hour from created_at) < 9) as early_checkins,
-    count(*) filter (where extract(hour from created_at) >= 22) as late_checkins,
-    count(*) filter (where value >= daily_goal * 1.2) as exceeded_goals
-  into user_stats
-  from hydration_checkins hc
-  join hydration_plans hp on hc.user_id = hp.user_id
-  where hc.user_id = user_uuid 
-    and hc.value >= hp.daily_goal
-    and hc.created_at >= hp.created_at;
+  -- Get user's goal achievement stats with proper fallback
+  select * into user_stats
+  from (
+    select 
+      coalesce(count(*), 0) as total_goals,
+      coalesce(count(*) filter (where date(hc.created_at) >= date_trunc('month', current_date)), 0) as monthly_goals,
+      coalesce(count(*) filter (where extract(dow from hc.created_at) in (0, 6)), 0) as weekend_goals,
+      coalesce(count(*) filter (where extract(hour from hc.created_at) < 9), 0) as early_checkins,
+      coalesce(count(*) filter (where extract(hour from hc.created_at) >= 22), 0) as late_checkins,
+      coalesce(count(*) filter (where hc.value >= (regexp_replace(hp.daily_goal, '[^0-9.]', '', 'g')::numeric) * 1.2), 0) as exceeded_goals
+    from hydration_checkins hc
+    join hydration_plans hp on hc.user_id = hp.user_id
+    where hc.user_id = user_uuid 
+      and hc.value >= (regexp_replace(hp.daily_goal, '[^0-9.]', '', 'g')::numeric)
+      and hc.created_at >= hp.created_at
+  ) user_achievement_stats;
   
   -- Loop through all achievement templates
   for achievement_record in 
@@ -355,5 +349,106 @@ begin
     
   raise notice 'Updated streaks for user %: current=%, longest=%, goal_days=%, total_days=%', 
     user_uuid, new_current_streak, new_longest_streak, new_goal_days, new_total_days;
+end;
+$$ language plpgsql security definer; 
+
+-- Function to get all home screen data in a single call
+create or replace function get_home_screen_data(user_uuid uuid)
+returns json as $$
+declare
+  result json;
+  today_date date := current_date;
+begin
+  select json_build_object(
+    'hydration_plan', (
+      select row_to_json(hp) 
+      from hydration_plans hp 
+      where hp.user_id = user_uuid 
+      order by hp.created_at desc 
+      limit 1
+    ),
+    'today_checkins', (
+      select coalesce(json_agg(row_to_json(hc) order by hc.created_at desc), '[]'::json)
+      from hydration_checkins hc 
+      where hc.user_id = user_uuid 
+        and hc.created_at >= current_date - interval '1 day'
+        and hc.created_at < current_date + interval '1 day'
+    ),
+    'streak', (
+      select row_to_json(s) 
+      from streaks s 
+      where s.user_id = user_uuid
+    )
+  ) into result;
+  
+  return result;
+end;
+$$ language plpgsql security definer;
+
+-- Function to get all stats screen data in a single call
+create or replace function get_stats_screen_data(user_uuid uuid, period_type text default 'week')
+returns json as $$
+declare
+  result json;
+  period_start date;
+  data_points int;
+begin
+  -- Calculate period start date and data points
+  case period_type
+    when 'week' then
+      period_start := current_date - interval '7 days';
+      data_points := 7;
+    when 'month' then
+      period_start := current_date - interval '30 days';
+      data_points := 30;
+    when 'year' then
+      period_start := current_date - interval '1 year';
+      data_points := 12;
+    else
+      period_start := current_date - interval '7 days';
+      data_points := 7;
+  end case;
+
+  select json_build_object(
+    'hydration_plan', (
+      select row_to_json(hp) 
+      from hydration_plans hp 
+      where hp.user_id = user_uuid 
+      order by hp.created_at desc 
+      limit 1
+    ),
+    'period_checkins', (
+      select coalesce(json_agg(row_to_json(hc) order by hc.created_at asc), '[]'::json)
+      from hydration_checkins hc 
+      where hc.user_id = user_uuid 
+        and hc.created_at >= period_start
+    ),
+    'streak', (
+      select row_to_json(s) 
+      from streaks s 
+      where s.user_id = user_uuid
+    ),
+    'achievements', (
+      select json_build_object(
+        'templates', (
+          select coalesce(json_agg(row_to_json(at)), '[]'::json)
+          from achievement_templates at
+          where at.is_active = true
+        ),
+        'earned', (
+          select coalesce(json_agg(a.achievement_id), '[]'::json)
+          from achievements a
+          where a.user_id = user_uuid
+        )
+      )
+    ),
+    'period_info', json_build_object(
+      'start_date', period_start,
+      'data_points', data_points,
+      'period_type', period_type
+    )
+  ) into result;
+  
+  return result;
 end;
 $$ language plpgsql security definer; 

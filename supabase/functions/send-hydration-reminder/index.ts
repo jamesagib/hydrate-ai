@@ -74,11 +74,11 @@ serve(async (req) => {
         if (period === 'PM' && hour !== 12) hour += 12
         if (period === 'AM' && hour === 12) hour = 0
 
-        // Convert user's local time to UTC for comparison
-        const userLocalTime = new Date().toLocaleString("en-US", {timeZone: userTimezone})
-        const userLocalDate = new Date(userLocalTime)
-        const userLocalHour = userLocalDate.getHours()
-        const userLocalMinute = userLocalDate.getMinutes()
+        // Get current time in user's timezone
+        const now = new Date()
+        const userLocalTime = new Date(now.toLocaleString("en-US", {timeZone: userTimezone}))
+        const userLocalHour = userLocalTime.getHours()
+        const userLocalMinute = userLocalTime.getMinutes()
         
         // Check if it's time to send this notification in user's timezone (exact minute match)
         if (userLocalHour === hour && userLocalMinute === minute) {

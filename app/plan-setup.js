@@ -85,8 +85,12 @@ export default function PlanSetupScreen() {
         // 6. Upsert profile
         console.log('Onboarding data for profile:', onboarding);
         
+                // Get user's timezone
+        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        console.log('User timezone detected:', userTimezone);
+        
         const profileData = {
-          user_id: user.id, 
+          user_id: user.id,
           name: onboarding.name,
           sex: onboarding.sex,
           age: onboarding.age,
@@ -95,7 +99,8 @@ export default function PlanSetupScreen() {
           activity_level: onboarding.activity_level,
           climate: onboarding.climate,
           forgets_water: onboarding.forgets_water || false,
-          wants_coaching: Boolean(onboarding.wants_coaching)
+          wants_coaching: Boolean(onboarding.wants_coaching),
+          timezone: userTimezone
         };
         console.log('Profile data to insert:', profileData);
         
