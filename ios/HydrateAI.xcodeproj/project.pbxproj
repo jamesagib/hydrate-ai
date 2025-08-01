@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		0D0A2B7963F3C14C8E4FF49E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 5EAAB6B748EF5E5745945F5B /* PrivacyInfo.xcprivacy */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
-		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
+		3E461D99554A48A4959DE609 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* LaunchScreen.storyboard */; };
 		94107C5BFE623FCABD841688 /* libPods-HydrateAI.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 82102E66E9AAE78ABD6D8D7D /* libPods-HydrateAI.a */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		D275EDCC492EF605999A8649 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98BF3F1E2AF8B8AEADF82699 /* ExpoModulesProvider.swift */; };
@@ -26,7 +26,7 @@
 		82102E66E9AAE78ABD6D8D7D /* libPods-HydrateAI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-HydrateAI.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		98BF3F1E2AF8B8AEADF82699 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-HydrateAI/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		9D9787D27EED1496C4AD4275 /* Pods-HydrateAI.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-HydrateAI.release.xcconfig"; path = "Target Support Files/Pods-HydrateAI/Pods-HydrateAI.release.xcconfig"; sourceTree = "<group>"; };
-		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = HydrateAI/SplashScreen.storyboard; sourceTree = "<group>"; };
+		AA286B85B6C04FC6940260E9 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = HydrateAI/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		DAE827A02E36C06E003146D5 /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Products.storekit; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
@@ -62,7 +62,7 @@
 				BB2F792B24A3F905000567C9 /* Supporting */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
-				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
+				AA286B85B6C04FC6940260E9 /* LaunchScreen.storyboard */,
 				5EAAB6B748EF5E5745945F5B /* PrivacyInfo.xcprivacy */,
 			);
 			name = HydrateAI;
@@ -197,7 +197,7 @@
 			files = (
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
-				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
+				3E461D99554A48A4959DE609 /* LaunchScreen.storyboard in Resources */,
 				DAE827A12E36C06E003146D5 /* Products.storekit in Resources */,
 				0D0A2B7963F3C14C8E4FF49E /* PrivacyInfo.xcprivacy in Resources */,
 			);

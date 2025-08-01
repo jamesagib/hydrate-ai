@@ -72,17 +72,20 @@ export default function PlanResultScreen() {
       if (isSuccessfulPurchase) {
         setPurchaseSuccessful(true);
         setIsProcessingPurchase(true);
+        console.log('=== PURCHASE FLOW DEBUG ===');
         console.log('Successful purchase detected - restoring purchases and checking status...');
+        console.log('Result object:', JSON.stringify(result, null, 2));
         
         try {
           // Force-refresh the user's subscription state
           console.log('Calling Superwall.restorePurchases()...');
-          await Superwall.restorePurchases();
+          const restoreResult = await Superwall.restorePurchases();
+          console.log('Restore result:', restoreResult);
           console.log('Purchases restored successfully');
           
           // Create recursive function to check subscription status
           const checkSubscriptionStatus = async (attempts = 0) => {
-            console.log(`Checking subscription status (attempt ${attempts + 1})`);
+            console.log(`=== STATUS CHECK ATTEMPT ${attempts + 1} ===`);
             
             if (attempts >= 5) {
               // After 5 attempts (10 seconds), subscription still not active
@@ -97,14 +100,25 @@ export default function PlanResultScreen() {
               // Get updated subscription status
               console.log('Calling Superwall.getUser()...');
               const user = await Superwall.getUser();
+              console.log('Full user object:', JSON.stringify(user, null, 2));
               console.log('User subscription status:', user?.subscriptionStatus);
+              console.log('User subscription status type:', typeof user?.subscriptionStatus);
               
               // Check if the status is active
+              console.log('Checking if subscription status is "active"...');
+              console.log('Current status:', user?.subscriptionStatus);
+              console.log('Status comparison result:', user?.subscriptionStatus === 'active');
+              console.log('Full user object:', JSON.stringify(user, null, 2));
+              
               if (user?.subscriptionStatus === 'active') {
-                console.log('Subscription status is active, navigating to home');
+                console.log('✅ Subscription status is active, navigating to home');
                 setIsProcessingPurchase(false);
                 router.replace('/tabs/home');
                 return;
+              } else {
+                console.log('❌ Subscription status is NOT active yet');
+                console.log('User subscription status type:', typeof user?.subscriptionStatus);
+                console.log('User subscription status value:', user?.subscriptionStatus);
               }
               
               // If not active, wait 2 seconds and try again
@@ -196,26 +210,35 @@ export default function PlanResultScreen() {
 
   // Handle the "Let's go" button press
   const handleLetsGo = () => {
+    console.log('=== LETS GO BUTTON PRESSED ===');
+    console.log('isFromSettings:', isFromSettings);
+    console.log('purchaseSuccessful:', purchaseSuccessful);
+    console.log('subscriptionStatus:', subscriptionStatus);
+    console.log('subscriptionStatus.status:', subscriptionStatus?.status);
+    console.log('subscriptionStatus type:', typeof subscriptionStatus);
+    console.log('Full subscriptionStatus object:', JSON.stringify(subscriptionStatus, null, 2));
+    
     if (isFromSettings) {
+      console.log('From settings, going back');
       router.back();
       return;
     }
     
     // If user just completed a purchase, go to home
     if (purchaseSuccessful) {
-      console.log('User just completed purchase, navigating to home');
+      console.log('✅ User just completed purchase, navigating to home');
       router.replace('/tabs/home');
       return;
     }
     
-    // In development mode, allow access without purchase
-    if (__DEV__) {
-      console.log('Development mode: Allowing access without purchase');
+    // Check if user has active subscription (fallback check)
+    if (subscriptionStatus?.status === 'active' || subscriptionStatus?.status === 'ACTIVE') {
+      console.log('✅ User has active subscription, navigating to home');
       router.replace('/tabs/home');
       return;
     }
     
-    // Show paywall for purchase
+    // Show paywall for purchase (same behavior in dev and production)
     console.log('Showing paywall for purchase');
     showPaywall();
   };
@@ -276,8 +299,10 @@ export default function PlanResultScreen() {
           <SectionCard title="Suggested Logging Times" icon="🕒">
             {parsed.suggested_logging_times && parsed.suggested_logging_times.map((entry, idx) => (
               <View key={idx} style={styles.loggingRow}>
-                <Text style={styles.loggingTime}>{entry.time}</Text>
-                <Text style={styles.loggingOz}>{entry.oz} oz</Text>
+                <View style={styles.loggingHeader}>
+                  <Text style={styles.loggingTime}>{entry.time}</Text>
+                  <Text style={styles.loggingOz}>{entry.oz} oz</Text>
+                </View>
                 {entry.note && <Text style={styles.loggingNote}>({entry.note})</Text>}
               </View>
             ))}
@@ -383,9 +408,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito_400Regular',
   },
   loggingRow: {
+    marginBottom: 8,
+  },
+  loggingHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   loggingTime: {
     fontSize: 16,
@@ -404,6 +432,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#888',
     fontFamily: 'Nunito_400Regular',
+    flex: 1,
+    flexWrap: 'wrap',
   },
   stickyBarBg: {
     position: 'absolute',

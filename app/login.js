@@ -89,7 +89,7 @@ export default function LoginScreen() {
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
         <TouchableOpacity 
           style={{ position: 'absolute', top: 60, left: 20 }}
-          onPress={() => router.back()}
+          onPress={() => router.replace('/onboarding/welcome')}
         >
           <Text style={{ fontSize: 18, fontFamily: 'Nunito_600SemiBold', color: '#666' }}>← Back</Text>
         </TouchableOpacity>

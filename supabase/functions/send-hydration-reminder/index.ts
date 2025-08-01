@@ -57,6 +57,15 @@ serve(async (req) => {
 
       // Get user's timezone (default to UTC if not set)
       const userTimezone = user.timezone || 'UTC'
+      
+      // Validate timezone - if invalid, use UTC
+      let validTimezone = 'UTC'
+      try {
+        new Date().toLocaleString("en-US", {timeZone: userTimezone})
+        validTimezone = userTimezone
+      } catch (error) {
+        console.log(`Invalid timezone ${userTimezone} for user ${user.user_id}, using UTC`)
+      }
 
       // Check if it's time to send a notification for this user
       for (const timeSlot of suggested_logging_times) {
@@ -74,11 +83,14 @@ serve(async (req) => {
         if (period === 'PM' && hour !== 12) hour += 12
         if (period === 'AM' && hour === 12) hour = 0
 
-        // Get current time in user's timezone
+        // Get current time in user's timezone (simplified approach)
         const now = new Date()
-        const userLocalTime = new Date(now.toLocaleString("en-US", {timeZone: userTimezone}))
+        const userLocalTime = new Date(now.toLocaleString("en-US", {timeZone: validTimezone}))
         const userLocalHour = userLocalTime.getHours()
         const userLocalMinute = userLocalTime.getMinutes()
+        
+        // Debug logging for timezone issues
+        console.log(`User ${user.user_id} timezone: ${validTimezone}, current UTC: ${now.toISOString()}, local time: ${userLocalTime.toLocaleString()}, local hour: ${userLocalHour}, local minute: ${userLocalMinute}, target hour: ${hour}, target minute: ${minute}`)
         
         // Check if it's time to send this notification in user's timezone (exact minute match)
         if (userLocalHour === hour && userLocalMinute === minute) {
