@@ -57,7 +57,7 @@ export default function PlanResultScreen() {
       setPaywallMessage('Paywall presented');
       setTimeout(() => setPaywallMessage(null), 2000);
     },
-    onDismiss: (info, result) => {
+    onDismiss: async (info, result) => {
       console.log('Paywall dismissed:', info, result);
       console.log('Result outcome:', result?.outcome);
       console.log('Result products:', result?.products);
@@ -72,35 +72,66 @@ export default function PlanResultScreen() {
       if (isSuccessfulPurchase) {
         setPurchaseSuccessful(true);
         setIsProcessingPurchase(true);
-        console.log('Successful purchase detected - checking subscription status...');
+        console.log('Successful purchase detected - restoring purchases and checking status...');
         
-        // Check subscription status multiple times with increasing delays
-        const checkSubscriptionStatus = (attempts = 0) => {
-          if (attempts >= 5) {
-            // After 5 attempts (10 seconds), just navigate anyway
-            console.log('Subscription status not updated, navigating anyway');
-            setIsProcessingPurchase(false);
-            router.replace('/tabs/home');
-            return;
-          }
+        try {
+          // Force-refresh the user's subscription state
+          console.log('Calling Superwall.restorePurchases()...');
+          await Superwall.restorePurchases();
+          console.log('Purchases restored successfully');
           
-          // Check if subscription status has updated
-          if (subscriptionStatus?.status === 'active') {
-            console.log('Subscription status updated, navigating to home');
-            setIsProcessingPurchase(false);
-            router.replace('/tabs/home');
-            return;
-          }
-          
-          // Wait 2 seconds and try again
-          setTimeout(() => {
+          // Create recursive function to check subscription status
+          const checkSubscriptionStatus = async (attempts = 0) => {
             console.log(`Checking subscription status (attempt ${attempts + 1})`);
-            checkSubscriptionStatus(attempts + 1);
-          }, 2000);
-        };
-        
-        // Start checking
-        checkSubscriptionStatus();
+            
+            if (attempts >= 5) {
+              // After 5 attempts (10 seconds), subscription still not active
+              console.log('Subscription status not updated after 5 attempts - purchase may have failed');
+              setIsProcessingPurchase(false);
+              setPaywallMessage('Purchase verification failed. Please try again or contact support.');
+              setTimeout(() => setPaywallMessage(null), 5000);
+              return;
+            }
+            
+            try {
+              // Get updated subscription status
+              console.log('Calling Superwall.getUser()...');
+              const user = await Superwall.getUser();
+              console.log('User subscription status:', user?.subscriptionStatus);
+              
+              // Check if the status is active
+              if (user?.subscriptionStatus === 'active') {
+                console.log('Subscription status is active, navigating to home');
+                setIsProcessingPurchase(false);
+                router.replace('/tabs/home');
+                return;
+              }
+              
+              // If not active, wait 2 seconds and try again
+              console.log('Subscription not active yet, retrying in 2 seconds...');
+              setTimeout(() => {
+                checkSubscriptionStatus(attempts + 1);
+              }, 2000);
+              
+            } catch (error) {
+              console.error('Error checking subscription status:', error);
+              // On error, wait and retry
+              setTimeout(() => {
+                checkSubscriptionStatus(attempts + 1);
+              }, 2000);
+            }
+          };
+          
+          // Start checking subscription status
+          await checkSubscriptionStatus();
+          
+                 } catch (error) {
+           console.error('Error restoring purchases:', error);
+           // If restore fails, show error message
+           setIsProcessingPurchase(false);
+           setPaywallMessage('Error verifying purchase. Please try again or contact support.');
+           setTimeout(() => setPaywallMessage(null), 5000);
+         }
       } else {
         // User dismissed without purchasing - stay on this screen
         console.log('Paywall dismissed without purchase');
