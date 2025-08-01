@@ -81,11 +81,9 @@ export default function PlanResultScreen() {
       
       if (isSuccessfulPurchase || isTestFlight) {
         setPurchaseSuccessful(true);
-        setPaywallMessage('Purchase successful! Navigating to app...');
-        console.log('Successful purchase (outcome:', result?.outcome, ') - navigating to home');
-        setTimeout(() => {
-          router.replace('/tabs/home');
-        }, 1500);
+        console.log('Successful purchase (outcome:', result?.outcome, ') - navigating to home immediately');
+        // Navigate immediately after successful purchase
+        router.replace('/tabs/home');
       } else {
         setPaywallMessage('Paywall dismissed');
         setTimeout(() => setPaywallMessage(null), 2000);
@@ -93,7 +91,7 @@ export default function PlanResultScreen() {
         // Only allow dismissal in development mode
         if (__DEV__) {
           console.log('Development mode: Paywall dismissed, navigating to home');
-          setTimeout(() => router.replace('/tabs/home'), 1000);
+          router.replace('/tabs/home');
         } else {
           console.log('Paywall dismissed without purchase - staying on paywall');
         }
@@ -108,7 +106,7 @@ export default function PlanResultScreen() {
       // DEVELOPMENT MODE: Allow access even if paywall errors
       if (__DEV__) {
         console.log('Development mode: Paywall error, navigating to home');
-        setTimeout(() => router.replace('/tabs/home'), 1000);
+        router.replace('/tabs/home');
       }
     },
     onSkip: (reason) => {
@@ -119,7 +117,7 @@ export default function PlanResultScreen() {
       // Only allow skip in development mode
       if (__DEV__) {
         console.log('Development mode: Paywall skipped, navigating to home');
-        setTimeout(() => router.replace('/tabs/home'), 1000);
+        router.replace('/tabs/home');
       } else {
         console.log('Paywall skipped in production - this should not happen');
         // In production, this shouldn't happen if paywall is non-dismissible
