@@ -407,7 +407,7 @@ export default function StatsScreen() {
                         fontSize: selectedPeriod === 'month' ? 10 : 12, 
                         color: 'black'
                       }}>
-                        {value}oz
+                        {Math.round(value)}oz
                       </Text>
                     </View>
                   );
@@ -435,7 +435,7 @@ export default function StatsScreen() {
                 fontSize: 16, 
                 color: 'black'
               }}>
-                {averageHydration}oz {getHydrationEmoji((averageHydration / dailyGoal) * 100)}
+                {Math.round(averageHydration)}oz {getHydrationEmoji((averageHydration / dailyGoal) * 100)}
               </Text>
             </View>
           </View>

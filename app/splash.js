@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 import { useUser, useSuperwallEvents, usePlacement } from 'expo-superwall';
 import notificationService from '../lib/notificationService';
 import { loadOnboardingData } from '../lib/onboardingStorage';
+import superwallDelegate, { setLoadingContext, createPaywallData } from '../lib/superwallDelegate';
 
 function SubscriptionStatusBanner() {
   const { subscriptionStatus, user } = useUser();
@@ -158,16 +159,7 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
         // Navigate based on state
         console.log('Splash: Final decision - onboarding:', onboarding, 'session:', !!finalSession, 'profile:', !!userProfile);
         
-        // Development mode: Skip auth and paywall for easier testing
-        if (__DEV__) {
-          console.log('Splash: Development mode - checking for dev bypass');
-          const devBypass = await SecureStore.getItemAsync('dev_auth_bypass');
-          if (devBypass === 'true') {
-            console.log('Splash: Dev bypass enabled, going to main app');
-            router.replace('/tabs/home');
-            return;
-          }
-        }
+
         
         setTimeout(async () => {
           if (onboarding !== 'true') {
@@ -183,15 +175,18 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
               console.log('Splash: User has active subscription, navigating to main app');
               router.replace('/tabs/home');
             } else {
-              // Development mode: Bypass paywall for easier testing
-              if (__DEV__) {
-                console.log('Splash: Development mode - bypassing paywall, going to main app');
-                router.replace('/tabs/home');
-              } else {
-                console.log('Splash: User does not have active subscription, showing paywall');
-                // Show paywall for users who completed onboarding but haven't paid
-                registerPlacement({ placement: 'campaign_trigger' });
-              }
+              console.log('Splash: User does not have active subscription, showing paywall');
+              // Show paywall for users who completed onboarding but haven't paid
+              // Include user data for web checkout
+              const paywallData = createPaywallData('campaign_trigger', finalSession?.user);
+              
+              // Add web purchase button configuration for US users
+              paywallData.webPurchaseButton = true;
+              paywallData.webPurchaseButtonText = "Buy on Web";
+              
+              console.log('🔧 Splash: Triggering paywall with data:', paywallData);
+              console.log('🌐 Splash: Web purchase button enabled:', paywallData.webPurchaseButton);
+              registerPlacement(paywallData);
             }
           } else if (finalSession && !userProfile) {
             console.log('Splash: User logged in but no profile found, going to plan setup');

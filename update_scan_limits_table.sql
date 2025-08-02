@@ -1,5 +1,11 @@
--- Create the daily_scan_counts table
-CREATE TABLE IF NOT EXISTS daily_scan_counts (
+-- First, let's check what columns exist in the current table
+-- Then update the table structure to match our new schema
+
+-- Drop the existing table and recreate it with the correct schema
+DROP TABLE IF EXISTS daily_scan_counts CASCADE;
+
+-- Create the daily_scan_counts table with correct schema
+CREATE TABLE daily_scan_counts (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL,
   scan_date DATE NOT NULL DEFAULT CURRENT_DATE,

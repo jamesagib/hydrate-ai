@@ -20,6 +20,10 @@ import notificationService from '../lib/notificationService';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useUser } from 'expo-superwall';
+import { LoadingProvider, GlobalLoadingOverlay } from '../lib/loadingContext';
+import superwallDelegate, { setLoadingContext } from '../lib/superwallDelegate';
+import SuperwallDeepLinkHandler from './components/SuperwallDeepLinkHandler';
+import SuperwallDelegateSetup from './components/SuperwallDelegateSetup';
 
 // Component to handle quick actions inside SuperwallProvider
 function QuickActionHandler() {
@@ -131,26 +135,45 @@ export default function RootLayout() {
 
 
 
+
+
   // Show splash screen until fonts are loaded AND app is initialized
   const showSplash = !fontsLoaded || !appInitialized;
 
+  // Debug: Check if Superwall API key is available
+  const superwallApiKey = process.env.EXPO_PUBLIC_SUPERWALL_API_KEY;
+  console.log('🔑 Superwall API Key available:', !!superwallApiKey);
+  if (!superwallApiKey) {
+    console.warn('⚠️ EXPO_PUBLIC_SUPERWALL_API_KEY is not defined!');
+  }
+
+  // Debug: Log the API key configuration
+  console.log('🔧 SuperwallProvider config:', { 
+    ios: superwallApiKey ? `${superwallApiKey.substring(0, 10)}...` : 'undefined' 
+  });
+
   return (
     /// watch out for 'apiKeys' and 'ios' this took 3 HOURS TO DEBUG!!!!!
-    <SuperwallProvider apiKeys={{ ios:  process.env.EXPO_PUBLIC_SUPERWALL_API_KEY }}>
-      <SafeAreaProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <QuickActionHandler />
-          <Slot />
-          {showSplash && (
-            <View style={styles.splashOverlay} pointerEvents="box-none">
-              <SplashScreen 
-                fontsLoaded={fontsLoaded} 
-                onAppInitialized={() => setAppInitialized(true)}
-              />
-            </View>
-          )}
-        </GestureHandlerRootView>
-      </SafeAreaProvider>
+    <SuperwallProvider apiKeys={{ ios: superwallApiKey }}>
+      <LoadingProvider>
+        <SafeAreaProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <QuickActionHandler />
+            <SuperwallDelegateSetup />
+            <SuperwallDeepLinkHandler />
+            <Slot />
+            <GlobalLoadingOverlay />
+            {showSplash && (
+              <View style={styles.splashOverlay} pointerEvents="box-none">
+                <SplashScreen 
+                  fontsLoaded={fontsLoaded} 
+                  onAppInitialized={() => setAppInitialized(true)}
+                />
+              </View>
+            )}
+          </GestureHandlerRootView>
+        </SafeAreaProvider>
+      </LoadingProvider>
     </SuperwallProvider>
   );
 }

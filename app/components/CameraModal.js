@@ -22,6 +22,8 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [customAmount, setCustomAmount] = useState('');
   const [isManualMode, setIsManualMode] = useState(false);
+  const [topDrinks, setTopDrinks] = useState([]);
+  const [loadingTopDrinks, setLoadingTopDrinks] = useState(false);
 
   console.log('CameraModal render - visible:', visible, 'hasPermission:', hasPermission);
 
@@ -33,6 +35,182 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
       setHasPermission(status === 'granted');
     })();
   }, []);
+
+  // Fetch top drinks when modal opens
+  useEffect(() => {
+    if (visible) {
+      fetchTopDrinks();
+    }
+  }, [visible]);
+
+  // Helper function to get drink emoji and color
+  const getDrinkInfo = (drinkName) => {
+    const lowerName = drinkName.toLowerCase();
+    
+    // Coffee variations
+    if (lowerName.includes('coffee') || lowerName.includes('latte') || lowerName.includes('cappuccino') || 
+        lowerName.includes('espresso') || lowerName.includes('americano') || lowerName.includes('mocha')) {
+      return { emoji: '☕', color: '#8B4513' };
+    }
+    
+    // Tea variations
+    if (lowerName.includes('tea') || lowerName.includes('chai')) {
+      return { emoji: '🫖', color: '#228B22' };
+    }
+    
+    // Soda variations
+    if (lowerName.includes('soda') || lowerName.includes('pop') || lowerName.includes('cola') || 
+        lowerName.includes('coke') || lowerName.includes('pepsi') || lowerName.includes('sprite') ||
+        lowerName.includes('fanta') || lowerName.includes('dr pepper')) {
+      return { emoji: '🥤', color: '#FF6B35' };
+    }
+    
+    // Juice variations
+    if (lowerName.includes('juice') || lowerName.includes('orange') || lowerName.includes('apple') ||
+        lowerName.includes('cranberry') || lowerName.includes('grape')) {
+      return { emoji: '🧃', color: '#FFA500' };
+    }
+    
+    // Milk variations
+    if (lowerName.includes('milk') || lowerName.includes('dairy')) {
+      return { emoji: '🥛', color: '#FFFFFF' };
+    }
+    
+    // Energy drinks
+    if (lowerName.includes('energy') || lowerName.includes('red bull') || lowerName.includes('monster') ||
+        lowerName.includes('rockstar')) {
+      return { emoji: '⚡', color: '#FFD700' };
+    }
+    
+    // Sports drinks
+    if (lowerName.includes('gatorade') || lowerName.includes('powerade') || lowerName.includes('sports')) {
+      return { emoji: '🏃', color: '#00CED1' };
+    }
+    
+    // Water variations
+    if (lowerName.includes('water') || lowerName.includes('bottled') || lowerName.includes('purified') ||
+        lowerName.includes('mineral') || lowerName.includes('sparkling')) {
+      return { emoji: '💧', color: '#87CEEB' };
+    }
+    
+    // Beer/alcohol
+    if (lowerName.includes('beer') || lowerName.includes('wine') || lowerName.includes('alcohol') ||
+        lowerName.includes('cocktail') || lowerName.includes('drink')) {
+      return { emoji: '🍺', color: '#FFD700' };
+    }
+    
+    // Default
+    return { emoji: '🥤', color: '#4FC3F7' };
+  };
+
+  // Calculate actual water content based on drink type
+  const calculateWaterContent = (drinkName, totalVolume) => {
+    const lowerName = drinkName.toLowerCase();
+    
+    // Water-based drinks (mostly water)
+    if (lowerName.includes('water') || lowerName.includes('bottled') || lowerName.includes('purified') ||
+        lowerName.includes('mineral') || lowerName.includes('sparkling')) {
+      return totalVolume; // 100% water content
+    }
+    
+    // Coffee and tea (mostly water)
+    if (lowerName.includes('coffee') || lowerName.includes('latte') || lowerName.includes('cappuccino') || 
+        lowerName.includes('espresso') || lowerName.includes('americano') || lowerName.includes('mocha') ||
+        lowerName.includes('tea') || lowerName.includes('chai')) {
+      return Math.round(totalVolume * 0.95); // 95% water content
+    }
+    
+    // Soda and carbonated drinks (mostly water)
+    if (lowerName.includes('soda') || lowerName.includes('pop') || lowerName.includes('cola') || 
+        lowerName.includes('coke') || lowerName.includes('pepsi') || lowerName.includes('sprite') ||
+        lowerName.includes('fanta') || lowerName.includes('dr pepper')) {
+      return Math.round(totalVolume * 0.9); // 90% water content
+    }
+    
+    // Juice (mostly water)
+    if (lowerName.includes('juice') || lowerName.includes('orange') || lowerName.includes('apple') ||
+        lowerName.includes('cranberry') || lowerName.includes('grape')) {
+      return Math.round(totalVolume * 0.85); // 85% water content
+    }
+    
+    // Milk (mostly water)
+    if (lowerName.includes('milk') || lowerName.includes('dairy')) {
+      return Math.round(totalVolume * 0.87); // 87% water content
+    }
+    
+    // Energy drinks (mostly water)
+    if (lowerName.includes('energy') || lowerName.includes('red bull') || lowerName.includes('monster') ||
+        lowerName.includes('rockstar')) {
+      return Math.round(totalVolume * 0.9); // 90% water content
+    }
+    
+    // Sports drinks (mostly water)
+    if (lowerName.includes('gatorade') || lowerName.includes('powerade') || lowerName.includes('sports')) {
+      return Math.round(totalVolume * 0.95); // 95% water content
+    }
+    
+    // Beer/alcohol (mostly water)
+    if (lowerName.includes('beer') || lowerName.includes('wine') || lowerName.includes('alcohol') ||
+        lowerName.includes('cocktail') || lowerName.includes('drink')) {
+      return Math.round(totalVolume * 0.9); // 90% water content
+    }
+    
+    // Default: assume mostly water
+    return Math.round(totalVolume * 0.9); // 90% water content
+  };
+
+  const fetchTopDrinks = async () => {
+    try {
+      setLoadingTopDrinks(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) return;
+
+      // Get top 3 most frequent drinks from hydration_checkins
+      const { data, error } = await supabase
+        .from('hydration_checkins')
+        .select('raw_input, value')
+        .eq('user_id', user.id)
+        .not('raw_input', 'is', null)
+        .not('raw_input', 'eq', '')
+        .order('created_at', { ascending: false })
+        .limit(100); // Get last 100 checkins to analyze frequency
+
+      if (error) {
+        console.error('Error fetching top drinks:', error);
+        return;
+      }
+
+      // Count frequency of each drink
+      const drinkCounts = {};
+      data.forEach(checkin => {
+        const drinkName = checkin.raw_input;
+        if (drinkName && drinkName !== 'Custom Drink') {
+          drinkCounts[drinkName] = (drinkCounts[drinkName] || 0) + 1;
+        }
+      });
+
+      // Get top 3 most frequent drinks with emoji and color
+      const topDrinksList = Object.entries(drinkCounts)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 3)
+        .map(([name, count]) => {
+          const drinkInfo = getDrinkInfo(name);
+          return { 
+            name, 
+            count, 
+            emoji: drinkInfo.emoji, 
+            color: drinkInfo.color 
+          };
+        });
+
+      setTopDrinks(topDrinksList);
+    } catch (error) {
+      console.error('Error fetching top drinks:', error);
+    } finally {
+      setLoadingTopDrinks(false);
+    }
+  };
 
   const takePicture = async () => {
     if (!isCapturing) {
@@ -75,9 +253,20 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
 
   const analyzeDrinkImage = async (base64Image) => {
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      console.log('Current user:', user);
+      console.log('User ID being passed:', user?.id);
+      
       const { data, error } = await supabase.functions.invoke('analyze-drink-image', {
-        body: { image: base64Image }
+        body: { 
+          image: base64Image,
+          userId: user?.id || null
+        }
       });
+
+      console.log('Edge function response:', { data, error });
 
       if (error) {
         console.error('Edge function error:', error);
@@ -128,11 +317,83 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
           <View style={styles.frameOverlay}>
             {!showConfirmation ? (
               <>
-                <View style={styles.scanFrame} />
-                <Text style={styles.scanText}>Tap the button below to take a photo</Text>
-                {capturedImage && (
-                  <View style={styles.previewContainer}>
-                    <Image source={{ uri: capturedImage.uri }} style={styles.previewImage} />
+                {/* Live preview rectangle - commented out for now */}
+                {/* <View style={styles.scanFrame} /> */}
+                
+                {!capturedImage ? (
+                  <>
+                    <Text style={styles.scanText}>Choose how to add your drink</Text>
+                    <View style={styles.buttonContainer}>
+                      <TouchableOpacity
+                        style={styles.takePictureButton}
+                        onPress={takePicture}
+                        disabled={isCapturing}
+                      >
+                        <Ionicons name="camera" size={24} color="white" />
+                        <Text style={styles.takePictureText}>Take Picture</Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity
+                        style={styles.manualAddButton}
+                        onPress={() => {
+                          onClose();
+                          if (onOpenManualLog) {
+                            onOpenManualLog();
+                          }
+                        }}
+                      >
+                        <Ionicons name="add-circle-outline" size={24} color="#4FC3F7" />
+                        <Text style={styles.manualAddText}>Add drink manually</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Quick Add Section */}
+                    {topDrinks.length > 0 && (
+                      <View style={styles.quickAddSection}>
+                        <Text style={styles.quickAddTitle}>Quick Add</Text>
+                        <View style={styles.quickAddButtons}>
+                          {topDrinks.map((drink, index) => (
+                            <TouchableOpacity
+                              key={index}
+                              style={[
+                                styles.quickAddButton,
+                                { backgroundColor: drink.color + '20' } // Add transparency
+                              ]}
+                              onPress={() => {
+                                // Calculate actual water content for quick add drinks
+                                const waterContent = calculateWaterContent(drink.name, 8);
+                                onDrinkDetected({
+                                  name: drink.name,
+                                  water_oz: waterContent,
+                                  total_oz: 8,
+                                  checkinType: 'quick_add'
+                                });
+                              }}
+                            >
+                              <Text style={styles.quickAddEmoji}>{drink.emoji}</Text>
+                              <Text style={styles.quickAddButtonText}>{drink.name}</Text>
+                              <Text style={styles.quickAddCount}>{drink.count}x</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  <View style={styles.imagePreviewContainer}>
+                    <Image 
+                      source={{ uri: capturedImage.uri }} 
+                      style={[
+                        styles.previewImage,
+                        isProcessing && styles.previewImageProcessing
+                      ]} 
+                    />
+                    {isProcessing && (
+                      <View style={styles.processingContainer}>
+                        <ActivityIndicator size="large" color="#4FC3F7" />
+                        <Text style={styles.processingText}>Analyzing image...</Text>
+                      </View>
+                    )}
                   </View>
                 )}
               </>
@@ -142,7 +403,10 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
                   <Text style={styles.detectionLabel}>Detected:</Text>
                   <Text style={styles.detectionName}>{detectedDrink.name}</Text>
                   <Text style={styles.detectionAmount}>
-                    Estimated: {detectedDrink.estimatedOz} oz
+                    Total: {detectedDrink.estimatedOz} oz
+                  </Text>
+                  <Text style={styles.waterContent}>
+                    Water content: {calculateWaterContent(detectedDrink.name, detectedDrink.estimatedOz)} oz
                   </Text>
                   <Text style={styles.confidence}>
                     Confidence: {Math.round(detectedDrink.confidence * 100)}%
@@ -166,14 +430,9 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
             )}
           </View>
 
-          {/* Bottom controls */}
-          <View style={styles.bottomControls}>
-            {isProcessing ? (
-              <View style={styles.processingContainer}>
-                <ActivityIndicator size="large" color="#4FC3F7" />
-                <Text style={styles.processingText}>Analyzing drink...</Text>
-              </View>
-            ) : showConfirmation ? (
+          {/* Bottom controls - only for confirmation */}
+          {showConfirmation && (
+            <View style={styles.bottomControls}>
               <View style={styles.confirmationActions}>
                 <TouchableOpacity
                   style={styles.secondaryButton}
@@ -195,12 +454,16 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
                 <TouchableOpacity
                   style={styles.primaryButton}
                   onPress={() => {
-                    const amount = isManualMode ? parseInt(customAmount) : detectedDrink.estimatedOz;
+                    const totalAmount = isManualMode ? parseInt(customAmount) : detectedDrink.estimatedOz;
                     const drinkName = isManualMode ? 'Custom Drink' : detectedDrink.name;
+                    
+                    // Calculate actual water content
+                    const waterContent = calculateWaterContent(drinkName, totalAmount);
                     
                     onDrinkDetected({
                       name: drinkName,
-                      water_oz: amount,
+                      water_oz: waterContent,
+                      total_oz: totalAmount,
                       checkinType: 'camera'
                     });
                     
@@ -217,31 +480,8 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
                   </Text>
                 </TouchableOpacity>
               </View>
-            ) : (
-              <>
-                <TouchableOpacity
-                  style={[styles.captureButton, isCapturing && styles.captureButtonDisabled]}
-                  onPress={takePicture}
-                  disabled={isCapturing}
-                >
-                  <Ionicons name="camera" size={32} color="white" />
-                </TouchableOpacity>
-                
-                {/* Manual Add Button */}
-                <TouchableOpacity
-                  style={styles.manualAddButton}
-                  onPress={() => {
-                    onClose();
-                    if (onOpenManualLog) {
-                      onOpenManualLog();
-                    }
-                  }}
-                >
-                  <Text style={styles.manualAddText}>Add drink manually</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
+            </View>
+          )}
         </View>
       </View>
     </Modal>
@@ -288,19 +528,51 @@ const styles = StyleSheet.create({
   },
   scanText: {
     color: '#000',
-    fontSize: 16,
-    fontFamily: 'Nunito_400Regular',
-    marginTop: 20,
+    fontSize: 18,
+    fontFamily: 'Nunito_600SemiBold',
+    marginBottom: 40,
     textAlign: 'center',
   },
-  previewContainer: {
-    marginTop: 20,
+  buttonContainer: {
+    flexDirection: 'column',
+    gap: 16,
+    width: '100%',
+    paddingHorizontal: 40,
+  },
+  takePictureButton: {
+    backgroundColor: '#4FC3F7',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    gap: 8,
+  },
+  takePictureText: {
+    color: 'white',
+    fontSize: 18,
+    fontFamily: 'Nunito_600SemiBold',
+  },
+  imagePreviewContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '95%',
+    backgroundColor: 'transparent',
   },
   previewImage: {
-    width: 200,
-    height: 200,
-    borderRadius: 10,
+    width: '100%',
+    height: '60%',
+    borderRadius: 12,
+    resizeMode: 'cover',
+  },
+  previewImageProcessing: {
+    transform: [{ scale: 0.9 }],
+  },
+  processingContainer: {
+    marginTop: 20,
+    alignItems: 'center',
   },
   bottomControls: {
     paddingBottom: 50,
@@ -344,13 +616,16 @@ const styles = StyleSheet.create({
     color: '#4FC3F7',
   },
   manualAddButton: {
-    marginTop: 20,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: '#4FC3F7',
-    borderRadius: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    gap: 8,
   },
   manualAddText: {
     fontSize: 16,
@@ -391,6 +666,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Nunito_400Regular',
     color: '#999',
+  },
+  waterContent: {
+    fontSize: 14,
+    fontFamily: 'Nunito_600SemiBold',
+    color: '#4FC3F7',
+    marginTop: 4,
   },
   manualEntry: {
     marginBottom: 30,
@@ -440,5 +721,48 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 16,
     fontFamily: 'Nunito_600SemiBold',
+  },
+  quickAddSection: {
+    marginTop: 30,
+    width: '100%',
+    paddingHorizontal: 40,
+  },
+  quickAddTitle: {
+    fontSize: 16,
+    fontFamily: 'Nunito_600SemiBold',
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  quickAddButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  quickAddButton: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
+  quickAddEmoji: {
+    fontSize: 20,
+    marginBottom: 4,
+  },
+  quickAddButtonText: {
+    fontSize: 14,
+    fontFamily: 'Nunito_600SemiBold',
+    color: '#333',
+    textAlign: 'center',
+  },
+  quickAddCount: {
+    fontSize: 12,
+    fontFamily: 'Nunito_400Regular',
+    color: '#999',
+    marginTop: 2,
   },
 }); 

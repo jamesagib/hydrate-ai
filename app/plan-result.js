@@ -3,6 +3,7 @@ import { SafeAreaView, Text, ActivityIndicator, ScrollView, Alert, TouchableOpac
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { usePlacement, useUser } from 'expo-superwall';
+import superwallDelegate, { setLoadingContext, createPaywallData } from '../lib/superwallDelegate';
 
 function parseHydrationPlan(planText) {
   const dailyGoalMatch = planText.match(/🌊 Daily Goal: (.+?)\s+_(.+?)_\s+🕒/s);
@@ -212,9 +213,33 @@ export default function PlanResultScreen() {
 
 
 
-  const showPaywall = () => {
+  const showPaywall = async () => {
     setPaywallError(null);
-    registerPlacement({ placement: 'campaign_trigger' }); // Replace with your actual paywall ID
+    
+    try {
+      // Get current user information
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Create paywall data with user information
+      const paywallData = createPaywallData('campaign_trigger', user);
+      
+      // Add web purchase button configuration for US users
+      paywallData.webPurchaseButton = true;
+      paywallData.webPurchaseButtonText = "Buy on Web";
+      
+      // Add location-based configuration
+      // Superwall will automatically route to the correct campaign based on user location
+      console.log('🔧 Triggering paywall with data:', paywallData);
+      console.log('📍 Location-based routing will be handled by Superwall campaigns');
+      console.log('🌐 Web purchase button enabled:', paywallData.webPurchaseButton);
+      
+      registerPlacement(paywallData);
+      
+    } catch (error) {
+      console.error('❌ Error getting user data for paywall:', error);
+      // Fallback to default trigger
+      registerPlacement({ placement: 'campaign_trigger' });
+    }
   };
 
   // Handle the "Let's go" button press

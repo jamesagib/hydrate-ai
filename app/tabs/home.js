@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase';
 import PullToRefreshWithHaptics from '../../modules/haptic-engine/PullToRefreshWithHaptics';
 import CameraModal from '../components/CameraModal';
 import DrinkConfirmationModal from '../components/DrinkConfirmationModal';
+import superwallDelegate from '../../lib/superwallDelegate';
 
 import {
   useFonts,
@@ -227,6 +228,23 @@ export default function HomeScreen() {
       updateStreaksForPreviousDay();
     }
   }, [currentDate]);
+
+  // Set up Superwall delegate refresh callback
+  useEffect(() => {
+    // Override the refreshUserData method in the Superwall delegate
+    // to call our fetchUserData function
+    const originalRefreshUserData = superwallDelegate.refreshUserData;
+    superwallDelegate.refreshUserData = async () => {
+      console.log('🔄 Superwall delegate: Refreshing user data after successful redemption');
+      await fetchUserData(true); // Refresh user data
+      originalRefreshUserData.call(superwallDelegate); // Call original method
+    };
+
+    return () => {
+      // Restore original method on cleanup
+      superwallDelegate.refreshUserData = originalRefreshUserData;
+    };
+  }, []);
 
   // Function to update streaks when date changes
   const updateStreaksForPreviousDay = async () => {
@@ -487,6 +505,9 @@ export default function HomeScreen() {
     if (name.includes('coconut')) return { emoji: '🥥', color: '#8B4513' }; // Brown
     if (name.includes('tea')) return { emoji: '🫖', color: '#228B22' }; // Green
     if (name.includes('coffee')) return { emoji: '☕', color: '#654321' }; // Dark brown
+    if (name.includes('frappuccino')) return { emoji: '🥤', color: '#8B4513' }; // Brown for coffee drinks
+    if (name.includes('starbucks')) return { emoji: '☕', color: '#654321' }; // Dark brown for Starbucks
+    if (name.includes('mocha')) return { emoji: '☕', color: '#654321' }; // Dark brown for mocha
     if (name.includes('juice')) return { emoji: '🧃', color: '#FF8C00' }; // Orange
     if (name.includes('milk')) return { emoji: '🥛', color: '#F5F5DC' }; // Cream
     if (name.includes('smoothie')) return { emoji: '🥤', color: '#FF69B4' }; // Pink
@@ -498,8 +519,64 @@ export default function HomeScreen() {
     return { emoji: '💧', color: '#4FC3F7' }; // Default blue for water
   };
 
+  // Calculate actual water content based on drink type
+  const calculateWaterContent = (drinkName, totalVolume) => {
+    const lowerName = drinkName.toLowerCase();
+    
+    // Water-based drinks (mostly water)
+    if (lowerName.includes('water') || lowerName.includes('bottled') || lowerName.includes('purified') ||
+        lowerName.includes('mineral') || lowerName.includes('sparkling')) {
+      return totalVolume; // 100% water content
+    }
+    
+    // Coffee and tea (mostly water)
+    if (lowerName.includes('coffee') || lowerName.includes('latte') || lowerName.includes('cappuccino') || 
+        lowerName.includes('espresso') || lowerName.includes('americano') || lowerName.includes('mocha') ||
+        lowerName.includes('tea') || lowerName.includes('chai')) {
+      return Math.round(totalVolume * 0.95); // 95% water content
+    }
+    
+    // Soda and carbonated drinks (mostly water)
+    if (lowerName.includes('soda') || lowerName.includes('pop') || lowerName.includes('cola') || 
+        lowerName.includes('coke') || lowerName.includes('pepsi') || lowerName.includes('sprite') ||
+        lowerName.includes('fanta') || lowerName.includes('dr pepper')) {
+      return Math.round(totalVolume * 0.9); // 90% water content
+    }
+    
+    // Juice (mostly water)
+    if (lowerName.includes('juice') || lowerName.includes('orange') || lowerName.includes('apple') ||
+        lowerName.includes('cranberry') || lowerName.includes('grape')) {
+      return Math.round(totalVolume * 0.85); // 85% water content
+    }
+    
+    // Milk (mostly water)
+    if (lowerName.includes('milk') || lowerName.includes('dairy')) {
+      return Math.round(totalVolume * 0.87); // 87% water content
+    }
+    
+    // Energy drinks (mostly water)
+    if (lowerName.includes('energy') || lowerName.includes('red bull') || lowerName.includes('monster') ||
+        lowerName.includes('rockstar')) {
+      return Math.round(totalVolume * 0.9); // 90% water content
+    }
+    
+    // Sports drinks (mostly water)
+    if (lowerName.includes('gatorade') || lowerName.includes('powerade') || lowerName.includes('sports')) {
+      return Math.round(totalVolume * 0.95); // 95% water content
+    }
+    
+    // Beer/alcohol (mostly water)
+    if (lowerName.includes('beer') || lowerName.includes('wine') || lowerName.includes('alcohol') ||
+        lowerName.includes('cocktail') || lowerName.includes('drink')) {
+      return Math.round(totalVolume * 0.9); // 90% water content
+    }
+    
+    // Default: assume mostly water
+    return Math.round(totalVolume * 0.9); // 90% water content
+  };
+
   // Function to add hydration check-in to database
-  const addHydrationCheckin = async (amount, checkinType = 'slider') => {
+  const addHydrationCheckin = async (amount, checkinType = 'slider', drinkName = null) => {
     if (!user) return;
     
     try {
@@ -509,7 +586,7 @@ export default function HomeScreen() {
           user_id: user.id,
           checkin_type: checkinType,
           value: amount,
-          raw_input: selectedDrinkObject?.name || `${amount}oz`,
+          raw_input: drinkName || selectedDrinkObject?.name || `${amount}oz`,
           ai_estimate_oz: Math.round(hydrationLevel) // Round the hydration level to avoid decimals
         }])
         .select()
@@ -532,7 +609,7 @@ export default function HomeScreen() {
       const newCheckin = {
         value: amount,
         ai_estimate_oz: Math.round(hydrationLevel),
-        raw_input: selectedDrinkObject?.name || `${amount}oz`,
+        raw_input: drinkName || selectedDrinkObject?.name || `${amount}oz`,
         created_at: new Date().toISOString()
       };
       console.log('New checkin being added:', newCheckin); // Debug log
@@ -555,19 +632,8 @@ export default function HomeScreen() {
         }
       }
       
-      // Update streaks after logging check-in
-      try {
-        const { error } = await supabase.rpc('update_user_streaks', {
-          user_uuid: user.id
-        });
-        if (error) {
-          console.error('Error updating streaks:', error);
-        } else {
-          console.log('Streaks updated successfully');
-        }
-      } catch (error) {
-        console.error('Error updating streaks:', error);
-      }
+      // Note: Streaks are updated automatically when the date changes via updateStreaksForPreviousDay()
+      // No need to update streaks here on every drink log
       
       return true;
     } catch (error) {
@@ -1092,9 +1158,11 @@ export default function HomeScreen() {
                   <TouchableOpacity
                     style={styles.addButton}
                     onPress={async () => {
-                      const amount = parseInt(customAmount) || 0;
-                      if (amount > 0) {
-                        const success = await addHydrationCheckin(amount, 'freeform');
+                      const totalAmount = parseInt(customAmount) || 0;
+                      if (totalAmount > 0) {
+                        // For custom amount, assume it's water (100% water content)
+                        const waterContent = calculateWaterContent('Water', totalAmount);
+                        const success = await addHydrationCheckin(waterContent, 'freeform', 'Water');
                         if (success) {
                           setCustomAmount('');
                           handleCloseModal();
@@ -1116,7 +1184,7 @@ export default function HomeScreen() {
         visible={isCameraVisible}
         onClose={() => setIsCameraVisible(false)}
         onDrinkDetected={async (drinkData) => {
-          const success = await addHydrationCheckin(drinkData.water_oz, drinkData.checkinType);
+          const success = await addHydrationCheckin(drinkData.water_oz, drinkData.checkinType, drinkData.name);
           if (success) {
             setIsCameraVisible(false);
           }

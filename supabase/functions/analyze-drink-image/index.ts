@@ -36,6 +36,8 @@ serve(async (req) => {
   try {
     const { image, userId } = await req.json()
 
+    console.log('Received request with userId:', userId);
+
     if (!image) {
       return new Response(
         JSON.stringify({ error: 'No image provided' }),
@@ -48,8 +50,11 @@ serve(async (req) => {
 
     // Check daily scan limit
     if (userId) {
+      console.log('Checking daily scan limit for user:', userId);
       const scanCount = await getDailyScanCount(userId)
+      console.log('Current scan count:', scanCount);
       if (scanCount >= 5) {
+        console.log('Daily scan limit reached');
         return new Response(
           JSON.stringify({ error: 'Bad connection. Please try again later.' }),
           { 
@@ -58,10 +63,13 @@ serve(async (req) => {
           }
         )
       }
+    } else {
+      console.log('No userId provided, skipping scan limit check');
     }
 
     // Step 1: Check cache first
     const imageHash = generateImageHash(image)
+    console.log('Generated image hash:', imageHash);
     const cachedResult = await checkCache(imageHash)
     
     if (cachedResult) {
@@ -73,6 +81,8 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       )
+    } else {
+      console.log('Cache miss for image hash:', imageHash);
     }
 
     // Step 2: Analyze image with Google Cloud Vision API
@@ -82,11 +92,15 @@ serve(async (req) => {
     const drinkAnalysis = await analyzeWithGPT4(visionResult)
     
     // Step 4: Cache the result
+    console.log('Caching result for image hash:', imageHash);
     await cacheResult(imageHash, drinkAnalysis)
     
     // Step 5: Increment daily scan count
     if (userId) {
+      console.log('Incrementing daily scan count for user:', userId);
       await incrementDailyScanCount(userId)
+    } else {
+      console.log('No userId provided, skipping scan count increment');
     }
 
     return new Response(
