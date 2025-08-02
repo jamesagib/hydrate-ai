@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hydrate.ai",
-      "buildNumber": "41",
+      "buildNumber": "42",
       "usesAppleSignIn": true,
       "icon": "./assets/icon.png",
       "entitlements": {
@@ -30,6 +30,7 @@
       "infoPlist": {
         "NSUserAuthenticationUsageDescription": "Sign in with Apple is used to authenticate your account.",
         "NSUserNotificationUsageDescription": "We'll send you personalized hydration reminders to help you stay healthy and hydrated throughout the day.",
+        "NSCameraUsageDescription": "Camera access is used to scan and analyze your drinks for automatic hydration tracking.",
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
@@ -39,6 +40,12 @@
           {
             "CFBundleURLSchemes": [
               "com.googleusercontent.apps.786448900175-t4l077b9dii6m9fp4e716ro93vnj9lqq"
+            ]
+          },
+          {
+            "CFBundleURLName": "com.hydrate.ai",
+            "CFBundleURLSchemes": [
+              "hydrate-ai"
             ]
           }
         ]
@@ -53,7 +60,10 @@
       "package": "com.hydrate.ai",
       "runtimeVersion": {
         "policy": "appVersion"
-      }
+      },
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "scheme": "water-ai",
     "web": {
@@ -63,6 +73,7 @@
       "expo-router",
       "expo-font",
       "expo-apple-authentication",
+      "expo-image-picker",
       [
         "expo-build-properties",
         {
@@ -79,6 +90,49 @@
         {
           "icon": "./assets/icon.png",
           "color": "#ffffff"
+        }
+      ],
+      [
+        "expo-quick-actions",
+        {
+          "iosActions": [
+            {
+              "id": "log-water",
+              "title": "Log Water",
+              "subtitle": "Quickly log your water intake",
+              "icon": "symbol:drop.fill",
+              "params": {
+                "href": "/tabs/home"
+              }
+            },
+            {
+              "id": "stats",
+              "title": "View Stats",
+              "subtitle": "Check your hydration progress",
+              "icon": "symbol:chart.bar.fill",
+              "params": {
+                "href": "/tabs/stats"
+              }
+            },
+            {
+              "id": "settings",
+              "title": "Settings",
+              "subtitle": "Manage your preferences",
+              "icon": "symbol:gear",
+              "params": {
+                "href": "/tabs/settings"
+              }
+            },
+            {
+              "id": "feedback",
+              "title": "Need Help?",
+              "subtitle": "DM the founder on X",
+              "icon": "symbol:message.fill",
+              "params": {
+                "href": "https://x.com/agibjames"
+              }
+            }
+          ]
         }
       ]
     ],

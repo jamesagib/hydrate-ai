@@ -357,8 +357,17 @@ create or replace function get_home_screen_data(user_uuid uuid)
 returns json as $$
 declare
   result json;
-  today_date date := current_date;
+  user_timezone text;
+  today_date date;
 begin
+  -- Get user's timezone, default to UTC if not set
+  select coalesce(timezone, 'UTC') into user_timezone
+  from profiles 
+  where user_id = user_uuid;
+  
+  -- Calculate today's date in user's timezone
+  today_date := (now() at time zone user_timezone)::date;
+  
   select json_build_object(
     'hydration_plan', (
       select row_to_json(hp) 
@@ -371,8 +380,7 @@ begin
       select coalesce(json_agg(row_to_json(hc) order by hc.created_at desc), '[]'::json)
       from hydration_checkins hc 
       where hc.user_id = user_uuid 
-        and hc.created_at >= current_date - interval '1 day'
-        and hc.created_at < current_date + interval '1 day'
+        and (hc.created_at at time zone user_timezone)::date = today_date
     ),
     'streak', (
       select row_to_json(s) 
@@ -390,22 +398,32 @@ create or replace function get_stats_screen_data(user_uuid uuid, period_type tex
 returns json as $$
 declare
   result json;
+  user_timezone text;
+  today_date date;
   period_start date;
   data_points int;
 begin
+  -- Get user's timezone, default to UTC if not set
+  select coalesce(timezone, 'UTC') into user_timezone
+  from profiles 
+  where user_id = user_uuid;
+  
+  -- Calculate today's date in user's timezone
+  today_date := (now() at time zone user_timezone)::date;
+  
   -- Calculate period start date and data points
   case period_type
     when 'week' then
-      period_start := current_date - interval '7 days';
+      period_start := today_date - interval '7 days';
       data_points := 7;
     when 'month' then
-      period_start := current_date - interval '30 days';
+      period_start := today_date - interval '30 days';
       data_points := 30;
     when 'year' then
-      period_start := current_date - interval '1 year';
+      period_start := today_date - interval '1 year';
       data_points := 12;
     else
-      period_start := current_date - interval '7 days';
+      period_start := today_date - interval '7 days';
       data_points := 7;
   end case;
 
@@ -421,7 +439,7 @@ begin
       select coalesce(json_agg(row_to_json(hc) order by hc.created_at asc), '[]'::json)
       from hydration_checkins hc 
       where hc.user_id = user_uuid 
-        and hc.created_at >= period_start
+        and (hc.created_at at time zone user_timezone)::date >= period_start
     ),
     'streak', (
       select row_to_json(s) 

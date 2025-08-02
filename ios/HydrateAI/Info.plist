@@ -35,6 +35,8 @@
     </array>
     <key>NSUserAuthenticationUsageDescription</key>
     <string>Sign in with Apple is used to authenticate your account.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Camera access is used to scan and analyze your drinks for automatic drink detection.</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>LSMinimumSystemVersion</key>

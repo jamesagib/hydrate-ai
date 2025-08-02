@@ -6,6 +6,9 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { supabase } from '../../lib/supabase';
+import PullToRefreshWithHaptics from '../../modules/haptic-engine/PullToRefreshWithHaptics';
+import CameraModal from '../components/CameraModal';
+import DrinkConfirmationModal from '../components/DrinkConfirmationModal';
 
 import {
   useFonts,
@@ -44,30 +47,34 @@ export default function HomeScreen() {
   const [recentCheckins, setRecentCheckins] = useState([]);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [isCameraVisible, setIsCameraVisible] = useState(false);
+  const [isConfirmationVisible, setIsConfirmationVisible] = useState(false);
+  const [detectedDrink, setDetectedDrink] = useState(null);
 
-  // Drink options with hydration values
+  // Drink options with hydration values and emojis
   const drinkOptions = [
-    { name: "Water", water_oz: 8 },
-    { name: "Sparkling Water", water_oz: 8 },
-    { name: "Coconut Water", water_oz: 7.5 },
-    { name: "Unsweetened Tea", water_oz: 7.5 },
-    { name: "Green Tea", water_oz: 7.2 },
-    { name: "Black Coffee (8 oz)", water_oz: 7 },
-    { name: "Iced Coffee with Cream (12 oz)", water_oz: 6 },
-    { name: "Latte (12 oz)", water_oz: 6.2 },
-    { name: "Herbal Tea", water_oz: 7.8 },
-    { name: "Orange Juice", water_oz: 7 },
-    { name: "Apple Juice", water_oz: 6.8 },
-    { name: "Lemonade", water_oz: 6.5 },
-    { name: "Sports Drink (e.g., Gatorade)", water_oz: 7 },
-    { name: "Milk (Whole)", water_oz: 6.5 },
-    { name: "Milk (Skim)", water_oz: 6.8 },
-    { name: "Almond Milk (Unsweetened)", water_oz: 7.5 },
-    { name: "Protein Shake (Whey with Water)", water_oz: 7.5 },
-    { name: "Smoothie", water_oz: 5.5 },
-    { name: "Soda (Cola)", water_oz: 6 },
-    { name: "Energy Drink", water_oz: 5.5 },
-    { name: "Beer", water_oz: 6.5 }
+    { name: "Water", water_oz: 8, emoji: "💧" },
+    { name: "Sparkling Water", water_oz: 8, emoji: "🌊" },
+    { name: "Coconut Water", water_oz: 7.5, emoji: "🥥" },
+    { name: "Unsweetened Tea", water_oz: 7.5, emoji: "🫖" },
+    { name: "Green Tea", water_oz: 7.2, emoji: "🍵" },
+    { name: "Black Coffee (8 oz)", water_oz: 7, emoji: "☕" },
+    { name: "Iced Coffee with Cream (12 oz)", water_oz: 6, emoji: "🧊" },
+    { name: "Latte (12 oz)", water_oz: 6.2, emoji: "🥛" },
+    { name: "Herbal Tea", water_oz: 7.8, emoji: "🌿" },
+    { name: "Orange Juice", water_oz: 7, emoji: "🍊" },
+    { name: "Apple Juice", water_oz: 6.8, emoji: "🍎" },
+    { name: "Lemonade", water_oz: 6.5, emoji: "🍋" },
+    { name: "Sports Drink (e.g., Gatorade)", water_oz: 7, emoji: "🏃" },
+    { name: "Milk (Whole)", water_oz: 6.5, emoji: "🥛" },
+    { name: "Milk (Skim)", water_oz: 6.8, emoji: "🥛" },
+    { name: "Almond Milk (Unsweetened)", water_oz: 7.5, emoji: "🥜" },
+    { name: "Protein Shake (Whey with Water)", water_oz: 7.5, emoji: "💪" },
+    { name: "Smoothie", water_oz: 5.5, emoji: "🥤" },
+    { name: "Soda (Cola)", water_oz: 6, emoji: "🥤" },
+    { name: "Energy Drink", water_oz: 5.5, emoji: "⚡" },
+    { name: "Beer", water_oz: 6.5, emoji: "🍺" },
+    { name: "Boba Tea", water_oz: 4.5, emoji: "🧋" }
   ];
   
   const translateY = useSharedValue(SCREEN_HEIGHT);
@@ -113,6 +120,9 @@ export default function HomeScreen() {
       if (homeError) {
         console.error('Error fetching home screen data:', homeError);
       } else if (homeData) {
+        // Debug: Log timezone info
+        console.log('Current time in user timezone:', new Date().toLocaleString());
+        console.log('Current time in UTC:', new Date().toISOString());
         // Set hydration plan data
         if (homeData.hydration_plan && homeData.hydration_plan.daily_goal) {
           const goalMatch = homeData.hydration_plan.daily_goal.match(/(\d+)/);
@@ -172,14 +182,14 @@ export default function HomeScreen() {
       });
     } else if (newStep === 2) {
       // Step 2: Compact height for hydration level
-      modalHeight.value = withSpring(SCREEN_HEIGHT * 0.5, {
+      modalHeight.value = withSpring(SCREEN_HEIGHT * 0.59, {
         damping: 65,
         mass: 0.7,
         stiffness: 65,
       });
     } else if (newStep === 3) {
-      // Step 3: Medium height for custom amount
-      modalHeight.value = withSpring(SCREEN_HEIGHT * 0.6, {
+      // Step 3: Compact height for custom amount
+      modalHeight.value = withSpring(SCREEN_HEIGHT * 0.38, {
         damping: 65,
         mass: 0.7,
         stiffness: 65,
@@ -371,6 +381,11 @@ export default function HomeScreen() {
       stiffness: 65,
     });
   }, [translateY, modalHeight]);
+
+  const handleOpenCamera = useCallback(() => {
+    console.log('FAB pressed - opening camera');
+    setIsCameraVisible(true);
+  }, []);
 
   const handleCloseModal = useCallback(() => {
     translateY.value = withTiming(SCREEN_HEIGHT, {
@@ -580,18 +595,12 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F2EFEB' }}>
-      <ScrollView 
+      <PullToRefreshWithHaptics 
         style={{ flex: 1 }} 
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 50 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#4FC3F7"
-            colors={["#4FC3F7"]}
-          />
-        }
+        onRefresh={onRefresh}
+        refreshing={refreshing}
       >
         {/* Confetti Animation */}
         {showCelebration && (
@@ -877,7 +886,7 @@ export default function HomeScreen() {
           </View>
         )}
       </View>
-      </ScrollView>
+      </PullToRefreshWithHaptics>
       
       {/* Floating Action Button for logging water */}
       <TouchableOpacity
@@ -898,7 +907,7 @@ export default function HomeScreen() {
           elevation: 6,
           zIndex: 100,
         }}
-        onPress={handleOpenModal}
+        onPress={handleOpenCamera}
         activeOpacity={0.85}
       >
         <Ionicons name="add" size={36} color="white" />
@@ -923,33 +932,55 @@ export default function HomeScreen() {
               animatedStyle
             ]}
           >
+            {/* Background Pattern */}
+            <View style={styles.backgroundPattern}>
+              <Text style={styles.backgroundEmoji}>💧</Text>
+              <Text style={[styles.backgroundEmoji, { position: 'absolute', top: 50, right: 30 }]}>🌊</Text>
+              <Text style={[styles.backgroundEmoji, { position: 'absolute', bottom: 100, left: 20 }]}>💦</Text>
+              <Text style={[styles.backgroundEmoji, { position: 'absolute', top: 120, left: 40 }]}>🚰</Text>
+            </View>
+            
             <View style={styles.handle} />
-            <Text style={styles.title}>Log Water</Text>
+            <View style={styles.titleContainer}>
+              {modalStep !== 1 && (
+                <TouchableOpacity
+                  onPress={() => handleStepTransition(1)}
+                  style={styles.backIconButton}
+                >
+                  <Ionicons name="arrow-back" size={24} color="#000000" />
+                </TouchableOpacity>
+              )}
+              {modalStep === 1 && <View style={{ width: 24 }} />}
+              <Text style={styles.title}>Log Drink</Text>
+              <View style={{ width: 24 }} />
+            </View>
             
             {/* Step 1: Select Drink Source */}
             {modalStep === 1 && (
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                   <Text style={styles.stepTitle}>What did you drink?</Text>
-                  <TouchableOpacity
-                    onPress={() => handleStepTransition(3)}
-                    style={{ paddingHorizontal: 12, paddingVertical: 6 }}
-                  >
-                    <Text style={{ 
-                      fontFamily: 'Nunito_600SemiBold', 
-                      fontSize: 14, 
-                      color: '#4FC3F7',
-                      textDecorationLine: 'underline'
-                    }}>
-                      Custom Amount
-                    </Text>
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                    <TouchableOpacity
+                      onPress={() => handleStepTransition(3)}
+                      style={{ paddingHorizontal: 12, paddingVertical: 6 }}
+                    >
+                      <Text style={{ 
+                        fontFamily: 'Nunito_600SemiBold', 
+                        fontSize: 14, 
+                        color: '#4FC3F7',
+                        textDecorationLine: 'underline'
+                      }}>
+                        Custom Amount
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
                 
                 <ScrollView 
                   style={{ flex: 1 }} 
                   showsVerticalScrollIndicator={false}
-                  contentContainerStyle={{ paddingBottom: 20 }}
+                  contentContainerStyle={{ paddingBottom: 80 }}
                 >
                   <View style={styles.drinkGrid}>
                     {drinkOptions.filter(drink => drink.name !== 'Custom Amount').map((drink) => (
@@ -964,6 +995,12 @@ export default function HomeScreen() {
                           handleStepTransition(2);
                         }}
                       >
+                        <Text style={[
+                          styles.drinkEmoji,
+                          selectedDrinkObject?.name === drink.name && styles.drinkEmojiSelected
+                        ]}>
+                          {drink.emoji}
+                        </Text>
                         <Text style={[
                           styles.drinkButtonText,
                           selectedDrinkObject?.name === drink.name && styles.drinkButtonTextSelected
@@ -988,7 +1025,9 @@ export default function HomeScreen() {
             {/* Step 2: Hydration Level */}
             {modalStep === 2 && (
               <View>
-                <Text style={styles.stepTitle}>How are you feeling?</Text>
+                <View style={styles.stepHeader}>
+                  <Text style={styles.stepTitle}>How are you feeling?</Text>
+                </View>
                 
                 <View style={styles.hydrationDisplay}>
                   <Text style={styles.hydrationEmoji}>
@@ -996,6 +1035,12 @@ export default function HomeScreen() {
                   </Text>
                   <Text style={styles.hydrationText}>
                     {hydrationLevel}% hydrated
+                  </Text>
+                  <Text style={styles.hydrationSubtext}>
+                    {hydrationLevel < 30 ? "You need water!" : 
+                     hydrationLevel < 60 ? "Getting there..." : 
+                     hydrationLevel < 80 ? "Good job!" : 
+                     "Excellent hydration!"}
                   </Text>
                 </View>
                 
@@ -1011,14 +1056,7 @@ export default function HomeScreen() {
                   thumbTintColor={'#fff'}
                 />
                 
-                <View style={[styles.buttonRow, { marginBottom: 20 }]}>
-                  <TouchableOpacity
-                    style={styles.backButton}
-                    onPress={() => handleStepTransition(1)}
-                  >
-                    <Text style={styles.backButtonText}>Back</Text>
-                  </TouchableOpacity>
-                  
+                <View style={[styles.buttonRow, { marginBottom: 120 }]}>
                   <TouchableOpacity
                     style={styles.addButton}
                     onPress={async () => {
@@ -1038,7 +1076,9 @@ export default function HomeScreen() {
             {/* Step 3: Custom Amount */}
             {modalStep === 3 && (
               <View>
-                <Text style={styles.stepTitle}>Enter amount (oz)</Text>
+                <View style={styles.stepHeader}>
+                  <Text style={styles.stepTitle}>Enter amount (oz)</Text>
+                </View>
                 
                 <TextInput
                   style={styles.customInput}
@@ -1048,14 +1088,7 @@ export default function HomeScreen() {
                   keyboardType="numeric"
                 />
                 
-                <View style={styles.buttonRow}>
-                  <TouchableOpacity
-                    style={styles.backButton}
-                    onPress={() => handleStepTransition(1)}
-                  >
-                    <Text style={styles.backButtonText}>Back</Text>
-                  </TouchableOpacity>
-                  
+                <View style={[styles.buttonRow, { marginBottom: 0 }]}>
                   <TouchableOpacity
                     style={styles.addButton}
                     onPress={async () => {
@@ -1077,6 +1110,19 @@ export default function HomeScreen() {
           </Animated.View>
         </View>
       </Modal>
+
+      {/* Camera Modal */}
+      <CameraModal
+        visible={isCameraVisible}
+        onClose={() => setIsCameraVisible(false)}
+        onDrinkDetected={async (drinkData) => {
+          const success = await addHydrationCheckin(drinkData.water_oz, drinkData.checkinType);
+          if (success) {
+            setIsCameraVisible(false);
+          }
+        }}
+        onOpenManualLog={handleOpenModal}
+      />
     </SafeAreaView>
   );
 }
@@ -1096,13 +1142,38 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 20,
     maxHeight: SCREEN_HEIGHT * 0.75,
     width: '100%',
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
+    overflow: 'hidden',
+  },
+  backgroundPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.1,
+    zIndex: 0,
+  },
+  backgroundEmoji: {
+    fontSize: 40,
+    opacity: 0.3,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    zIndex: 1,
+  },
+  titleEmoji: {
+    fontSize: 28,
+    marginRight: 8,
   },
   handle: {
     width: 40,
@@ -1115,15 +1186,28 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontFamily: 'Nunito_700Bold',
-    marginBottom: 20,
     textAlign: 'center',
     color: '#000000',
+  },
+  backIconButton: {
+    padding: 8,
   },
   stepTitle: {
     fontFamily: 'Nunito_600SemiBold',
     fontSize: 18,
     color: 'black',
     marginBottom: 16,
+    zIndex: 1,
+  },
+  stepHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    zIndex: 1,
+  },
+  stepEmoji: {
+    fontSize: 24,
+    marginRight: 8,
   },
   drinkGrid: {
     flexDirection: 'row',
@@ -1140,6 +1224,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E5E5',
     marginBottom: 8,
+    zIndex: 1,
+  },
+  drinkEmoji: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  drinkEmojiSelected: {
+    transform: [{ scale: 1.1 }],
   },
   drinkButtonSelected: {
     backgroundColor: '#4FC3F7',
@@ -1166,26 +1258,35 @@ const styles = StyleSheet.create({
   hydrationDisplay: {
     alignItems: 'center',
     marginBottom: 20,
+    zIndex: 1,
   },
   hydrationEmoji: {
     fontSize: 96,
     marginBottom: 8,
+    zIndex: 1,
   },
   hydrationText: {
     fontFamily: 'Nunito_600SemiBold',
     fontSize: 16,
     color: 'black',
+    zIndex: 1,
+  },
+  hydrationSubtext: {
+    fontFamily: 'Nunito_400Regular',
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
+    textAlign: 'center',
+    zIndex: 1,
   },
   buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    gap: 12,
   },
   backButton: {
     padding: 12,
     backgroundColor: '#F5F5F5',
     borderRadius: 8,
-    flex: 1,
-    marginRight: 8,
   },
   backButtonText: {
     fontFamily: 'Nunito_600SemiBold',
@@ -1197,8 +1298,6 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: '#4FC3F7',
     borderRadius: 8,
-    flex: 1,
-    marginLeft: 8,
   },
   addButtonText: {
     fontFamily: 'Nunito_600SemiBold',

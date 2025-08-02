@@ -1,0 +1,20 @@
+{
+  "name": "haptic-engine",
+  "version": "1.0.0",
+  "description": "Arc Browser style pull-to-refresh haptics for React Native",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "react-native",
+    "haptics",
+    "pull-to-refresh",
+    "ios"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "peerDependencies": {
+    "react-native": ">=0.60.0"
+  }
+} 

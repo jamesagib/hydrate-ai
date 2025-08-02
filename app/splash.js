@@ -158,7 +158,7 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
         // Navigate based on state
         console.log('Splash: Final decision - onboarding:', onboarding, 'session:', !!finalSession, 'profile:', !!userProfile);
         
-        // Development mode: Skip auth for easier testing
+        // Development mode: Skip auth and paywall for easier testing
         if (__DEV__) {
           console.log('Splash: Development mode - checking for dev bypass');
           const devBypass = await SecureStore.getItemAsync('dev_auth_bypass');
@@ -183,9 +183,15 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
               console.log('Splash: User has active subscription, navigating to main app');
               router.replace('/tabs/home');
             } else {
-              console.log('Splash: User does not have active subscription, showing paywall');
-              // Show paywall for users who completed onboarding but haven't paid
-              registerPlacement({ placement: 'campaign_trigger' });
+              // Development mode: Bypass paywall for easier testing
+              if (__DEV__) {
+                console.log('Splash: Development mode - bypassing paywall, going to main app');
+                router.replace('/tabs/home');
+              } else {
+                console.log('Splash: User does not have active subscription, showing paywall');
+                // Show paywall for users who completed onboarding but haven't paid
+                registerPlacement({ placement: 'campaign_trigger' });
+              }
             }
           } else if (finalSession && !userProfile) {
             console.log('Splash: User logged in but no profile found, going to plan setup');
