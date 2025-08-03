@@ -32,7 +32,8 @@ serve(async (req) => {
         wants_coaching,
         climate,
         activity_level,
-        push_token
+        push_token,
+        timezone
       `)
       .eq('wants_coaching', true)
 
@@ -67,6 +68,16 @@ serve(async (req) => {
         console.log(`Invalid timezone ${userTimezone} for user ${user.user_id}, using UTC`)
       }
 
+      // Get current time in user's timezone using proper conversion
+      // Create a date object in the user's timezone
+      const utcTime = new Date()
+      const userLocalTime = new Date(utcTime.toLocaleString("en-US", {timeZone: validTimezone}))
+      const userLocalHour = userLocalTime.getHours()
+      const userLocalMinute = userLocalTime.getMinutes()
+      
+      // Debug logging for timezone issues
+      console.log(`User ${user.user_id} timezone: ${validTimezone}, current UTC: ${utcTime.toISOString()}, local time: ${userLocalTime.toLocaleString()}, local hour: ${userLocalHour}, local minute: ${userLocalMinute}`)
+
       // Check if it's time to send a notification for this user
       for (const timeSlot of suggested_logging_times) {
         const { time, oz, note } = timeSlot
@@ -75,25 +86,37 @@ serve(async (req) => {
         const timeParts = time.match(/(\d+):(\d+)\s*(AM|PM)?/i)
         if (!timeParts) continue
 
-        let hour = parseInt(timeParts[1])
-        const minute = parseInt(timeParts[2])
+        let targetHour = parseInt(timeParts[1])
+        const targetMinute = parseInt(timeParts[2])
         const period = timeParts[3]?.toUpperCase()
 
         // Convert to 24-hour format
-        if (period === 'PM' && hour !== 12) hour += 12
-        if (period === 'AM' && hour === 12) hour = 0
+        if (period === 'PM' && targetHour !== 12) targetHour += 12
+        if (period === 'AM' && targetHour === 12) targetHour = 0
 
-        // Get current time in user's timezone (simplified approach)
-        const now = new Date()
-        const userLocalTime = new Date(now.toLocaleString("en-US", {timeZone: validTimezone}))
-        const userLocalHour = userLocalTime.getHours()
-        const userLocalMinute = userLocalTime.getMinutes()
+        // Check if it's time to send this notification (within a 5-minute window)
+        const timeDiff = Math.abs((userLocalHour * 60 + userLocalMinute) - (targetHour * 60 + targetMinute))
+        const shouldSend = timeDiff <= 5 // Send within 5 minutes of target time
         
-        // Debug logging for timezone issues
-        console.log(`User ${user.user_id} timezone: ${validTimezone}, current UTC: ${now.toISOString()}, local time: ${userLocalTime.toLocaleString()}, local hour: ${userLocalHour}, local minute: ${userLocalMinute}, target hour: ${hour}, target minute: ${minute}`)
+        console.log(`User ${user.user_id} target: ${targetHour}:${targetMinute}, current: ${userLocalHour}:${userLocalMinute}, diff: ${timeDiff} minutes, shouldSend: ${shouldSend}`)
         
-        // Check if it's time to send this notification in user's timezone (exact minute match)
-        if (userLocalHour === hour && userLocalMinute === minute) {
+        if (shouldSend) {
+          // Check if we already sent a notification for this time slot today
+          const today = new Date().toDateString()
+          const { data: existingNotification } = await supabase
+            .from('notifications')
+            .select('id')
+            .eq('user_id', user.user_id)
+            .eq('status', 'sent')
+            .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+            .contains('metadata', { timeSlot: JSON.stringify(timeSlot) })
+            .limit(1)
+
+          if (existingNotification && existingNotification.length > 0) {
+            console.log(`Notification already sent today for user ${user.user_id} at ${targetHour}:${targetMinute}`)
+            continue
+          }
+
           // Determine which template to use based on context
           let templateName = 'daily_splash_1'; // default
           
@@ -111,18 +134,40 @@ serve(async (req) => {
             .single();
 
           // Check if user has logged today
-          const today = new Date().toDateString();
           const hasLoggedToday = recentCheckins?.some(checkin => 
             new Date(checkin.created_at).toDateString() === today
           );
 
-          // Choose template based on user behavior and context
+          // Calculate hours since last drink
+          let hoursSinceLastDrink = 24;
+          if (recentCheckins && recentCheckins.length > 0) {
+            const lastDrink = new Date(Math.max(...recentCheckins.map(c => new Date(c.created_at).getTime())));
+            hoursSinceLastDrink = Math.floor((Date.now() - lastDrink.getTime()) / (1000 * 60 * 60));
+          }
+
+          // Choose template based on user behavior and context (no hardcoded time ranges)
           if (!hasLoggedToday && recentCheckins.length === 0) {
-            // User hasn't logged at all today - use roast mode
-            templateName = 'roast_mode_3';
+            // User hasn't logged at all today - use specific roast based on hours
+            if (hoursSinceLastDrink >= 24) {
+              templateName = 'roast_mode_1'; // "You good dehydrated legend?"
+            } else if (hoursSinceLastDrink >= 12) {
+              templateName = 'roast_mode_2'; // "Is your faucet broken?"
+            } else if (hoursSinceLastDrink >= 8) {
+              templateName = 'roast_mode_3'; // "You're 70% water... or were"
+            } else if (hoursSinceLastDrink >= 6) {
+              templateName = 'roast_mode_4'; // "Dry spell much?"
+            } else {
+              templateName = 'roast_mode_5'; // "Liquid? Never heard of her"
+            }
           } else if (!hasLoggedToday && recentCheckins.length < 2) {
-            // User is behind schedule
-            templateName = 'behind_schedule_2';
+            // User is behind schedule - use specific behind schedule template
+            if (hoursSinceLastDrink >= 12) {
+              templateName = 'behind_schedule_1'; // "Uh oh... dehydrated much?"
+            } else if (hoursSinceLastDrink >= 8) {
+              templateName = 'behind_schedule_2'; // "Falling behind friend"
+            } else {
+              templateName = 'behind_schedule_3'; // "SOS: Water levels low"
+            }
           } else if (streak?.current_streak >= 7) {
             // User has a good streak - celebrate
             templateName = 'streak_celebration_1';
@@ -131,16 +176,23 @@ serve(async (req) => {
             templateName = 'streak_celebration_2';
           } else if (recentCheckins.length >= 5) {
             // User is doing well - use AI checkin
-            templateName = 'ai_checkin_1';
-          } else {
-            // Default based on time of day
-            if (userLocalHour >= 5 && userLocalHour < 12) {
-              templateName = 'daily_splash_1';
-            } else if (userLocalHour >= 12 && userLocalHour < 17) {
-              templateName = 'daily_splash_3';
-            } else if (userLocalHour >= 17 && userLocalHour < 22) {
-              templateName = 'daily_splash_3';
+            if (hoursSinceLastDrink >= 4) {
+              templateName = 'ai_checkin_1'; // "WaterAI check-in"
+            } else {
+              templateName = 'ai_checkin_2'; // "We're in this together"
             }
+          } else if (hoursSinceLastDrink > 6) {
+            // User hasn't drunk in a while - gentle reminder
+            if (hoursSinceLastDrink >= 8) {
+              templateName = 'daily_splash_1'; // "Time to sip"
+            } else if (hoursSinceLastDrink >= 6) {
+              templateName = 'daily_splash_2'; // "Hydration vibes only"
+            } else {
+              templateName = 'daily_splash_3'; // "Drink break alert"
+            }
+          } else {
+            // Default - gentle daily splash
+            templateName = 'daily_splash_1';
           }
           
           // Get notification template
@@ -166,7 +218,26 @@ serve(async (req) => {
             body = template.body
               .replace('{{name}}', user.name || 'there')
               .replace('{{oz}}', oz || 'some water')
-              .replace('{{time}}', `${hour}:${minute.toString().padStart(2, '0')}`)
+              .replace('{{time}}', `${targetHour}:${targetMinute.toString().padStart(2, '0')}`)
+              .replace('{{hours_since_last_drink}}', hoursSinceLastDrink.toString())
+              .replace('{{streak}}', streak?.current_streak?.toString() || '0')
+            
+            // Calculate goal percentage if we have recent checkins and daily goal
+            if (recentCheckins && plan.daily_goal) {
+              const goalMatch = plan.daily_goal.match(/(\d+)/);
+              if (goalMatch) {
+                const dailyGoalOz = parseInt(goalMatch[1]);
+                const totalLoggedToday = recentCheckins.reduce((sum, checkin) => {
+                  const checkinDate = new Date(checkin.created_at);
+                  if (checkinDate.toDateString() === today) {
+                    return sum + (checkin.oz || 0);
+                  }
+                  return sum;
+                }, 0);
+                const goalPercentage = Math.round((totalLoggedToday / dailyGoalOz) * 100);
+                body = body.replace('{{goal_percentage}}', goalPercentage.toString());
+              }
+            }
           } else {
             // Fallback to default messages based on climate and activity
             if (user.climate === 'hot') {
@@ -214,7 +285,7 @@ serve(async (req) => {
                     status: 'sent',
                     metadata: {
                       timeSlot,
-                      scheduledTime: `${hour}:${minute.toString().padStart(2, '0')}`,
+                      scheduledTime: `${targetHour}:${targetMinute.toString().padStart(2, '0')}`,
                       type: 'hydration_reminder'
                     }
                   })

@@ -51,13 +51,40 @@ export default function PlanSetupScreen() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('No user found');
 
-        // 2. Load onboarding data
-        const onboarding = await loadOnboardingData();
-        if (!onboarding) throw new Error('No onboarding data');
+        // 2. Check if user already has a profile (existing account)
+        const { data: existingProfile, error: profileCheckError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
 
-        // 3. Format Grok 3 Mini prompt
-        // (kept for reference, not used directly)
-        // const prompt = formatGrokPrompt(onboarding);
+        if (profileCheckError && profileCheckError.code !== 'PGRST116') {
+          console.error('Error checking profile:', profileCheckError);
+        }
+
+        // If user has a profile, they're an existing user - send to home
+        if (existingProfile) {
+          console.log('Existing user found, navigating to home');
+          router.replace('/tabs/home');
+          return;
+        }
+
+        // 3. Load onboarding data for new users
+        const onboarding = await loadOnboardingData();
+        if (!onboarding) {
+          // No onboarding data and no profile = new user who needs to complete onboarding
+          Alert.alert(
+            'Welcome!',
+            'Please complete the onboarding process to create your account.',
+            [
+              {
+                text: 'OK',
+                onPress: () => router.replace('/onboarding/welcome')
+              }
+            ]
+          );
+          return;
+        }
 
         // 4. Call Edge Function to get plan text
         const { data, error } = await supabase.functions.invoke('generate-hydration-plan', {
@@ -85,7 +112,7 @@ export default function PlanSetupScreen() {
         // 6. Upsert profile
         console.log('Onboarding data for profile:', onboarding);
         
-                // Get user's timezone
+        // Get user's timezone
         const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         console.log('User timezone detected:', userTimezone);
         
@@ -137,6 +164,7 @@ export default function PlanSetupScreen() {
         // 8. Navigate to plan result screen
         router.replace('/plan-result');
       } catch (error) {
+        console.error('Setup error:', error);
         Alert.alert('Setup Error', error.message || 'Failed to create your plan.');
         setLoading(false);
       }

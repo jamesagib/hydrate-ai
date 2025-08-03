@@ -24,6 +24,7 @@ import { LoadingProvider, GlobalLoadingOverlay } from '../lib/loadingContext';
 import superwallDelegate, { setLoadingContext } from '../lib/superwallDelegate';
 import SuperwallDeepLinkHandler from './components/SuperwallDeepLinkHandler';
 import SuperwallDelegateSetup from './components/SuperwallDelegateSetup';
+import * as Updates from 'expo-updates';
 
 // Component to handle quick actions inside SuperwallProvider
 function QuickActionHandler() {
@@ -131,6 +132,41 @@ export default function RootLayout() {
     });
 
     return () => notificationListener?.remove();
+  }, []);
+
+  // Handle OTA updates
+  useEffect(() => {
+    async function checkForUpdates() {
+      try {
+        if (Updates.isEnabled) {
+          const update = await Updates.checkForUpdateAsync();
+          if (update.isAvailable) {
+            console.log('📱 Update available, downloading...');
+            await Updates.fetchUpdateAsync();
+            console.log('✅ Update downloaded, will apply on next app restart');
+            
+            // Optionally show a notification to the user
+            Alert.alert(
+              'Update Available',
+              'A new version is ready! The app will restart to apply the update.',
+              [
+                { text: 'Restart Now', onPress: () => Updates.reloadAsync() },
+                { text: 'Later', style: 'cancel' }
+              ]
+            );
+          } else {
+            console.log('📱 App is up to date');
+          }
+        } else {
+          console.log('📱 Updates are disabled (development mode)');
+        }
+      } catch (error) {
+        console.error('Error checking for updates:', error);
+      }
+    }
+
+    // Check for updates when app starts
+    checkForUpdates();
   }, []);
 
 

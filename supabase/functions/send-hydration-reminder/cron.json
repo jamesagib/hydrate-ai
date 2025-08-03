@@ -1,4 +1,4 @@
 {
-  "cron": "* * * * *",
+  "cron": "*/5 * * * *",
   "function": "send-hydration-reminder"
 } 

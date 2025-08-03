@@ -48,59 +48,50 @@ serve(async (req) => {
       )
     }
 
-    // Check daily scan limit
-    if (userId) {
-      console.log('Checking daily scan limit for user:', userId);
-      const scanCount = await getDailyScanCount(userId)
-      console.log('Current scan count:', scanCount);
-      if (scanCount >= 5) {
-        console.log('Daily scan limit reached');
-        return new Response(
-          JSON.stringify({ error: 'Bad connection. Please try again later.' }),
-          { 
-            status: 429, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        )
-      }
-    } else {
-      console.log('No userId provided, skipping scan limit check');
-    }
-
-    // Step 1: Check cache first
+    // Step 1: Analyze image with Google Cloud Vision API
+    const visionResult = await analyzeWithVisionAPI(image)
+    
+    // Step 2: Process with GPT-4 for volume estimation
+    const drinkAnalysis = await analyzeWithGPT4(visionResult)
+    
+    // Step 3: Handle caching and scan counting in a single database call
     const imageHash = generateImageHash(image)
     console.log('Generated image hash:', imageHash);
-    const cachedResult = await checkCache(imageHash)
     
-    if (cachedResult) {
-      console.log('Cache hit for image hash:', imageHash)
+    try {
+      const { data: dbResult, error } = await supabase.rpc('process_drink_analysis', {
+        p_image_hash: imageHash,
+        p_analysis_result: drinkAnalysis,
+        p_user_id: userId || null
+      })
+      
+      if (error) {
+        console.error('Database function error:', error);
+        if (error.code === 'LIMIT_EXCEEDED') {
+          return new Response(
+            JSON.stringify({ error: 'Bad connection. Please try again later.' }),
+            { 
+              status: 429, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          )
+        }
+        throw error;
+      }
+      
+      console.log('Database result:', dbResult);
+      
       return new Response(
-        JSON.stringify({ ...cachedResult, cached: true }),
+        JSON.stringify({ ...dbResult.result, cached: dbResult.cached }),
         { 
           status: 200, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       )
-    } else {
-      console.log('Cache miss for image hash:', imageHash);
-    }
-
-    // Step 2: Analyze image with Google Cloud Vision API
-    const visionResult = await analyzeWithVisionAPI(image)
-    
-    // Step 3: Process with GPT-4 for volume estimation
-    const drinkAnalysis = await analyzeWithGPT4(visionResult)
-    
-    // Step 4: Cache the result
-    console.log('Caching result for image hash:', imageHash);
-    await cacheResult(imageHash, drinkAnalysis)
-    
-    // Step 5: Increment daily scan count
-    if (userId) {
-      console.log('Incrementing daily scan count for user:', userId);
-      await incrementDailyScanCount(userId)
-    } else {
-      console.log('No userId provided, skipping scan count increment');
+      
+    } catch (error) {
+      console.error('Error processing drink analysis:', error);
+      throw error;
     }
 
     return new Response(
@@ -282,116 +273,5 @@ Respond in this exact JSON format:
   }
 }
 
-// Cache functions
-async function checkCache(imageHash: string): Promise<DrinkAnalysisResult | null> {
-  try {
-    const { data, error } = await supabase
-      .from('drink_analysis_cache')
-      .select('*')
-      .eq('image_hash', imageHash)
-      .single()
-    
-    if (error || !data) {
-      return null
-    }
-    
-    // Check if cache is still valid (7 days)
-    const cacheAge = Date.now() - new Date(data.created_at).getTime()
-    const maxAge = 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
-    
-    if (cacheAge > maxAge) {
-      // Delete expired cache entry
-      await supabase
-        .from('drink_analysis_cache')
-        .delete()
-        .eq('image_hash', imageHash)
-      return null
-    }
-    
-    return {
-      name: data.name,
-      estimatedOz: data.estimated_oz,
-      confidence: data.confidence,
-      description: data.description
-    }
-  } catch (error) {
-    console.error('Cache check error:', error)
-    return null
-  }
-}
-
-async function cacheResult(imageHash: string, result: DrinkAnalysisResult): Promise<void> {
-  try {
-    await supabase
-      .from('drink_analysis_cache')
-      .insert({
-        image_hash: imageHash,
-        name: result.name,
-        estimated_oz: result.estimatedOz,
-        confidence: result.confidence,
-        description: result.description,
-        created_at: new Date().toISOString()
-      })
-  } catch (error) {
-    console.error('Cache save error:', error)
-    // Don't fail the request if caching fails
-  }
-}
-
-// Scan limit functions
-async function getDailyScanCount(userId: string): Promise<number> {
-  try {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    
-    const { data, error } = await supabase
-      .from('daily_scan_counts')
-      .select('scan_count')
-      .eq('user_id', userId)
-      .eq('date', today.toISOString().split('T')[0])
-      .single()
-    
-    if (error || !data) {
-      return 0
-    }
-    
-    return data.scan_count || 0
-  } catch (error) {
-    console.error('Error getting daily scan count:', error)
-    return 0
-  }
-}
-
-async function incrementDailyScanCount(userId: string): Promise<void> {
-  try {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const dateStr = today.toISOString().split('T')[0]
-    
-    // Try to update existing record
-    const { error: updateError } = await supabase
-      .from('daily_scan_counts')
-      .update({ 
-        scan_count: supabase.rpc('increment_scan_count'),
-        updated_at: new Date().toISOString()
-      })
-      .eq('user_id', userId)
-      .eq('date', dateStr)
-    
-    // If no record exists, create one
-    if (updateError) {
-      await supabase
-        .from('daily_scan_counts')
-        .insert({
-          user_id: userId,
-          date: dateStr,
-          scan_count: 1,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-    }
-  } catch (error) {
-    console.error('Error incrementing daily scan count:', error)
-    // Don't fail the request if scan counting fails
-  }
-}
+// Database functions are now handled by the process_drink_analysis RPC function
+// This provides better performance and atomicity
