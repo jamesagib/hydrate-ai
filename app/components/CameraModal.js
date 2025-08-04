@@ -24,6 +24,24 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
   const [isManualMode, setIsManualMode] = useState(false);
   const [topDrinks, setTopDrinks] = useState([]);
   const [loadingTopDrinks, setLoadingTopDrinks] = useState(false);
+  const [isTrialUser, setIsTrialUser] = useState(false);
+
+  // Reset function to clear all state
+  const resetModalState = () => {
+    setCapturedImage(null);
+    setDetectedDrink(null);
+    setShowConfirmation(false);
+    setIsManualMode(false);
+    setCustomAmount('');
+    setIsCapturing(false);
+    setIsProcessing(false);
+  };
+
+  // Enhanced close function that resets state
+  const handleClose = () => {
+    resetModalState();
+    onClose();
+  };
 
   console.log('CameraModal render - visible:', visible, 'hasPermission:', hasPermission);
 
@@ -36,12 +54,40 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
     })();
   }, []);
 
-  // Fetch top drinks when modal opens
+  // Fetch top drinks and check subscription status when modal opens
   useEffect(() => {
     if (visible) {
+      resetModalState(); // Reset state when modal opens
       fetchTopDrinks();
+      checkSubscriptionStatus();
     }
   }, [visible]);
+
+  // Check if user is on trial
+  const checkSubscriptionStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('subscription_status')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (!error && profile) {
+          // Default to trial if no subscription status or if it's a trial status
+          const isTrial = !profile.subscription_status || 
+                         profile.subscription_status === 'trial' || 
+                         profile.subscription_status === 'TRIAL' ||
+                         profile.subscription_status === 'trialing' || 
+                         profile.subscription_status === 'TRIALING';
+          setIsTrialUser(isTrial);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking subscription status:', error);
+    }
+  };
 
   // Helper function to get drink emoji and color
   const getDrinkInfo = (drinkName) => {
@@ -236,7 +282,12 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
             setDetectedDrink(analysisResult.data);
             setShowConfirmation(true);
           } else {
-            Alert.alert('Error', 'Could not analyze the drink. Please try again.');
+            // Handle specific error types
+            if (analysisResult.errorType === 'TRIAL_LIMIT_EXCEEDED') {
+              Alert.alert('Daily Limit Reached', 'You\'ve reached your daily limit of 3 scans on the free trial.');
+            } else {
+              Alert.alert('Error', analysisResult.error || 'Could not analyze the drink. Please try again.');
+            }
           }
         } else {
           setIsCapturing(false);
@@ -270,7 +321,12 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
 
       if (error) {
         console.error('Edge function error:', error);
-        return { success: false, error: error.message };
+        return { 
+          success: false, 
+          error: error.message,
+          errorType: data?.errorType || 'UNKNOWN_ERROR',
+          limitExceeded: data?.limitExceeded || false
+        };
       }
 
       return { success: true, data };
@@ -291,7 +347,7 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
       <Modal visible={visible} animationType="slide">
         <View style={styles.permissionContainer}>
           <Text style={styles.permissionText}>No access to camera</Text>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
             <Text style={styles.closeButtonText}>Close</Text>
           </TouchableOpacity>
         </View>
@@ -308,10 +364,20 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
           <View style={styles.header}>
             <View style={{ width: 28 }} />
             <Text style={styles.headerTitle}>Scan Drink</Text>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
               <Ionicons name="close" size={28} color="black" />
             </TouchableOpacity>
           </View>
+
+          {/* Trial Notice */}
+          {isTrialUser && (
+            <View style={styles.trialNotice}>
+              <Ionicons name="information-circle" size={16} color="#FF6B35" />
+              <Text style={styles.trialNoticeText}>
+                Due to high demand, you can only scan 3 drinks on the free trial. Thank you for your understanding.
+              </Text>
+            </View>
+          )}
 
           {/* Camera frame overlay */}
           <View style={styles.frameOverlay}>
@@ -336,6 +402,7 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
                       <TouchableOpacity
                         style={styles.manualAddButton}
                         onPress={() => {
+                          resetModalState();
                           onClose();
                           if (onOpenManualLog) {
                             onOpenManualLog();
@@ -372,6 +439,7 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
                             >
                               <Text style={styles.quickAddEmoji}>{drink.emoji}</Text>
                               <Text style={styles.quickAddButtonText}>{drink.name}</Text>
+                              <Text style={styles.quickAddOz}>{calculateWaterContent(drink.name, 8)} oz</Text>
                               <Text style={styles.quickAddCount}>{drink.count}x</Text>
                             </TouchableOpacity>
                           ))}
@@ -735,12 +803,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   quickAddButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
     gap: 8,
   },
   quickAddButton: {
-    flex: 1,
     backgroundColor: '#F5F5F5',
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -759,10 +825,36 @@ const styles = StyleSheet.create({
     color: '#333',
     textAlign: 'center',
   },
+  quickAddOz: {
+    fontSize: 12,
+    fontFamily: 'Nunito_600SemiBold',
+    color: '#4FC3F7',
+    marginTop: 2,
+  },
   quickAddCount: {
     fontSize: 12,
     fontFamily: 'Nunito_400Regular',
     color: '#999',
     marginTop: 2,
+  },
+  trialNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 20,
+    marginTop: 10,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF6B35',
+  },
+  trialNoticeText: {
+    fontSize: 14,
+    fontFamily: 'Nunito_400Regular',
+    color: '#E65100',
+    marginLeft: 8,
+    flex: 1,
+    lineHeight: 20,
   },
 }); 

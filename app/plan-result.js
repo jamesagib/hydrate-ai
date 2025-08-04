@@ -50,38 +50,25 @@ export default function PlanResultScreen() {
   const [purchaseSuccessful, setPurchaseSuccessful] = useState(false);
   const [isProcessingPurchase, setIsProcessingPurchase] = useState(false);
   const isFromSettings = params.from === 'settings';
+  const shouldShowPaywall = params.showPaywall === 'true';
   const { subscriptionStatus } = useUser();
 
   const { registerPlacement, state } = usePlacement({
     onPresent: (info) => {
-      console.log('Paywall presented:', info);
       setPaywallMessage('Paywall presented');
       setTimeout(() => setPaywallMessage(null), 2000);
     },
     onDismiss: async (info, result) => {
-      console.log('Paywall dismissed:', info, result);
-      console.log('Result outcome:', result?.outcome);
-      console.log('Result products:', result?.products);
-      
       // Simplified purchase detection - check for actual purchase outcomes
       const isSuccessfulPurchase = result?.outcome === 'purchased' || 
                                   result?.outcome === 'restored' ||
                                   (result?.outcome === 'dismissed' && result?.products?.length > 0);
       
-      console.log('Is successful purchase:', isSuccessfulPurchase);
-      console.log('Result outcome:', result?.outcome);
-      console.log('Result products:', result?.products);
-      console.log('Full result object:', JSON.stringify(result, null, 2));
-      
       if (isSuccessfulPurchase) {
         setPurchaseSuccessful(true);
         setIsProcessingPurchase(true);
-        console.log('=== PURCHASE FLOW DEBUG ===');
-        console.log('Successful purchase detected - restoring purchases and checking status...');
-        console.log('Result object:', JSON.stringify(result, null, 2));
         
         // Immediately navigate to home for successful purchases
-        console.log('✅ Purchase successful, navigating to home immediately');
         router.replace('/tabs/home');
         return;
         
@@ -90,15 +77,10 @@ export default function PlanResultScreen() {
           console.log('Calling Superwall.restorePurchases()...');
           const restoreResult = await Superwall.restorePurchases();
           console.log('Restore result:', restoreResult);
-          console.log('Purchases restored successfully');
-          
           // Create recursive function to check subscription status
           const checkSubscriptionStatus = async (attempts = 0) => {
-            console.log(`=== STATUS CHECK ATTEMPT ${attempts + 1} ===`);
-            
             if (attempts >= 5) {
               // After 5 attempts (10 seconds), subscription still not active
-              console.log('Subscription status not updated after 5 attempts - purchase may have failed');
               setIsProcessingPurchase(false);
               setPaywallMessage('Purchase verification failed. Please try again or contact support.');
               setTimeout(() => setPaywallMessage(null), 5000);
@@ -107,37 +89,20 @@ export default function PlanResultScreen() {
             
             try {
               // Get updated subscription status
-              console.log('Calling Superwall.getUser()...');
               const user = await Superwall.getUser();
-              console.log('Full user object:', JSON.stringify(user, null, 2));
-              console.log('User subscription status:', user?.subscriptionStatus);
-              console.log('User subscription status type:', typeof user?.subscriptionStatus);
-              
-              // Check if the status is active
-              console.log('Checking if subscription status is "active"...');
-              console.log('Current status:', user?.subscriptionStatus);
-              console.log('Status comparison result:', user?.subscriptionStatus === 'active');
-              console.log('Full user object:', JSON.stringify(user, null, 2));
               
               if (user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'ACTIVE') {
-                console.log('✅ Subscription status is active, navigating to home');
                 setIsProcessingPurchase(false);
                 router.replace('/tabs/home');
                 return;
-              } else {
-                console.log('❌ Subscription status is NOT active yet');
-                console.log('User subscription status type:', typeof user?.subscriptionStatus);
-                console.log('User subscription status value:', user?.subscriptionStatus);
               }
               
               // If not active, wait 2 seconds and try again
-              console.log('Subscription not active yet, retrying in 2 seconds...');
               setTimeout(() => {
                 checkSubscriptionStatus(attempts + 1);
               }, 2000);
               
             } catch (error) {
-              console.error('Error checking subscription status:', error);
               // On error, wait and retry
               setTimeout(() => {
                 checkSubscriptionStatus(attempts + 1);
@@ -149,7 +114,6 @@ export default function PlanResultScreen() {
           await checkSubscriptionStatus();
           
                  } catch (error) {
-           console.error('Error restoring purchases:', error);
            // If restore fails, show error message
            setIsProcessingPurchase(false);
            setPaywallMessage('Error verifying purchase. Please try again or contact support.');
@@ -159,25 +123,21 @@ export default function PlanResultScreen() {
        
        // Fallback: If paywall was dismissed and user has products, navigate to home
        if (result?.products && result.products.length > 0) {
-         console.log('✅ Fallback: Products detected, navigating to home');
          router.replace('/tabs/home');
        }
       },
     onError: (error) => {
-      console.error('Paywall error:', error);
       setPaywallError(error || 'Could not show paywall.');
       setPaywallMessage('Paywall error');
       setTimeout(() => setPaywallMessage(null), 2000);
       
       // DEVELOPMENT MODE: Allow access even if paywall errors
       if (__DEV__) {
-        console.log('Development mode: Paywall error, navigating to home');
         router.replace('/tabs/home');
       }
     },
     onSkip: (reason) => {
-      console.log('Paywall skipped:', reason);
-      // Don't show any message or navigate - just log it
+      // Paywall skipped
     },
   });
 
@@ -211,6 +171,27 @@ export default function PlanResultScreen() {
     fetchPlan();
   }, []);
 
+  // Auto-show paywall for users redirected from splash screen
+  useEffect(() => {
+    if (shouldShowPaywall && !loading && plan) {
+      // Check if user has active subscription
+      const hasActiveSubscription = subscriptionStatus?.status === 'active' || 
+                                  subscriptionStatus?.status === 'ACTIVE' ||
+                                  subscriptionStatus?.status === 'trialing' || 
+                                  subscriptionStatus?.status === 'TRIALING' ||
+                                  subscriptionStatus?.status === 'trial' || 
+                                  subscriptionStatus?.status === 'TRIAL';
+      
+      if (hasActiveSubscription) {
+        // User has subscription, go to home
+        router.replace('/tabs/home');
+      } else {
+        // User doesn't have subscription, show paywall
+        showPaywall();
+      }
+    }
+  }, [shouldShowPaywall, loading, plan, subscriptionStatus]);
+
 
 
   const showPaywall = async () => {
@@ -227,16 +208,9 @@ export default function PlanResultScreen() {
       paywallData.webPurchaseButton = true;
       paywallData.webPurchaseButtonText = "Buy on Web";
       
-      // Add location-based configuration
-      // Superwall will automatically route to the correct campaign based on user location
-      console.log('🔧 Triggering paywall with data:', paywallData);
-      console.log('📍 Location-based routing will be handled by Superwall campaigns');
-      console.log('🌐 Web purchase button enabled:', paywallData.webPurchaseButton);
-      
       registerPlacement(paywallData);
       
     } catch (error) {
-      console.error('❌ Error getting user data for paywall:', error);
       // Fallback to default trigger
       registerPlacement({ placement: 'campaign_trigger' });
     }
@@ -244,36 +218,24 @@ export default function PlanResultScreen() {
 
   // Handle the "Let's go" button press
   const handleLetsGo = () => {
-    console.log('=== LETS GO BUTTON PRESSED ===');
-    console.log('isFromSettings:', isFromSettings);
-    console.log('purchaseSuccessful:', purchaseSuccessful);
-    console.log('subscriptionStatus:', subscriptionStatus);
-    console.log('subscriptionStatus.status:', subscriptionStatus?.status);
-    console.log('subscriptionStatus type:', typeof subscriptionStatus);
-    console.log('Full subscriptionStatus object:', JSON.stringify(subscriptionStatus, null, 2));
-    
     if (isFromSettings) {
-      console.log('From settings, going back');
       router.back();
       return;
     }
     
     // If user just completed a purchase, go to home
     if (purchaseSuccessful) {
-      console.log('✅ User just completed purchase, navigating to home');
       router.replace('/tabs/home');
       return;
     }
     
     // Check if user has active subscription (fallback check)
     if (subscriptionStatus?.status === 'active' || subscriptionStatus?.status === 'ACTIVE') {
-      console.log('✅ User has active subscription, navigating to home');
       router.replace('/tabs/home');
       return;
     }
     
-    // Show paywall for purchase (same behavior in dev and production)
-    console.log('Showing paywall for purchase');
+    // Show paywall for purchase
     showPaywall();
   };
 

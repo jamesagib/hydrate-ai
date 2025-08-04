@@ -1,27 +1,23 @@
--- Create the drink_analysis_cache table
-CREATE TABLE IF NOT EXISTS drink_analysis_cache (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  image_hash TEXT UNIQUE NOT NULL,
-  analysis_result JSONB NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Setup Trial Scan Limits - Safe execution
+-- This file handles all database changes for the trial scan limit feature
 
--- Enable RLS
-ALTER TABLE drink_analysis_cache ENABLE ROW LEVEL SECURITY;
+-- 1. Add subscription_status column to profiles table
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'trial';
 
--- Create policy to allow all authenticated users to read/write cache entries
-CREATE POLICY IF NOT EXISTS "Allow authenticated users to manage cache" ON drink_analysis_cache
-  FOR ALL USING (auth.role() = 'authenticated');
+-- 2. Update existing users to have trial status
+UPDATE profiles SET subscription_status = 'trial' WHERE subscription_status IS NULL;
 
--- Create index on image_hash for faster lookups
-CREATE INDEX IF NOT EXISTS idx_drink_analysis_cache_hash ON drink_analysis_cache(image_hash);
+-- 3. Create index for faster lookups
+CREATE INDEX IF NOT EXISTS idx_profiles_subscription_status ON profiles(subscription_status);
 
--- Function to handle drink analysis with caching and scan counting
+-- 4. Grant permissions
+GRANT SELECT, UPDATE ON profiles TO service_role;
+
+-- 5. Update the process_drink_analysis function with trial limits
 CREATE OR REPLACE FUNCTION process_drink_analysis(
   p_image_hash TEXT,
   p_analysis_result JSONB,
-  p_user_id UUID DEFAULT NULL,
-  p_subscription_status TEXT DEFAULT NULL
+  p_user_id UUID DEFAULT NULL
 )
 RETURNS JSONB AS $$
 DECLARE
@@ -34,8 +30,10 @@ DECLARE
 BEGIN
   -- Determine scan limit based on user subscription status
   IF p_user_id IS NOT NULL THEN
-    -- Use the subscription status passed from the Edge Function (updated by Superwall)
-    user_subscription_status := p_subscription_status;
+    -- Get user's subscription status from profiles table
+    SELECT subscription_status INTO user_subscription_status
+    FROM profiles 
+    WHERE user_id = p_user_id;
     
     -- Set scan limit based on subscription status
     -- Default to trial if no subscription status found
@@ -107,16 +105,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to clean up expired cache entries
-CREATE OR REPLACE FUNCTION cleanup_expired_cache()
-RETURNS INTEGER AS $$
-DECLARE
-  deleted_count INTEGER;
-BEGIN
-  DELETE FROM drink_analysis_cache 
-  WHERE created_at < NOW() - INTERVAL '7 days';
-  
-  GET DIAGNOSTICS deleted_count = ROW_COUNT;
-  RETURN deleted_count;
-END;
-$$ LANGUAGE plpgsql; 
+-- 6. Grant function permissions
+GRANT EXECUTE ON FUNCTION process_drink_analysis(TEXT, JSONB, UUID) TO service_role;
+
+-- 7. Verify the setup
+SELECT 'Trial scan limits setup complete!' as status; 

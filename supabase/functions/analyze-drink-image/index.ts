@@ -59,6 +59,22 @@ serve(async (req) => {
     console.log('Generated image hash:', imageHash);
     
     try {
+      // Get user's subscription status for limit checking
+      let userSubscriptionStatus = null;
+      if (userId) {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('subscription_status')
+            .eq('user_id', userId)
+            .single();
+          userSubscriptionStatus = profile?.subscription_status;
+        } catch (error) {
+          // If we can't get subscription status, assume trial
+          userSubscriptionStatus = 'trial';
+        }
+      }
+
       const { data: dbResult, error } = await supabase.rpc('process_drink_analysis', {
         p_image_hash: imageHash,
         p_analysis_result: drinkAnalysis,
@@ -68,8 +84,31 @@ serve(async (req) => {
       if (error) {
         console.error('Database function error:', error);
         if (error.code === 'LIMIT_EXCEEDED') {
+          // Get user's subscription status to show appropriate message
+          let errorMessage = 'Bad connection. Please try again later.';
+          let errorType = 'LIMIT_EXCEEDED';
+          
+          if (userId) {
+            // Use the subscription status we retrieved earlier
+            if (userSubscriptionStatus === 'trial' || 
+                userSubscriptionStatus === 'TRIAL' ||
+                userSubscriptionStatus === 'trialing' || 
+                userSubscriptionStatus === 'TRIALING' ||
+                !userSubscriptionStatus) {
+              errorMessage = 'You\'ve reached your daily limit of 3 scans on the free trial.';
+              errorType = 'TRIAL_LIMIT_EXCEEDED';
+            } else {
+              errorMessage = 'Due to high demand, we\'re experiencing temporary limits. We\'re working on expanding capacity.';
+              errorType = 'PAID_LIMIT_EXCEEDED';
+            }
+          }
+          
           return new Response(
-            JSON.stringify({ error: 'Bad connection. Please try again later.' }),
+            JSON.stringify({ 
+              error: errorMessage,
+              errorType: errorType,
+              limitExceeded: true
+            }),
             { 
               status: 429, 
               headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -130,18 +169,22 @@ async function analyzeWithVisionAPI(base64Image: string): Promise<any> {
         features: [
           {
             type: 'LABEL_DETECTION',
-            maxResults: 10
+            maxResults: 15
           },
           {
             type: 'OBJECT_LOCALIZATION',
-            maxResults: 5
+            maxResults: 10
           },
           {
             type: 'TEXT_DETECTION',
-            maxResults: 5
+            maxResults: 10
           },
           {
             type: 'IMAGE_PROPERTIES'
+          },
+          {
+            type: 'WEB_DETECTION',
+            maxResults: 5
           }
         ]
       }
@@ -178,6 +221,10 @@ async function analyzeWithGPT4(visionResult: any): Promise<DrinkAnalysisResult> 
   const objects = visionResult.responses[0]?.localizedObjectAnnotations?.map((obj: any) => obj.name) || []
   const text = visionResult.responses[0]?.textAnnotations?.[0]?.description || ''
   
+  // Extract web detection results for better brand identification
+  const webEntities = visionResult.responses[0]?.webDetection?.webEntities?.map((entity: any) => entity.description) || []
+  const webMatches = visionResult.responses[0]?.webDetection?.webDetection?.fullMatchingImages?.length || 0
+  
   // Extract dominant colors
   const dominantColors = visionResult.responses[0]?.imagePropertiesAnnotation?.dominantColors?.colors || []
   const colorInfo = dominantColors.slice(0, 3).map((color: any) => {
@@ -192,11 +239,32 @@ You are analyzing a drink image for hydration tracking. Based on the following i
 Labels detected: ${labels.join(', ')}
 Objects detected: ${objects.join(', ')}
 Text detected: ${text}
+Web entities detected: ${webEntities.join(', ')}
+Web matches found: ${webMatches}
 Dominant colors: ${colorInfo}
 
+IMPORTANT: Pay special attention to popular water bottle brands and their standard sizes:
+
+WATER BOTTLE BRANDS & SIZES:
+- Stanley: 20oz, 30oz, 40oz, 64oz (Quencher), 128oz (Gallon)
+- Hydro Flask: 18oz, 21oz, 24oz, 32oz, 40oz, 64oz
+- Yeti: 18oz, 20oz, 26oz, 30oz, 36oz, 46oz, 64oz
+- Nalgene: 16oz, 20oz, 32oz, 48oz, 64oz, 96oz
+- CamelBak: 20oz, 25oz, 32oz, 50oz, 75oz
+- Contigo: 20oz, 24oz, 32oz, 40oz
+- Simple Modern: 20oz, 24oz, 32oz, 40oz, 64oz
+- Owala: 24oz, 32oz, 40oz
+- Brumate: 20oz, 25oz, 32oz, 40oz
+
+Look for brand names in the text detection and visual cues like:
+- Stanley: Often has a handle, wide mouth, metallic finish
+- Hydro Flask: Cylindrical, often colorful, wide mouth
+- Yeti: Similar to Stanley, often has a handle
+- Nalgene: Clear plastic, wide mouth, often has measurement markings
+
 Please analyze this drink and provide:
-1. The most likely drink name
-2. Estimated volume in ounces (oz)
+1. The most likely drink name (include brand if detected)
+2. Estimated volume in ounces (oz) - use standard sizes for known brands
 3. Confidence level (0-1)
 4. Brief description of your reasoning
 

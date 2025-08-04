@@ -1,113 +1,37 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { supabase } from '../lib/supabase';
-import { useUser, useSuperwallEvents, usePlacement } from 'expo-superwall';
+import { useUser } from 'expo-superwall';
 import notificationService from '../lib/notificationService';
 import { loadOnboardingData } from '../lib/onboardingStorage';
-import superwallDelegate, { setLoadingContext, createPaywallData } from '../lib/superwallDelegate';
-
-function SubscriptionStatusBanner() {
-  const { subscriptionStatus, user } = useUser();
-  if (!subscriptionStatus) return null;
-  return (
-    <View style={{ padding: 10, backgroundColor: '#e0f7fa' }}>
-      <Text>
-        {subscriptionStatus.status === 'ACTIVE'
-          ? 'You are a premium user! 🎉'
-          : 'Upgrade to premium for full access.'}
-      </Text>
-      <Text>User ID: {user?.appUserId}</Text>
-    </View>
-  );
-}
-
-function SuperwallEventLogger() {
-  useSuperwallEvents({
-    onSuperwallEvent: (eventInfo) => {
-      console.log('Superwall Event:', eventInfo.event, eventInfo.params);
-    },
-    onSubscriptionStatusChange: (newStatus) => {
-      console.log('Subscription Status Changed:', newStatus.status);
-    },
-    onPaywallPresent: (info) => {
-      console.log('Paywall Presented:', info.name);
-    },
-    onPaywallDismiss: (info, result) => {
-      console.log('Paywall Dismissed:', info.name, result);
-    },
-    onPaywallError: (error) => {
-      console.error('Paywall Error:', error);
-    },
-  });
-  return null;
-}
 
 export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
   const [loading, setLoading] = useState(true);
   const { subscriptionStatus } = useUser();
-  const { registerPlacement, state } = usePlacement({
-    onPresent: (info) => {
-      console.log('Splash: Paywall presented:', info);
-    },
-    onDismiss: async (info, result) => {
-      console.log('Splash: Paywall dismissed:', info, result);
-      
-      // Check if purchase was successful
-      const isSuccessfulPurchase = result?.outcome === 'purchased' || 
-                                  result?.outcome === 'restored' ||
-                                  (result?.outcome === 'dismissed' && result?.products?.length > 0);
-      
-      if (isSuccessfulPurchase) {
-        console.log('Splash: Purchase successful, navigating to home');
-        router.replace('/tabs/home');
-      } else {
-        console.log('Splash: Purchase not completed, staying on splash');
-      }
-    },
-    onError: (error) => {
-      console.error('Splash: Paywall error:', error);
-      // On error, allow access in development mode
-      if (__DEV__) {
-        console.log('Splash: Development mode - paywall error, navigating to home');
-        router.replace('/tabs/home');
-      }
-    },
-  });
 
-  // App initialization (paywall shows for users who completed onboarding but haven't paid)
   useEffect(() => {
     if (!fontsLoaded) return;
-    if (!subscriptionStatus) return;
     
-    let didNavigate = false;
     const initializeApp = async () => {
       try {
-        console.log('Splash: Starting app initialization...');
-        
         // Initialize Supabase auth session
         await supabase.auth.getSession();
         
         // Check onboarding state
         const onboarding = await SecureStore.getItemAsync('onboarding_complete');
         const onboardingData = await loadOnboardingData();
-        console.log('Splash: Onboarding complete:', onboarding === 'true');
-        console.log('Splash: Onboarding data:', onboardingData);
         
-        // Check authentication state
+        // Check authentication state and restore session if needed
         let { data: { session } } = await supabase.auth.getSession();
-        console.log('Splash: Initial session found:', !!session);
-        console.log('Splash: Session user:', session?.user?.email);
-        console.log('Splash: Session expires:', session?.expires_at);
         
         // If no session, try to restore from stored tokens
         if (!session) {
           const accessToken = await SecureStore.getItemAsync('supabase_session');
           const refreshToken = await SecureStore.getItemAsync('supabase_refresh_token');
-          console.log('Splash: Stored tokens found - access:', !!accessToken, 'refresh:', !!refreshToken);
           
           if (accessToken && refreshToken) {
             try {
@@ -117,111 +41,79 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
               });
               if (data.session && !error) {
                 session = data.session;
-                console.log('Splash: Session restored from tokens');
+                // Update stored tokens
                 await SecureStore.setItemAsync('supabase_session', data.session.access_token);
                 await SecureStore.setItemAsync('supabase_refresh_token', data.session.refresh_token);
               } else {
-                console.log('Splash: Failed to restore session, error:', error?.message);
+                // Clear invalid tokens
                 await SecureStore.deleteItemAsync('supabase_session');
                 await SecureStore.deleteItemAsync('supabase_refresh_token');
               }
             } catch (error) {
-              console.error('Splash: Error restoring session:', error.message);
+              // Clear invalid tokens
               await SecureStore.deleteItemAsync('supabase_session');
               await SecureStore.deleteItemAsync('supabase_refresh_token');
             }
           }
         }
         
-        // Wait a bit for auth state to settle
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Get final session state
-        const { data: { session: finalSession } } = await supabase.auth.getSession();
-        
         // Check if user has a profile in database
         let userProfile = null;
-        if (finalSession?.user) {
-          const { data: profile, error } = await supabase
+        if (session?.user) {
+          const { data: profile } = await supabase
             .from('profiles')
             .select('*')
-            .eq('user_id', finalSession.user.id)
+            .eq('user_id', session.user.id)
             .single();
-          
-          if (!error && profile) {
-            userProfile = profile;
-            console.log('Splash: User profile found:', profile.name);
-          } else {
-            console.log('Splash: No user profile found, error:', error?.message);
-          }
+          userProfile = profile;
         }
         
-        // Navigate based on state
-        console.log('Splash: Final decision - onboarding:', onboarding, 'session:', !!finalSession, 'profile:', !!userProfile);
-        
-
-        
-        setTimeout(async () => {
+        // NEW FAST LOGIC FLOW
+        if (!session?.user) {
+          // NO ACCOUNT - Check onboarding state
           if (onboarding !== 'true') {
-            console.log('Splash: Navigating to welcome screen');
+            // No onboarding data or incomplete - go to welcome
             router.replace('/onboarding/welcome');
-          } else if (finalSession && userProfile) {
-            // User has completed onboarding and has a profile - check subscription
-            console.log('Splash: User completed onboarding, checking subscription status');
-            console.log('Splash: Subscription status:', subscriptionStatus?.status);
-            
-            // Check if user has active subscription
-            if (subscriptionStatus?.status === 'active' || subscriptionStatus?.status === 'ACTIVE') {
-              console.log('Splash: User has active subscription, navigating to main app');
-              router.replace('/tabs/home');
-            } else {
-              console.log('Splash: User does not have active subscription, showing paywall');
-              // Show paywall for users who completed onboarding but haven't paid
-              // Include user data for web checkout
-              const paywallData = createPaywallData('campaign_trigger', finalSession?.user);
-              
-              // Add web purchase button configuration for US users
-              paywallData.webPurchaseButton = true;
-              paywallData.webPurchaseButtonText = "Buy on Web";
-              
-              console.log('🔧 Splash: Triggering paywall with data:', paywallData);
-              console.log('🌐 Splash: Web purchase button enabled:', paywallData.webPurchaseButton);
-              registerPlacement(paywallData);
-            }
-          } else if (finalSession && !userProfile) {
-            console.log('Splash: User logged in but no profile found, going to plan setup');
-            router.replace('/plan-setup');
-          } else if (onboarding === 'true' && !finalSession) {
-            console.log('Splash: Onboarding complete but no session, going to login');
-            router.replace('/login');
           } else {
-            console.log('Splash: Navigating to welcome screen');
-            router.replace('/onboarding/welcome');
+            // Onboarding complete but no account - go to create account
+            router.replace('/auth');
           }
-        }, 0);
-        didNavigate = true;
-        
-        // Notify parent that app initialization is complete
-        if (onAppInitialized) {
-          onAppInitialized();
+        } else {
+          // HAS ACCOUNT - Check subscription
+          const hasActiveSubscription = subscriptionStatus?.status === 'active' || 
+                                      subscriptionStatus?.status === 'ACTIVE' ||
+                                      subscriptionStatus?.status === 'trialing' || 
+                                      subscriptionStatus?.status === 'TRIALING' ||
+                                      subscriptionStatus?.status === 'trial' || 
+                                      subscriptionStatus?.status === 'TRIAL';
+          
+          // If subscription status is not available yet (fresh install), 
+          // go to home screen and let Superwall sync in background
+          if (!subscriptionStatus?.status) {
+            router.replace('/tabs/home');
+          } else if (hasActiveSubscription) {
+            // PAID - go to home
+            router.replace('/tabs/home');
+          } else {
+            // NO SUBSCRIPTION - go to paywall
+            router.replace('/plan-result?showPaywall=true');
+          }
         }
+        
       } catch (error) {
-        setTimeout(() => {
-          console.error('Splash: Error during initialization:', error);
-          router.replace('/onboarding/welcome');
-        }, 0);
+        // On error, go to welcome screen
+        router.replace('/onboarding/welcome');
       } finally {
         setLoading(false);
-        // Notify parent that app initialization is complete (even on error)
         if (onAppInitialized) {
           onAppInitialized();
         }
       }
     };
+
+    // Start immediately when fonts are loaded
     initializeApp();
-    return () => {
-      if (!didNavigate) setLoading(false);
-    };
+    
   }, [fontsLoaded, subscriptionStatus]);
 
   if (!fontsLoaded || loading) {
