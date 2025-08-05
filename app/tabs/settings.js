@@ -495,6 +495,13 @@ export default function SettingsScreen() {
                 </TouchableOpacity>
               </View>
             )}
+
+            {/* Medical Disclaimer */}
+            <View style={styles.disclaimerSection}>
+              <Text style={styles.disclaimerText}>
+                This app provides general wellness tips and is not intended to diagnose, treat, or replace medical advice. Always consult a healthcare professional for personalized guidance.
+              </Text>
+            </View>
           </>
         )}
 
@@ -1118,5 +1125,22 @@ const styles = StyleSheet.create({
   dropdownArrow: {
     fontSize: 12,
     color: '#666',
+  },
+  disclaimerSection: {
+    backgroundColor: '#FFF3E0',
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 40,
+    padding: 16,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF6B35',
+  },
+  disclaimerText: {
+    fontSize: 14,
+    fontFamily: 'Nunito_400Regular',
+    color: '#E65100',
+    lineHeight: 20,
+    textAlign: 'center',
   },
 }); 

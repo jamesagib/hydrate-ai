@@ -1,0 +1,218 @@
+{
+  "drinks": [
+    {
+      "name": "water",
+      "aliases": ["h2o", "tap water", "bottled water", "spring water", "mineral water", "distilled water", "filtered water"],
+      "tip": "Perfect choice! Water is the gold standard for hydration. It's calorie-free, helps regulate body temperature, and supports every bodily function. Keep up the great work! 💧",
+      "category": "excellent"
+    },
+    {
+      "name": "coffee",
+      "aliases": ["espresso", "latte", "cappuccino", "americano", "mocha", "frappuccino", "cold brew", "drip coffee"],
+      "tip": "Coffee can be part of your hydration routine! While it has a mild diuretic effect, the water content still contributes to your daily hydration. Just balance it with plain water throughout the day. ☕",
+      "category": "moderate"
+    },
+    {
+      "name": "tea",
+      "aliases": ["green tea", "black tea", "herbal tea", "chamomile tea", "peppermint tea", "oolong tea", "white tea", "iced tea"],
+      "tip": "Tea is a great hydration choice! Herbal teas are caffeine-free and count toward your daily water intake. Green tea also provides antioxidants. Just watch the caffeine in black and green teas. 🍵",
+      "category": "good"
+    },
+    {
+      "name": "soda",
+      "aliases": ["coke", "pepsi", "sprite", "fanta", "dr pepper", "mountain dew", "root beer", "ginger ale", "7up"],
+      "tip": "Soda contains water but the high sugar content and phosphoric acid can actually interfere with proper hydration. The sugar spikes blood glucose and the acid can affect calcium absorption. Water is always a better choice! 🥤",
+      "category": "poor"
+    },
+    {
+      "name": "energy drinks",
+      "aliases": ["red bull", "monster", "rockstar", "bang", "5 hour energy", "n.o.x", "full throttle"],
+      "tip": "Energy drinks contain high levels of caffeine and sugar that can increase heart rate and blood pressure. While they provide some hydration, the caffeine can cause energy crashes and dehydration. Water is always a better choice! ⚡",
+      "category": "poor"
+    },
+    {
+      "name": "sports drinks",
+      "aliases": ["gatorade", "powerade", "vitamin water", "bodyarmor", "pedialyte", "liquid iv"],
+      "tip": "Sports drinks are great for intense exercise lasting over 1 hour or when you're sweating heavily. They replace electrolytes lost through sweat. Many contain sugar and artificial dyes, so plain water is better for regular hydration! 🏃‍♂️",
+      "category": "good"
+    },
+    {
+      "name": "juice",
+      "aliases": ["orange juice", "apple juice", "grape juice", "cranberry juice", "pineapple juice", "tomato juice", "vegetable juice"],
+      "tip": "Juice provides vitamins and hydration, but even natural sugars can spike blood glucose. Whole fruits are better as they contain fiber. Consider diluting juice with water or choosing whole fruits instead! 🍊",
+      "category": "moderate"
+    },
+    {
+      "name": "milk",
+      "aliases": ["whole milk", "skim milk", "2% milk", "almond milk", "soy milk", "oat milk", "coconut milk", "cashew milk"],
+      "tip": "Milk is excellent for hydration and provides protein, calcium, and other nutrients. Plant-based milks are great alternatives if you're lactose intolerant. A solid choice! 🥛",
+      "category": "excellent"
+    },
+    {
+      "name": "alcohol",
+      "aliases": ["beer", "wine", "vodka", "whiskey", "rum", "gin", "tequila", "cocktail", "mixed drink"],
+      "tip": "Alcohol is a diuretic, meaning it actually dehydrates you. For every alcoholic drink, have a glass of water. This helps prevent dehydration and hangovers. Drink responsibly! 🍷",
+      "category": "dehydrating"
+    },
+    {
+      "name": "smoothie",
+      "aliases": ["fruit smoothie", "protein smoothie", "green smoothie", "acai bowl", "yogurt smoothie"],
+      "tip": "Smoothies are a great way to hydrate while getting nutrients! They're filling and can replace a meal. Just watch the sugar content and consider adding vegetables for extra nutrition! 🥤",
+      "category": "good"
+    },
+    {
+      "name": "coconut water",
+      "aliases": ["coconut juice", "young coconut water"],
+      "tip": "Coconut water is nature's sports drink! It's rich in electrolytes like potassium and magnesium. Great for rehydration after exercise or on hot days. A fantastic choice! 🥥",
+      "category": "excellent"
+    },
+    {
+      "name": "lemon water",
+      "aliases": ["lemonade", "lime water", "citrus water", "detox water"],
+      "tip": "Lemon water is refreshing and can help with digestion. The vitamin C is a bonus! Just be mindful of the acid content if you have sensitive teeth or stomach issues. 🍋",
+      "category": "good"
+    },
+    {
+      "name": "sparkling water",
+      "aliases": ["seltzer", "club soda", "mineral water", "bubbly water"],
+      "tip": "Sparkling water is a great alternative to soda! It provides the same hydration as still water with a satisfying fizz. Just avoid tonic water which contains quinine and sugar. 💨",
+      "category": "excellent"
+    },
+    {
+      "name": "hot chocolate",
+      "aliases": ["chocolate milk", "cocoa", "mocha", "chocolate drink"],
+      "tip": "Hot chocolate provides comfort and some hydration! It's higher in calories than water, but the milk content provides nutrients. Chocolate drinks are rarely ideal hydration sources, but they can be an occasional treat! ☕",
+      "category": "moderate"
+    },
+    {
+      "name": "bone broth",
+      "aliases": ["chicken broth", "beef broth", "vegetable broth", "stock"],
+      "tip": "Bone broth is excellent for hydration and provides collagen, protein, and minerals. It's especially good for gut health and can be a comforting, nutritious drink! 🍲",
+      "category": "excellent"
+    },
+    {
+      "name": "kombucha",
+      "aliases": ["fermented tea", "probiotic drink"],
+      "tip": "Kombucha provides hydration and probiotics for gut health! It's lower in sugar than soda but still contains some sugar and trace alcohol. A great choice for digestive health and hydration! 🫖",
+      "category": "good"
+    },
+    {
+      "name": "protein shake",
+      "aliases": ["protein drink", "meal replacement", "protein powder drink"],
+      "tip": "Protein shakes are great for post-workout recovery and can contribute to hydration. They're filling and help with muscle repair. Just ensure you're also drinking plain water! 💪",
+      "category": "good"
+    },
+    {
+      "name": "iced coffee",
+      "aliases": ["cold brew", "frappuccino", "iced latte", "iced americano"],
+      "tip": "Iced coffee provides the same hydration benefits as hot coffee, plus it's refreshing on hot days! Just be mindful of added sugars in flavored versions. A good choice! ❄️",
+      "category": "moderate"
+    },
+    {
+      "name": "hot tea",
+      "aliases": ["herbal tea", "green tea", "black tea", "chamomile", "peppermint"],
+      "tip": "Hot tea is excellent for hydration and can be very soothing. Herbal teas are caffeine-free and count toward your daily water intake. A perfect choice for any time of day! 🫖",
+      "category": "excellent"
+    },
+    {
+      "name": "vegetable juice",
+      "aliases": ["v8", "carrot juice", "beet juice", "celery juice", "green juice"],
+      "tip": "Vegetable juice is packed with nutrients and provides good hydration! It's lower in sugar than fruit juice and contains important vitamins and minerals. Great choice! 🥬",
+      "category": "good"
+    },
+    {
+      "name": "diet soda",
+      "aliases": ["diet coke", "diet pepsi", "zero sugar", "sugar-free soda"],
+      "tip": "Diet soda provides hydration without calories, but some studies suggest artificial sweeteners like aspartame may affect gut health. Consider sparkling water as a healthier alternative with the same fizz! 🥤",
+      "category": "moderate"
+    },
+    {
+      "name": "hot water",
+      "aliases": ["warm water", "boiled water"],
+      "tip": "Hot water is excellent for hydration and can be very soothing, especially in the morning or before bed. It's simple, pure, and helps with digestion. A perfect choice! 🔥",
+      "category": "excellent"
+    },
+    {
+      "name": "fruit infused water",
+      "aliases": ["fruit water", "detox water", "cucumber water", "strawberry water", "mint water"],
+      "tip": "Fruit-infused water is a delicious way to stay hydrated! It adds natural flavor without calories or sugar. Plus, you get a hint of vitamins from the fruits. Refreshing choice! 🍓",
+      "category": "excellent"
+    },
+    {
+      "name": "chai tea",
+      "aliases": ["masala chai", "spiced tea", "indian tea"],
+      "tip": "Chai tea is warming and provides good hydration! The spices like cinnamon and ginger have anti-inflammatory properties. Just watch the sugar if you add sweeteners! ☕",
+      "category": "good"
+    },
+    {
+      "name": "matcha",
+      "aliases": ["green tea powder", "matcha latte", "ceremonial grade matcha"],
+      "tip": "Matcha is packed with antioxidants and provides steady energy without the jitters of coffee. It's excellent for hydration and contains L-theanine for focus. Note: it does contain caffeine like coffee! 🍵",
+      "category": "excellent"
+    },
+    {
+      "name": "ginger tea",
+      "aliases": ["ginger water", "ginger root tea"],
+      "tip": "Ginger tea is excellent for digestion and nausea relief! It's warming, anti-inflammatory, and provides good hydration. A perfect choice for upset stomachs or cold days! 🧄",
+      "category": "excellent"
+    },
+    {
+      "name": "peppermint tea",
+      "aliases": ["mint tea", "peppermint water"],
+      "tip": "Peppermint tea is refreshing and great for digestion! It's naturally caffeine-free and can help with bloating and stomach discomfort. A soothing choice! 🌿",
+      "category": "excellent"
+    },
+    {
+      "name": "chamomile tea",
+      "aliases": ["sleepy time tea", "calming tea"],
+      "tip": "Chamomile tea is perfect for relaxation and sleep! It's naturally caffeine-free and has calming properties. Great for evening hydration and stress relief! 🌼",
+      "category": "excellent"
+    },
+    {
+      "name": "rooibos tea",
+      "aliases": ["red tea", "african red tea"],
+      "tip": "Rooibos tea is naturally caffeine-free and rich in antioxidants! It has a naturally sweet taste and is great for hydration. A unique and healthy choice! 🍂",
+      "category": "excellent"
+    },
+    {
+      "name": "dandelion tea",
+      "aliases": ["dandelion root tea", "detox tea"],
+      "tip": "Dandelion tea is great for liver health and digestion! It's naturally caffeine-free and has diuretic properties that can help with water retention. Note: the diuretic effect may reduce short-term hydration! 🌼",
+      "category": "moderate"
+    },
+    {
+      "name": "nettle tea",
+      "aliases": ["stinging nettle tea", "herbal tea"],
+      "tip": "Nettle tea is rich in vitamins and minerals! It's great for allergies and provides excellent hydration. A nutrient-packed choice for overall health! 🌿",
+      "category": "excellent"
+    },
+    {
+      "name": "tonic water",
+      "aliases": ["quinine water", "indian tonic water"],
+      "tip": "Tonic water contains quinine, sugar, and/or artificial sweeteners. While it provides some hydration, it's not ideal due to the added ingredients. Consider sparkling water instead! 🥤",
+      "category": "poor"
+    }
+  ],
+  "categories": {
+    "excellent": {
+      "description": "Perfect hydration choice with additional health benefits",
+      "color": "#22C55E"
+    },
+    "good": {
+      "description": "Good for hydration with some nutritional value",
+      "color": "#3B82F6"
+    },
+    "moderate": {
+      "description": "Provides hydration but consider healthier alternatives",
+      "color": "#F59E0B"
+    },
+    "poor": {
+      "description": "Limited hydration benefits with potential health drawbacks",
+      "color": "#EF4444"
+    },
+    "dehydrating": {
+      "description": "Actually dehydrates the body - drink water to compensate",
+      "color": "#DC2626"
+    }
+  }
+} 

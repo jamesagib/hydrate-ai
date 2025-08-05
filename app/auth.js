@@ -88,8 +88,22 @@ export default function AuthScreen() {
       
       if (error) throw error;
       if (data.session) {
-        // After sign-in, go to plan setup to generate and show the plan
-        router.replace('/plan-setup');
+        // Check if this is a new user (no existing profile)
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('user_id', data.session.user.id)
+          .single();
+        
+        if (!existingProfile) {
+          // This is a new user - go to plan setup
+          console.log('New user signed in with Google, going to plan setup');
+          router.replace('/plan-setup');
+        } else {
+          // This is an existing user - go directly to home
+          console.log('Existing user signed in with Google, going to home');
+          router.replace('/tabs/home');
+        }
         return;
       } else {
         Alert.alert('Google sign-in failed', 'No session returned.');
@@ -137,17 +151,32 @@ export default function AuthScreen() {
       if (data.session) {
         console.log('Apple sign-in successful, session created');
         
-        // If Apple provided a name, save it to onboarding data to skip the name input step
-        if (fullName && fullName.givenName) {
-          const name = `${fullName.givenName}${fullName.familyName ? ` ${fullName.familyName}` : ''}`;
-          console.log('Saving Apple provided name:', name);
-          
-          // Save the name to onboarding storage
-          await saveOnboardingData({ name });
-        }
+        // Check if this is a new user (no existing profile)
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('user_id', data.session.user.id)
+          .single();
         
-        // After sign-in, go to plan setup to generate and show the plan
-        router.replace('/plan-setup');
+        if (!existingProfile) {
+          // This is a new user - try to get name from Apple
+          if (fullName && fullName.givenName) {
+            const name = `${fullName.givenName}${fullName.familyName ? ` ${fullName.familyName}` : ''}`;
+            console.log('Saving Apple provided name for new user:', name);
+            
+            // Save the name to onboarding storage
+            await saveOnboardingData({ name });
+          } else {
+            console.log('No name provided by Apple for new user - will prompt during onboarding');
+          }
+          
+          // After sign-in, go to plan setup to generate and show the plan
+          router.replace('/plan-setup');
+        } else {
+          // This is an existing user - go directly to home
+          console.log('Existing user signed in, going to home');
+          router.replace('/tabs/home');
+        }
         return;
       } else {
         Alert.alert('Apple sign-in failed', 'No session returned.');

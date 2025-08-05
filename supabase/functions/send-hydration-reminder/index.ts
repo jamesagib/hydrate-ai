@@ -107,10 +107,10 @@ serve(async (req) => {
           
           console.log(`Checking for existing notifications for user ${user.user_id} at time slot ${timeSlotKey}`)
           
-          // Check for existing notifications in the last 24 hours for this user and time slot
+          // Check for existing notifications in the last 24 hours for this user (for roast limiting)
           const { data: existingNotifications, error: existingError } = await supabase
             .from('notifications')
-            .select('id, metadata, created_at')
+            .select('id, metadata, created_at, body')
             .eq('user_id', user.user_id)
             .eq('status', 'sent')
             .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
@@ -119,20 +119,21 @@ serve(async (req) => {
             console.error(`Error checking existing notifications:`, existingError)
           }
 
-          console.log(`Found ${existingNotifications?.length || 0} existing notifications for user ${user.user_id}`)
+          console.log(`Found ${existingNotifications?.length || 0} existing notifications for user ${user.user_id} in last 24 hours`)
 
           // Check if any existing notification has the same scheduled time
           const hasExistingNotification = existingNotifications?.some(notification => {
             const metadata = notification.metadata;
-            const matches = metadata && metadata.scheduledTime === timeSlotKey;
-            if (matches) {
-              console.log(`Found matching notification: ${notification.id} with scheduledTime: ${metadata.scheduledTime}`)
+            const sameTime = metadata && metadata.scheduledTime === timeSlotKey;
+            
+            if (sameTime) {
+              console.log(`Found matching notification: ${notification.id} with scheduledTime: ${metadata?.scheduledTime}`)
             }
-            return matches;
+            return sameTime;
           });
 
           if (hasExistingNotification) {
-            console.log(`Notification already sent today for user ${user.user_id} at ${timeSlotKey} - SKIPPING`)
+            console.log(`Notification already sent recently for user ${user.user_id} at ${timeSlotKey} - SKIPPING`)
             continue
           }
 
@@ -164,54 +165,85 @@ serve(async (req) => {
             hoursSinceLastDrink = Math.floor((Date.now() - lastDrink.getTime()) / (1000 * 60 * 60));
           }
 
-          // Choose template based on user behavior and context (no hardcoded time ranges)
+          // Choose template based on user behavior and context with more variety
+          const templates = [];
+          
           if (!hasLoggedToday && recentCheckins.length === 0) {
             // User hasn't logged at all today - use specific roast based on hours
             if (hoursSinceLastDrink >= 24) {
-              templateName = 'roast_mode_1'; // "You good dehydrated legend?"
+              templates.push('roast_mode_1', 'roast_mode_2', 'roast_mode_3'); // Multiple options
             } else if (hoursSinceLastDrink >= 12) {
-              templateName = 'roast_mode_2'; // "Is your faucet broken?"
+              templates.push('roast_mode_2', 'roast_mode_3', 'roast_mode_4');
             } else if (hoursSinceLastDrink >= 8) {
-              templateName = 'roast_mode_3'; // "You're 70% water... or were"
+              templates.push('roast_mode_3', 'roast_mode_4', 'roast_mode_5');
             } else if (hoursSinceLastDrink >= 6) {
-              templateName = 'roast_mode_4'; // "Dry spell much?"
+              templates.push('roast_mode_4', 'roast_mode_5', 'behind_schedule_1');
             } else {
-              templateName = 'roast_mode_5'; // "Liquid? Never heard of her"
+              templates.push('roast_mode_5', 'behind_schedule_1', 'behind_schedule_2');
             }
           } else if (!hasLoggedToday && recentCheckins.length < 2) {
             // User is behind schedule - use specific behind schedule template
             if (hoursSinceLastDrink >= 12) {
-              templateName = 'behind_schedule_1'; // "Uh oh... dehydrated much?"
+              templates.push('behind_schedule_1', 'behind_schedule_2', 'roast_mode_1');
             } else if (hoursSinceLastDrink >= 8) {
-              templateName = 'behind_schedule_2'; // "Falling behind friend"
+              templates.push('behind_schedule_2', 'behind_schedule_3', 'roast_mode_2');
             } else {
-              templateName = 'behind_schedule_3'; // "SOS: Water levels low"
+              templates.push('behind_schedule_3', 'daily_splash_1', 'daily_splash_2');
             }
           } else if (streak?.current_streak >= 7) {
             // User has a good streak - celebrate
-            templateName = 'streak_celebration_1';
+            templates.push('streak_celebration_1', 'streak_celebration_2', 'ai_checkin_1');
           } else if (streak?.current_streak >= 3) {
             // User has a decent streak - encourage
-            templateName = 'streak_celebration_2';
+            templates.push('streak_celebration_2', 'ai_checkin_1', 'ai_checkin_2');
           } else if (recentCheckins.length >= 5) {
             // User is doing well - use AI checkin
             if (hoursSinceLastDrink >= 4) {
-              templateName = 'ai_checkin_1'; // "WaterAI check-in"
+              templates.push('ai_checkin_1', 'ai_checkin_2', 'daily_splash_1');
             } else {
-              templateName = 'ai_checkin_2'; // "We're in this together"
+              templates.push('ai_checkin_2', 'daily_splash_1', 'daily_splash_2');
             }
           } else if (hoursSinceLastDrink > 6) {
             // User hasn't drunk in a while - gentle reminder
             if (hoursSinceLastDrink >= 8) {
-              templateName = 'daily_splash_1'; // "Time to sip"
+              templates.push('daily_splash_1', 'daily_splash_2', 'daily_splash_3');
             } else if (hoursSinceLastDrink >= 6) {
-              templateName = 'daily_splash_2'; // "Hydration vibes only"
+              templates.push('daily_splash_2', 'daily_splash_3', 'ai_checkin_1');
             } else {
-              templateName = 'daily_splash_3'; // "Drink break alert"
+              templates.push('daily_splash_3', 'ai_checkin_1', 'ai_checkin_2');
             }
           } else {
-            // Default - gentle daily splash
-            templateName = 'daily_splash_1';
+            // Default - gentle daily splash with variety
+            templates.push('daily_splash_1', 'daily_splash_2', 'daily_splash_3', 'ai_checkin_1', 'ai_checkin_2');
+          }
+          
+          // Randomly select from available templates to ensure variety
+          templateName = templates[Math.floor(Math.random() * templates.length)];
+          
+          // Check roast notification limit (max 2 per day) after template selection
+          if (templateName.startsWith('roast_mode_')) {
+            const roastNotifications = existingNotifications?.filter(notification => {
+              const metadata = notification.metadata;
+              return metadata?.templateName?.startsWith('roast_mode_');
+            }) || [];
+            
+            console.log(`User ${user.user_id} has ${roastNotifications.length} roast notifications today`);
+            
+            if (roastNotifications.length >= 2) {
+              console.log(`Roast limit exceeded for user ${user.user_id} - SKIPPING`)
+              continue
+            }
+            
+            // Check if this specific roast template was already used today
+            const hasRoastTemplate = roastNotifications.some(notification => {
+              const metadata = notification.metadata;
+              return metadata?.templateName === templateName;
+            });
+            
+            if (hasRoastTemplate) {
+              console.log(`Roast template ${templateName} already used today for user ${user.user_id} - SKIPPING`)
+              continue
+            }
           }
           
           // Get notification template
@@ -253,7 +285,7 @@ serve(async (req) => {
               }
             }
           } else {
-            // Fallback to default messages based on context
+            // Fallback to default messages based on context with more variety
             if (oz) {
               body += `Try ${oz} oz now. Your body will thank you later! 💪`
             }
@@ -261,18 +293,52 @@ serve(async (req) => {
             if (note) {
               body += note
             } else {
-              // Use context-aware fallback messages
+              // Use context-aware fallback messages with variety
+              const fallbackMessages = [];
+              
               if (!hasLoggedToday && recentCheckins.length === 0) {
-                body = 'You good dehydrated legend? 💧'
+                fallbackMessages.push(
+                  'You good dehydrated legend? 💧',
+                  'Is your faucet broken? 💧',
+                  'Liquid? Never heard of her 💧',
+                  'Dry spell much? 💧',
+                  'You\'re 70% water... or were 💧'
+                );
               } else if (!hasLoggedToday && recentCheckins.length < 2) {
-                body = 'Falling behind friend - time to catch up! 💧'
+                fallbackMessages.push(
+                  'Falling behind friend - time to catch up! 💧',
+                  'Uh oh... dehydrated much? 💧',
+                  'SOS: Water levels low 💧',
+                  'Behind schedule! 💧',
+                  'Time to catch up on hydration 💧'
+                );
               } else if (streak?.current_streak >= 7) {
-                body = `🔥 ${streak.current_streak} day streak! Keep it going! 💧`
+                fallbackMessages.push(
+                  `🔥 ${streak.current_streak} day streak! Keep it going! 💧`,
+                  `Amazing! ${streak.current_streak} days strong! 💧`,
+                  `Streak goals! ${streak.current_streak} days! 💧`,
+                  `You're on fire! ${streak.current_streak} days! 💧`
+                );
               } else if (hoursSinceLastDrink > 6) {
-                body = 'Dry spell much? Time to hydrate! 💧'
+                fallbackMessages.push(
+                  'Dry spell much? Time to hydrate! 💧',
+                  'Time for a water break! 💧',
+                  'Hydration check-in! 💧',
+                  'Quick sip break! 💧',
+                  'Water break alert! 💧'
+                );
               } else {
-                body += 'Stay healthy and hydrated!'
+                fallbackMessages.push(
+                  'Stay healthy and hydrated! 💧',
+                  'Time to sip! 💧',
+                  'Hydration vibes only! 💧',
+                  'Drink break alert! 💧',
+                  'WaterAI check-in! 💧'
+                );
               }
+              
+              // Randomly select a fallback message
+              body = fallbackMessages[Math.floor(Math.random() * fallbackMessages.length)];
             }
           }
 
@@ -313,7 +379,8 @@ serve(async (req) => {
                     metadata: {
                       timeSlot,
                       scheduledTime: `${targetHour}:${targetMinute.toString().padStart(2, '0')}`,
-                      type: 'hydration_reminder'
+                      type: 'hydration_reminder',
+                      templateName: templateName
                     }
                   })
 

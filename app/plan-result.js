@@ -195,6 +195,9 @@ export default function PlanResultScreen() {
   useEffect(() => {
     const handleAutoShowPaywall = async () => {
       if (shouldShowPaywall && !loading && plan) {
+        console.log('🌍 Auto-show paywall triggered');
+        console.log('📊 Subscription status:', subscriptionStatus);
+        
         // Check if user has active subscription
         const hasActiveSubscription = subscriptionStatus?.status === 'active' || 
                                     subscriptionStatus?.status === 'ACTIVE' ||
@@ -203,8 +206,11 @@ export default function PlanResultScreen() {
                                     subscriptionStatus?.status === 'trial' || 
                                     subscriptionStatus?.status === 'TRIAL';
         
+        console.log('🔍 Has active subscription:', hasActiveSubscription);
+        
         if (hasActiveSubscription) {
           // User has subscription, go to home
+          console.log('✅ User has subscription, going to home');
           // Clear onboarding data only when user successfully completes the flow
           try {
             await clearOnboardingData();
@@ -215,6 +221,7 @@ export default function PlanResultScreen() {
           router.replace('/tabs/home');
         } else {
           // User doesn't have subscription, show paywall
+          console.log('💰 User needs subscription, showing paywall');
           showPaywall();
         }
       }
@@ -229,21 +236,41 @@ export default function PlanResultScreen() {
     setPaywallError(null);
     
     try {
+      console.log('🌍 Showing paywall for all users...');
+      
       // Get current user information
       const { data: { user } } = await supabase.auth.getUser();
       
       // Create paywall data with user information
       const paywallData = createPaywallData('campaign_trigger', user);
       
-      // Add web purchase button configuration for US users
-      // paywallData.webPurchaseButton = true;
-      // paywallData.webPurchaseButtonText = "Buy on Web";
+      // Ensure paywall shows to all users regardless of region
+      console.log('📱 Paywall data:', paywallData);
       
-      registerPlacement(paywallData);
+      // Try multiple placement strategies to ensure paywall shows
+      try {
+        // First try with user data
+        registerPlacement(paywallData);
+        console.log('✅ Paywall registered with user data');
+      } catch (placementError) {
+        console.warn('⚠️ Failed to register paywall with user data, trying fallback:', placementError);
+        
+        // Fallback to basic placement
+        registerPlacement({ placement: 'campaign_trigger' });
+        console.log('✅ Paywall registered with fallback placement');
+      }
       
     } catch (error) {
-      // Fallback to default trigger
-      registerPlacement({ placement: 'campaign_trigger' });
+      console.error('❌ Error showing paywall:', error);
+      
+      // Final fallback - try basic placement
+      try {
+        registerPlacement({ placement: 'campaign_trigger' });
+        console.log('✅ Paywall registered with final fallback');
+      } catch (finalError) {
+        console.error('❌ All paywall registration attempts failed:', finalError);
+        Alert.alert('Error', 'Unable to show subscription options. Please try again later.');
+      }
     }
   };
 

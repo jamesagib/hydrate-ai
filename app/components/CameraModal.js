@@ -12,6 +12,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
+import drinkHydrationService from '../../lib/drinkHydrationService';
 
 export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenManualLog }) {
   const [hasPermission, setHasPermission] = useState(null);
@@ -25,6 +26,8 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
   const [topDrinks, setTopDrinks] = useState([]);
   const [loadingTopDrinks, setLoadingTopDrinks] = useState(false);
   const [isTrialUser, setIsTrialUser] = useState(false);
+  const [hydrationTip, setHydrationTip] = useState(null);
+  const [remainingScans, setRemainingScans] = useState(null);
 
   // Reset function to clear all state
   const resetModalState = () => {
@@ -35,6 +38,8 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
     setCustomAmount('');
     setIsCapturing(false);
     setIsProcessing(false);
+    setHydrationTip(null);
+    setRemainingScans(null);
   };
 
   // Enhanced close function that resets state
@@ -63,7 +68,7 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
     }
   }, [visible]);
 
-  // Check if user is on trial
+  // Check if user is on trial and get remaining scans
   const checkSubscriptionStatus = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -82,12 +87,40 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
                          profile.subscription_status === 'trialing' || 
                          profile.subscription_status === 'TRIALING';
           setIsTrialUser(isTrial);
+          
+          // Check today's scan count for all users
+          const today = new Date().toISOString().split('T')[0];
+          const { data: scanCount, error: countError } = await supabase
+            .from('scan_logs')
+            .select('id', { count: 'exact' })
+            .eq('user_id', user.id)
+            .gte('created_at', `${today}T00:00:00`)
+            .lte('created_at', `${today}T23:59:59`);
+          
+          if (!countError) {
+            const currentScans = scanCount?.length || 0;
+            
+            if (isTrial) {
+              // For trial users, limit is 3 scans
+              const maxScans = 3;
+              setRemainingScans(Math.max(0, maxScans - currentScans));
+            } else {
+              // For paid users, limit is 8 scans
+              const maxScans = 8;
+              if (currentScans >= maxScans) {
+                // Store that paid user has reached limit
+                setRemainingScans(0);
+              }
+            }
+          }
         }
       }
     } catch (error) {
       console.error('Error checking subscription status:', error);
     }
   };
+
+
 
   // Helper function to get drink emoji and color
   const getDrinkInfo = (drinkName) => {
@@ -261,7 +294,21 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
   const takePicture = async () => {
     if (!isCapturing) {
       setIsCapturing(true);
+      
       try {
+        // Check scan limit from state (already checked when modal opened)
+        if (isTrialUser && remainingScans <= 0) {
+          Alert.alert('Daily Limit Reached', 'You\'ve reached your daily limit of 3 scans on the free trial. Due to high demand, we have to limit the trial plan.');
+          setIsCapturing(false);
+          return;
+        }
+        
+        if (!isTrialUser && remainingScans <= 0) {
+          Alert.alert('Connection Error', 'Connection error. Please try again later.');
+          setIsCapturing(false);
+          return;
+        }
+
         const result = await ImagePicker.launchCameraAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           allowsEditing: true,
@@ -280,14 +327,13 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
           
           if (analysisResult.success) {
             setDetectedDrink(analysisResult.data);
+            // Get hydration tip for the detected drink
+            const tip = drinkHydrationService.getHydrationTip(analysisResult.data.name);
+            setHydrationTip(tip);
             setShowConfirmation(true);
           } else {
-            // Handle specific error types
-            if (analysisResult.errorType === 'TRIAL_LIMIT_EXCEEDED') {
-              Alert.alert('Daily Limit Reached', 'You\'ve reached your daily limit of 3 scans on the free trial.');
-            } else {
-              Alert.alert('Error', analysisResult.error || 'Could not analyze the drink. Please try again.');
-            }
+            // Handle other errors (not limit related since we checked already)
+            Alert.alert('Error', analysisResult.error || 'Could not analyze the drink. Please try again.');
           }
         } else {
           setIsCapturing(false);
@@ -374,7 +420,10 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
             <View style={styles.trialNotice}>
               <Ionicons name="information-circle" size={16} color="#FF6B35" />
               <Text style={styles.trialNoticeText}>
-                Due to high demand, you can only scan 3 drinks on the free trial. Thank you for your understanding.
+                {remainingScans !== null 
+                  ? `You have ${remainingScans} scan${remainingScans !== 1 ? 's' : ''} remaining today on the free trial.`
+                  : 'Due to high demand, you can only scan 3 drinks on the free trial. Thank you for your understanding.'
+                }
               </Text>
             </View>
           )}
@@ -422,25 +471,55 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
                           {topDrinks.map((drink, index) => (
                             <TouchableOpacity
                               key={index}
-                              style={[
-                                styles.quickAddButton,
-                                { backgroundColor: drink.color + '20' } // Add transparency
-                              ]}
+                              style={styles.quickAddCard}
                               onPress={() => {
                                 // Calculate actual water content for quick add drinks
                                 const waterContent = calculateWaterContent(drink.name, 8);
-                                onDrinkDetected({
-                                  name: drink.name,
-                                  water_oz: waterContent,
-                                  total_oz: 8,
-                                  checkinType: 'quick_add'
-                                });
+                                // Get hydration tip for quick add drinks
+                                const tip = drinkHydrationService.getHydrationTip(drink.name);
+                                
+                                // Show hydration tip as a brief alert for quick add
+                                Alert.alert(
+                                  '💧 Hydration Tip',
+                                  tip.tip,
+                                  [
+                                    {
+                                      text: 'Got it!',
+                                      onPress: () => {
+                                        onDrinkDetected({
+                                          name: drink.name,
+                                          water_oz: waterContent,
+                                          total_oz: 8,
+                                          checkinType: 'quick_add'
+                                        });
+                                      }
+                                    }
+                                  ]
+                                );
                               }}
                             >
-                              <Text style={styles.quickAddEmoji}>{drink.emoji}</Text>
-                              <Text style={styles.quickAddButtonText}>{drink.name}</Text>
-                              <Text style={styles.quickAddOz}>{calculateWaterContent(drink.name, 8)} oz</Text>
-                              <Text style={styles.quickAddCount}>{drink.count}x</Text>
+                              {/* Drink Icon */}
+                              <View style={[styles.quickAddIcon, { backgroundColor: drink.color }]}>
+                                <Text style={styles.quickAddIconEmoji}>{drink.emoji}</Text>
+                              </View>
+                              
+                              {/* Content */}
+                              <View style={styles.quickAddContent}>
+                                <Text style={styles.quickAddDrinkName}>
+                                  {drink.name} - {calculateWaterContent(drink.name, 8)} oz
+                                </Text>
+                                
+                                <View style={styles.quickAddDetails}>
+                                  <Text style={styles.quickAddCount}>
+                                    {drink.count} time{drink.count !== 1 ? 's' : ''} logged
+                                  </Text>
+                                </View>
+                              </View>
+                              
+                              {/* Add Icon */}
+                              <View style={styles.quickAddIconContainer}>
+                                <Ionicons name="add" size={24} color="#4FC3F7" />
+                              </View>
                             </TouchableOpacity>
                           ))}
                         </View>
@@ -480,6 +559,14 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
                     Confidence: {Math.round(detectedDrink.confidence * 100)}%
                   </Text>
                 </View>
+                
+                {/* Hydration Tip */}
+                {hydrationTip && (
+                  <View style={[styles.hydrationTipContainer, { borderLeftColor: hydrationTip.color }]}>
+                    <Text style={styles.hydrationTipTitle}>💧 Hydration Tip</Text>
+                    <Text style={styles.hydrationTipText}>{hydrationTip.tip}</Text>
+                  </View>
+                )}
                 
                 {isManualMode ? (
                   <View style={styles.manualEntry}>
@@ -804,38 +891,52 @@ const styles = StyleSheet.create({
   },
   quickAddButtons: {
     flexDirection: 'column',
-    gap: 8,
+    gap: 12,
   },
-  quickAddButton: {
-    backgroundColor: '#F5F5F5',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+  quickAddCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  quickAddEmoji: {
+  quickAddIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  quickAddIconEmoji: {
     fontSize: 20,
+  },
+  quickAddContent: {
+    flex: 1,
+  },
+  quickAddDrinkName: {
+    fontFamily: 'Nunito_600SemiBold',
+    fontSize: 16,
+    color: 'black',
     marginBottom: 4,
   },
-  quickAddButtonText: {
-    fontSize: 14,
-    fontFamily: 'Nunito_600SemiBold',
-    color: '#333',
-    textAlign: 'center',
-  },
-  quickAddOz: {
-    fontSize: 12,
-    fontFamily: 'Nunito_600SemiBold',
-    color: '#4FC3F7',
-    marginTop: 2,
+  quickAddDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   quickAddCount: {
-    fontSize: 12,
     fontFamily: 'Nunito_400Regular',
-    color: '#999',
-    marginTop: 2,
+    fontSize: 14,
+    color: '#666',
+  },
+  quickAddIconContainer: {
+    marginLeft: 12,
   },
   trialNotice: {
     flexDirection: 'row',
@@ -855,6 +956,26 @@ const styles = StyleSheet.create({
     color: '#E65100',
     marginLeft: 8,
     flex: 1,
+    lineHeight: 20,
+  },
+  hydrationTipContainer: {
+    backgroundColor: '#F8F9FA',
+    padding: 16,
+    marginTop: 16,
+    marginHorizontal: 20,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+  },
+  hydrationTipTitle: {
+    fontSize: 16,
+    fontFamily: 'Nunito_600SemiBold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  hydrationTipText: {
+    fontSize: 14,
+    fontFamily: 'Nunito_400Regular',
+    color: '#666',
     lineHeight: 20,
   },
 }); 
