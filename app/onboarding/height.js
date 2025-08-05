@@ -52,7 +52,10 @@ export default function OnboardingHeightWeightScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F2EFEB' }}>
-      <OnboardingHeader progress={40} />
+      <OnboardingHeader 
+        progress={50} 
+        onBackPress={() => router.push('/onboarding/age')}
+      />
       <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 10 }}>
         <Text style={{
           fontFamily: 'Nunito_700Bold',

@@ -38,7 +38,7 @@
     <key>NSCameraUsageDescription</key>
     <string>Camera access is used to scan and analyze your drinks for automatic drink detection.</string>
     <key>CFBundleVersion</key>
-    <string>55</string>
+    <string>65</string>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
     <key>LSRequiresIPhoneOS</key>

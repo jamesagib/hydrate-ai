@@ -11,6 +11,7 @@ import {
   Nunito_700Bold,
 } from '@expo-google-fonts/nunito';
 import { router } from 'expo-router';
+import { saveOnboardingData } from '../lib/onboardingStorage';
 
 // Configure Google Signin
 GoogleSignin.configure({
@@ -116,10 +117,11 @@ export default function AuthScreen() {
         // Don't pass nonce to Apple - let it handle it internally
       });
       
-      const { identityToken } = credential;
+      const { identityToken, fullName } = credential;
       if (!identityToken) throw new Error('No Apple identity token returned');
       
       console.log('Apple sign-in successful, token received');
+      console.log('Apple provided name:', fullName);
       
       const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'apple',
@@ -134,6 +136,16 @@ export default function AuthScreen() {
       
       if (data.session) {
         console.log('Apple sign-in successful, session created');
+        
+        // If Apple provided a name, save it to onboarding data to skip the name input step
+        if (fullName && fullName.givenName) {
+          const name = `${fullName.givenName}${fullName.familyName ? ` ${fullName.familyName}` : ''}`;
+          console.log('Saving Apple provided name:', name);
+          
+          // Save the name to onboarding storage
+          await saveOnboardingData({ name });
+        }
+        
         // After sign-in, go to plan setup to generate and show the plan
         router.replace('/plan-setup');
         return;

@@ -30,7 +30,7 @@ export default function OnboardingAgeScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F2EFEB' }}>
-      <OnboardingHeader progress={20} />
+      <OnboardingHeader progress={25} />
       <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 10 }}>
         <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 28, color: 'black', marginBottom: 8 }}>
           Age

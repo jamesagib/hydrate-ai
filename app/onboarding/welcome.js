@@ -38,11 +38,19 @@ export default function OnboardingWelcomeScreen() {
           lineHeight: 26,
           paddingHorizontal: 20
         }}>
-          Your personal hydration coach. Get a personalized water plan, smart reminders, and more.
+          Your personal hydration coach. Get a personalized water plan, scan your drinksand more.
         </Text>
         <TouchableOpacity
-          style={{ backgroundColor: 'black', paddingVertical: 16, paddingHorizontal: 40, borderRadius: 12, marginBottom: 16 }}
-          onPress={() => router.push('/onboarding/name')}
+          style={{ 
+            backgroundColor: 'black', 
+            paddingVertical: 16, 
+            paddingHorizontal: 40, 
+            borderRadius: 12, 
+            marginBottom: 16,
+            minWidth: 200,
+            alignItems: 'center'
+          }}
+          onPress={() => router.push('/onboarding/age')}
         >
           <Text style={{ color: 'white', fontFamily: 'Nunito_600SemiBold', fontSize: 18 }}>Get Started</Text>
         </TouchableOpacity>
@@ -54,7 +62,9 @@ export default function OnboardingWelcomeScreen() {
             paddingHorizontal: 40, 
             borderRadius: 12,
             borderWidth: 1,
-            borderColor: 'black'
+            borderColor: 'black',
+            minWidth: 200,
+            alignItems: 'center'
           }}
           onPress={() => router.push('/login')}
         >

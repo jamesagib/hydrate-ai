@@ -1,7 +1,7 @@
 'use client';
 
 import { SuperwallProvider } from 'expo-superwall';
-import { Slot } from 'expo-router';
+import { Slot, useRouter } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -28,6 +28,8 @@ import * as Updates from 'expo-updates';
 
 // Component to handle quick actions inside SuperwallProvider
 function QuickActionHandler() {
+  const router = useRouter();
+  
   // Handle quick action routing with subscription check
   useEffect(() => {
     const handleQuickAction = async (event) => {
@@ -36,52 +38,73 @@ function QuickActionHandler() {
       // Check if this is the log-water action that requires subscription
       if (event.id === 'log-water') {
         try {
-          // Get subscription status dynamically when needed
-          const { useUser } = await import('expo-superwall');
-          const user = useUser();
-          const subscriptionStatus = user?.subscriptionStatus;
-          
-          // Check if user has active subscription
-          const isActive = subscriptionStatus && 
-            (subscriptionStatus.status === 'active' || 
-             subscriptionStatus.status === 'ACTIVE' ||
-             subscriptionStatus === 'active' ||
-             subscriptionStatus === 'ACTIVE');
-          
-          if (isActive) {
-            console.log('User has active subscription, allowing access to log water');
-            // The router will handle the navigation automatically
-          } else {
-            console.log('User does not have active subscription, showing alert');
-            Alert.alert(
-              'Premium Feature',
-              'Quick water logging is available for premium users. Upgrade to unlock this feature!',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Upgrade', onPress: () => router.push('/tabs/settings') }
-              ]
-            );
-            // Prevent the default navigation
-            return false;
+          // Get subscription status from database instead of Superwall hook
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('subscription_status')
+              .eq('user_id', user.id)
+              .single();
+            
+            const hasActiveSubscription = profile?.subscription_status === 'active';
+            
+            if (hasActiveSubscription) {
+              console.log('User has active subscription, allowing access to log water');
+              // Navigate to home screen
+              router.push('/tabs/home');
+            } else {
+              console.log('User does not have active subscription, showing alert');
+              Alert.alert(
+                'Premium Feature',
+                'Quick water logging is available for premium users. Upgrade to unlock this feature!',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Upgrade', onPress: () => router.push('/tabs/settings') }
+                ]
+              );
+            }
           }
         } catch (error) {
           console.error('Error checking subscription status:', error);
           // On error, allow access (fail open)
-          return true;
+          router.push('/tabs/home');
+        }
+      } else {
+        // For other actions, just navigate
+        if (event.params?.href) {
+          router.push(event.params.href);
         }
       }
     };
 
-    // Set up a simple listener for quick action events
-    const setupListener = () => {
-      // For now, we'll rely on the static configuration in app.json
-      // and handle subscription checks in the individual screens
-      console.log('Quick actions configured via app.json plugin');
-      return () => {};
+    // Set up listener for quick action events
+    const setupListener = async () => {
+      try {
+        const QuickActions = await import('expo-quick-actions');
+        
+        // Check if QuickActions is available
+        if (!QuickActions || !QuickActions.default) {
+          console.log('⚠️ QuickActions not available, skipping setup');
+          return () => {};
+        }
+        
+        // Set up the listener for quick actions
+        const subscription = QuickActions.default.addListener(handleQuickAction);
+        
+        console.log('✅ Quick actions listener set up successfully');
+        
+        return () => {
+          subscription?.remove();
+        };
+      } catch (error) {
+        console.error('❌ Error setting up quick actions listener:', error);
+        return () => {};
+      }
     };
 
     setupListener();
-  }, []);
+  }, [router]);
 
   return null;
 }

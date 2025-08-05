@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { usePlacement, useUser } from 'expo-superwall';
 import superwallDelegate, { setLoadingContext, createPaywallData } from '../lib/superwallDelegate';
+import { clearOnboardingData } from '../lib/onboardingStorage';
 
 function parseHydrationPlan(planText) {
   const dailyGoalMatch = planText.match(/🌊 Daily Goal: (.+?)\s+_(.+?)_\s+🕒/s);
@@ -67,6 +68,25 @@ export default function PlanResultScreen() {
       if (isSuccessfulPurchase) {
         setPurchaseSuccessful(true);
         setIsProcessingPurchase(true);
+        
+        // Update subscription status in database
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .update({ subscription_status: 'active' })
+              .eq('user_id', user.id);
+            
+            if (profileError) {
+              console.error('❌ Error updating subscription status:', profileError);
+            } else {
+              console.log('✅ Subscription status updated to active');
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error updating subscription status:', error);
+        }
         
         // Immediately navigate to home for successful purchases
         router.replace('/tabs/home');
@@ -173,23 +193,34 @@ export default function PlanResultScreen() {
 
   // Auto-show paywall for users redirected from splash screen
   useEffect(() => {
-    if (shouldShowPaywall && !loading && plan) {
-      // Check if user has active subscription
-      const hasActiveSubscription = subscriptionStatus?.status === 'active' || 
-                                  subscriptionStatus?.status === 'ACTIVE' ||
-                                  subscriptionStatus?.status === 'trialing' || 
-                                  subscriptionStatus?.status === 'TRIALING' ||
-                                  subscriptionStatus?.status === 'trial' || 
-                                  subscriptionStatus?.status === 'TRIAL';
-      
-      if (hasActiveSubscription) {
-        // User has subscription, go to home
-        router.replace('/tabs/home');
-      } else {
-        // User doesn't have subscription, show paywall
-        showPaywall();
+    const handleAutoShowPaywall = async () => {
+      if (shouldShowPaywall && !loading && plan) {
+        // Check if user has active subscription
+        const hasActiveSubscription = subscriptionStatus?.status === 'active' || 
+                                    subscriptionStatus?.status === 'ACTIVE' ||
+                                    subscriptionStatus?.status === 'trialing' || 
+                                    subscriptionStatus?.status === 'TRIALING' ||
+                                    subscriptionStatus?.status === 'trial' || 
+                                    subscriptionStatus?.status === 'TRIAL';
+        
+        if (hasActiveSubscription) {
+          // User has subscription, go to home
+          // Clear onboarding data only when user successfully completes the flow
+          try {
+            await clearOnboardingData();
+            console.log('Onboarding data cleared after subscription check (auto-show)');
+          } catch (error) {
+            console.error('Error clearing onboarding data:', error);
+          }
+          router.replace('/tabs/home');
+        } else {
+          // User doesn't have subscription, show paywall
+          showPaywall();
+        }
       }
-    }
+    };
+    
+    handleAutoShowPaywall();
   }, [shouldShowPaywall, loading, plan, subscriptionStatus]);
 
 
@@ -205,8 +236,8 @@ export default function PlanResultScreen() {
       const paywallData = createPaywallData('campaign_trigger', user);
       
       // Add web purchase button configuration for US users
-      paywallData.webPurchaseButton = true;
-      paywallData.webPurchaseButtonText = "Buy on Web";
+      // paywallData.webPurchaseButton = true;
+      // paywallData.webPurchaseButtonText = "Buy on Web";
       
       registerPlacement(paywallData);
       
@@ -217,7 +248,7 @@ export default function PlanResultScreen() {
   };
 
   // Handle the "Let's go" button press
-  const handleLetsGo = () => {
+  const handleLetsGo = async () => {
     if (isFromSettings) {
       router.back();
       return;
@@ -225,12 +256,26 @@ export default function PlanResultScreen() {
     
     // If user just completed a purchase, go to home
     if (purchaseSuccessful) {
+      // Clear onboarding data only when user successfully completes the flow
+      try {
+        await clearOnboardingData();
+        console.log('Onboarding data cleared after successful purchase');
+      } catch (error) {
+        console.error('Error clearing onboarding data:', error);
+      }
       router.replace('/tabs/home');
       return;
     }
     
     // Check if user has active subscription (fallback check)
     if (subscriptionStatus?.status === 'active' || subscriptionStatus?.status === 'ACTIVE') {
+      // Clear onboarding data only when user successfully completes the flow
+      try {
+        await clearOnboardingData();
+        console.log('Onboarding data cleared after subscription check');
+      } catch (error) {
+        console.error('Error clearing onboarding data:', error);
+      }
       router.replace('/tabs/home');
       return;
     }
@@ -252,6 +297,20 @@ export default function PlanResultScreen() {
     return (
       <View style={styles.centered}>
         <Text style={styles.loadingText}>No hydration plan found.</Text>
+        <TouchableOpacity
+          style={{
+            backgroundColor: 'black',
+            paddingVertical: 16,
+            paddingHorizontal: 32,
+            borderRadius: 12,
+            marginTop: 24
+          }}
+          onPress={() => router.replace('/onboarding/welcome')}
+        >
+          <Text style={{ color: 'white', fontFamily: 'Nunito_600SemiBold', fontSize: 16 }}>
+            Start Over
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   }

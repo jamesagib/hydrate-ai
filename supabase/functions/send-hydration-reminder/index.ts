@@ -94,26 +94,45 @@ serve(async (req) => {
         if (period === 'PM' && targetHour !== 12) targetHour += 12
         if (period === 'AM' && targetHour === 12) targetHour = 0
 
-        // Check if it's time to send this notification (within a 5-minute window)
+        // Check if it's time to send this notification (within a 2-minute window to avoid duplicates)
         const timeDiff = Math.abs((userLocalHour * 60 + userLocalMinute) - (targetHour * 60 + targetMinute))
-        const shouldSend = timeDiff <= 5 // Send within 5 minutes of target time
+        const shouldSend = timeDiff <= 2 // Send within 2 minutes of target time (reduced from 5)
         
         console.log(`User ${user.user_id} target: ${targetHour}:${targetMinute}, current: ${userLocalHour}:${userLocalMinute}, diff: ${timeDiff} minutes, shouldSend: ${shouldSend}`)
         
         if (shouldSend) {
           // Check if we already sent a notification for this time slot today
           const today = new Date().toDateString()
-          const { data: existingNotification } = await supabase
+          const timeSlotKey = `${targetHour}:${targetMinute.toString().padStart(2, '0')}`
+          
+          console.log(`Checking for existing notifications for user ${user.user_id} at time slot ${timeSlotKey}`)
+          
+          // Check for existing notifications in the last 24 hours for this user and time slot
+          const { data: existingNotifications, error: existingError } = await supabase
             .from('notifications')
-            .select('id')
+            .select('id, metadata, created_at')
             .eq('user_id', user.user_id)
             .eq('status', 'sent')
             .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-            .contains('metadata', { timeSlot: JSON.stringify(timeSlot) })
-            .limit(1)
 
-          if (existingNotification && existingNotification.length > 0) {
-            console.log(`Notification already sent today for user ${user.user_id} at ${targetHour}:${targetMinute}`)
+          if (existingError) {
+            console.error(`Error checking existing notifications:`, existingError)
+          }
+
+          console.log(`Found ${existingNotifications?.length || 0} existing notifications for user ${user.user_id}`)
+
+          // Check if any existing notification has the same scheduled time
+          const hasExistingNotification = existingNotifications?.some(notification => {
+            const metadata = notification.metadata;
+            const matches = metadata && metadata.scheduledTime === timeSlotKey;
+            if (matches) {
+              console.log(`Found matching notification: ${notification.id} with scheduledTime: ${metadata.scheduledTime}`)
+            }
+            return matches;
+          });
+
+          if (hasExistingNotification) {
+            console.log(`Notification already sent today for user ${user.user_id} at ${timeSlotKey} - SKIPPING`)
             continue
           }
 
@@ -204,17 +223,12 @@ serve(async (req) => {
             .single()
 
           // Create notification content
-          let title = 'Time to Hydrate! 💧'
+          let title = 'Quick Sip Break 💧'
           let body = `Time to hydrate! `
           
-          if (oz) {
-            body += `Aim for ${oz} oz. `
-          }
-          
-          if (note) {
-            body += note
-          } else if (template && !templateError) {
+          if (template && !templateError) {
             // Use template with variable substitution
+            title = template.title || title
             body = template.body
               .replace('{{name}}', user.name || 'there')
               .replace('{{oz}}', oz || 'some water')
@@ -239,13 +253,26 @@ serve(async (req) => {
               }
             }
           } else {
-            // Fallback to default messages based on climate and activity
-            if (user.climate === 'hot') {
-              body += 'Stay cool and hydrated!'
-            } else if (user.activity_level === 'high') {
-              body += 'Keep your energy up!'
+            // Fallback to default messages based on context
+            if (oz) {
+              body += `Try ${oz} oz now. Your body will thank you later! 💪`
+            }
+            
+            if (note) {
+              body += note
             } else {
-              body += 'Stay healthy and hydrated!'
+              // Use context-aware fallback messages
+              if (!hasLoggedToday && recentCheckins.length === 0) {
+                body = 'You good dehydrated legend? 💧'
+              } else if (!hasLoggedToday && recentCheckins.length < 2) {
+                body = 'Falling behind friend - time to catch up! 💧'
+              } else if (streak?.current_streak >= 7) {
+                body = `🔥 ${streak.current_streak} day streak! Keep it going! 💧`
+              } else if (hoursSinceLastDrink > 6) {
+                body = 'Dry spell much? Time to hydrate! 💧'
+              } else {
+                body += 'Stay healthy and hydrated!'
+              }
             }
           }
 

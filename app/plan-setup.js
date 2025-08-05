@@ -71,6 +71,8 @@ export default function PlanSetupScreen() {
 
         // 3. Load onboarding data for new users
         const onboarding = await loadOnboardingData();
+        console.log('🔍 DEBUG: Loaded onboarding data:', onboarding);
+        
         if (!onboarding) {
           // No onboarding data and no profile = new user who needs to complete onboarding
           Alert.alert(
@@ -84,6 +86,36 @@ export default function PlanSetupScreen() {
             ]
           );
           return;
+        }
+
+        // Check if user is missing required onboarding data (excluding name since we get it from auth)
+        console.log('🔍 DEBUG: Checking onboarding data fields:');
+        console.log('  - age:', onboarding.age);
+        console.log('  - height_cm:', onboarding.height_cm);
+        console.log('  - weight_kg:', onboarding.weight_kg);
+        console.log('  - activity_level:', onboarding.activity_level);
+        console.log('  - climate:', onboarding.climate);
+        
+        if (!onboarding.age || !onboarding.height_cm || !onboarding.activity_level || !onboarding.climate) {
+          console.log('❌ User missing onboarding data, redirecting to appropriate step');
+          
+          if (!onboarding.age) {
+            console.log('❌ Missing age, redirecting to age screen');
+            router.replace('/onboarding/age');
+            return;
+          } else if (!onboarding.height_cm) {
+            console.log('❌ Missing height_cm, redirecting to height screen');
+            router.replace('/onboarding/height');
+            return;
+          } else if (!onboarding.activity_level) {
+            console.log('❌ Missing activity_level, redirecting to activity screen');
+            router.replace('/onboarding/activity');
+            return;
+          } else if (!onboarding.climate) {
+            console.log('❌ Missing climate, redirecting to preferences screen');
+            router.replace('/onboarding/preferences');
+            return;
+          }
         }
 
         // 4. Call Edge Function to get plan text
@@ -158,8 +190,6 @@ export default function PlanSetupScreen() {
           const tokenSaved = await notificationService.savePendingPushToken();
           console.log('Pending push token saved:', tokenSaved);
         }
-
-        await clearOnboardingData();
 
         // 8. Navigate to plan result screen
         router.replace('/plan-result');

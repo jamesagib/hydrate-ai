@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hydrate.ai",
-      "buildNumber": "55",
+      "buildNumber": "65",
       "usesAppleSignIn": true,
       "icon": "./assets/icon.png",
       "entitlements": {
@@ -31,6 +31,7 @@
         "NSUserAuthenticationUsageDescription": "Sign in with Apple is used to authenticate your account.",
         "NSUserNotificationUsageDescription": "We'll send you personalized hydration reminders to help you stay healthy and hydrated throughout the day.",
         "NSCameraUsageDescription": "Camera access is used to scan and analyze your drinks for automatic hydration tracking.",
+        "ITSAppUsesNonExemptEncryption": false,
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [

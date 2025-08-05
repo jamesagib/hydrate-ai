@@ -58,9 +58,12 @@ export default function LoginScreen() {
         ],
       });
 
+      const { identityToken, fullName } = credential;
+      console.log('Apple provided name:', fullName);
+
       const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'apple',
-        token: credential.identityToken,
+        token: identityToken,
       });
 
       if (error) {
@@ -68,6 +71,17 @@ export default function LoginScreen() {
         Alert.alert('Error', 'Failed to sign in with Apple. Please try again.');
       } else if (data.session) {
         console.log('Apple sign-in successful, session created');
+        
+        // If Apple provided a name, save it to onboarding data to skip the name input step
+        if (fullName && fullName.givenName) {
+          const name = `${fullName.givenName}${fullName.familyName ? ` ${fullName.familyName}` : ''}`;
+          console.log('Saving Apple provided name:', name);
+          
+          // Save the name to onboarding storage
+          const { saveOnboardingData } = await import('../lib/onboardingStorage');
+          await saveOnboardingData({ name });
+        }
+        
         // After sign-in, go to plan setup to generate and show the plan
         router.replace('/plan-setup');
         return;

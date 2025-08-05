@@ -19,12 +19,7 @@ export default function OnboardingLayout() {
             title: 'Welcome'
           }}
         />
-        <Stack.Screen 
-          name="name"
-          options={{
-            title: 'Welcome'
-          }}
-        />
+
         <Stack.Screen 
           name="age"
           options={{
