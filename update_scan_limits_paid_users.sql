@@ -30,10 +30,10 @@ BEGIN
        user_subscription_status = 'trialing' OR user_subscription_status = 'TRIALING' THEN
       max_scans_per_day := 3; -- Trial users get 3 scans per day
     ELSE
-      max_scans_per_day := 10; -- Paid users get 10 scans per day (upgraded from 5)
+      max_scans_per_day := 8; -- Paid users get 8 scans per day
     END IF;
   ELSE
-    max_scans_per_day := 10; -- Default for anonymous users (upgraded from 5)
+    max_scans_per_day := 8; -- Default for anonymous users
   END IF;
   
   -- Check cache first
@@ -97,4 +97,4 @@ $$ LANGUAGE plpgsql;
 GRANT EXECUTE ON FUNCTION process_drink_analysis(TEXT, JSONB, UUID) TO service_role;
 
 -- Verify the update
-SELECT 'Paid user scan limits updated to 10 scans per day!' as status; 
+SELECT 'Paid user scan limits updated to 8 scans per day!' as status; 

@@ -88,17 +88,12 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
                          profile.subscription_status === 'TRIALING';
           setIsTrialUser(isTrial);
           
-          // Check today's scan count for all users
-          const today = new Date().toISOString().split('T')[0];
-          const { data: scanCount, error: countError } = await supabase
-            .from('scan_logs')
-            .select('id', { count: 'exact' })
-            .eq('user_id', user.id)
-            .gte('created_at', `${today}T00:00:00`)
-            .lte('created_at', `${today}T23:59:59`);
+          // Check today's scan count using the same table as backend
+          const { data: scanCountData, error: countError } = await supabase
+            .rpc('get_daily_scan_count', { user_uuid: user.id });
           
           if (!countError) {
-            const currentScans = scanCount?.length || 0;
+            const currentScans = scanCountData || 0;
             
             if (isTrial) {
               // For trial users, limit is 3 scans
@@ -107,10 +102,7 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
             } else {
               // For paid users, limit is 8 scans
               const maxScans = 8;
-              if (currentScans >= maxScans) {
-                // Store that paid user has reached limit
-                setRemainingScans(0);
-              }
+              setRemainingScans(Math.max(0, maxScans - currentScans));
             }
           }
         }

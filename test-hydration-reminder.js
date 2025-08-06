@@ -1,6 +1,6 @@
 // Test script for hydration reminder function
 const SUPABASE_URL = 'https://spiuczenpydodsegisvb.supabase.co';
-const SUPABASE_ANON_KEY = ''; // Replace with your actual anon key
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNwaXVjemVucHlkb2RzZWdpc3ZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzODk1NjksImV4cCI6MjA2ODk2NTU2OX0.ZBEGYAtf7FzXWfQ4lIAouWQKCWAOGLajRSeSMwq71D8';
 
 async function testHydrationReminder() {
   try {

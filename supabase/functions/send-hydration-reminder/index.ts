@@ -42,6 +42,49 @@ serve(async (req) => {
     const notificationsSent = []
 
     for (const user of users) {
+      // Check user's recent activity (last 2 weeks)
+      const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+      const today = new Date().toDateString();
+      
+      const { data: recentActivity, error: activityError } = await supabase
+        .from('hydration_checkins')
+        .select('created_at')
+        .eq('user_id', user.user_id)
+        .gte('created_at', twoWeeksAgo)
+        .order('created_at', { ascending: false });
+
+      if (activityError) {
+        console.error(`Error checking activity for user ${user.user_id}:`, activityError);
+        continue;
+      }
+
+      // Check if user has logged today
+      const hasLoggedToday = recentActivity?.some(checkin => 
+        new Date(checkin.created_at).toDateString() === today
+      );
+
+      // Check if user has been inactive for 2+ weeks AND hasn't logged today
+      const isInactive = (!recentActivity || recentActivity.length === 0) && !hasLoggedToday;
+      const lastActivity = recentActivity && recentActivity.length > 0 
+        ? new Date(recentActivity[0].created_at) 
+        : null;
+      
+      // Debug logging for inactivity check
+      console.log(`User ${user.user_id} activity check:`, {
+        recentActivityCount: recentActivity?.length || 0,
+        hasLoggedToday,
+        isInactive,
+        lastActivity: lastActivity?.toISOString(),
+        today
+      });
+      
+      // TEMPORARILY DISABLED: Inactivity notifications to prevent spam
+      // TODO: Fix inactivity logic properly before re-enabling
+      if (isInactive) {
+        console.log(`User ${user.user_id} would be marked as inactive, but inactivity notifications are temporarily disabled`);
+        continue;
+      }
+
       // Get user's hydration plan
       const { data: plan, error: planError } = await supabase
         .from('hydration_plans')
@@ -137,9 +180,6 @@ serve(async (req) => {
             continue
           }
 
-          // Determine which template to use based on context
-          let templateName = 'daily_splash_1'; // default
-          
           // Check user's recent activity and streak
           const { data: recentCheckins } = await supabase
             .from('hydration_checkins')
@@ -165,181 +205,88 @@ serve(async (req) => {
             hoursSinceLastDrink = Math.floor((Date.now() - lastDrink.getTime()) / (1000 * 60 * 60));
           }
 
-          // Choose template based on user behavior and context with more variety
-          const templates = [];
+          // Check roast notification limit (max 2 per day)
+          const roastNotifications = existingNotifications?.filter(notification => {
+            const metadata = notification.metadata;
+            return metadata?.templateName?.startsWith('roast_mode_');
+          }) || [];
           
-          if (!hasLoggedToday && recentCheckins.length === 0) {
-            // User hasn't logged at all today - use specific roast based on hours
-            if (hoursSinceLastDrink >= 24) {
-              templates.push('roast_mode_1', 'roast_mode_2', 'roast_mode_3'); // Multiple options
-            } else if (hoursSinceLastDrink >= 12) {
-              templates.push('roast_mode_2', 'roast_mode_3', 'roast_mode_4');
-            } else if (hoursSinceLastDrink >= 8) {
-              templates.push('roast_mode_3', 'roast_mode_4', 'roast_mode_5');
-            } else if (hoursSinceLastDrink >= 6) {
-              templates.push('roast_mode_4', 'roast_mode_5', 'behind_schedule_1');
-            } else {
-              templates.push('roast_mode_5', 'behind_schedule_1', 'behind_schedule_2');
-            }
-          } else if (!hasLoggedToday && recentCheckins.length < 2) {
-            // User is behind schedule - use specific behind schedule template
-            if (hoursSinceLastDrink >= 12) {
-              templates.push('behind_schedule_1', 'behind_schedule_2', 'roast_mode_1');
-            } else if (hoursSinceLastDrink >= 8) {
-              templates.push('behind_schedule_2', 'behind_schedule_3', 'roast_mode_2');
-            } else {
-              templates.push('behind_schedule_3', 'daily_splash_1', 'daily_splash_2');
-            }
-          } else if (streak?.current_streak >= 7) {
-            // User has a good streak - celebrate
-            templates.push('streak_celebration_1', 'streak_celebration_2', 'ai_checkin_1');
-          } else if (streak?.current_streak >= 3) {
-            // User has a decent streak - encourage
-            templates.push('streak_celebration_2', 'ai_checkin_1', 'ai_checkin_2');
-          } else if (recentCheckins.length >= 5) {
-            // User is doing well - use AI checkin
-            if (hoursSinceLastDrink >= 4) {
-              templates.push('ai_checkin_1', 'ai_checkin_2', 'daily_splash_1');
-            } else {
-              templates.push('ai_checkin_2', 'daily_splash_1', 'daily_splash_2');
-            }
-          } else if (hoursSinceLastDrink > 6) {
-            // User hasn't drunk in a while - gentle reminder
-            if (hoursSinceLastDrink >= 8) {
-              templates.push('daily_splash_1', 'daily_splash_2', 'daily_splash_3');
-            } else if (hoursSinceLastDrink >= 6) {
-              templates.push('daily_splash_2', 'daily_splash_3', 'ai_checkin_1');
-            } else {
-              templates.push('daily_splash_3', 'ai_checkin_1', 'ai_checkin_2');
-            }
-          } else {
-            // Default - gentle daily splash with variety
-            templates.push('daily_splash_1', 'daily_splash_2', 'daily_splash_3', 'ai_checkin_1', 'ai_checkin_2');
+          console.log(`User ${user.user_id} has ${roastNotifications.length} roast notifications today`);
+          
+          if (roastNotifications.length >= 2) {
+            console.log(`Roast limit exceeded for user ${user.user_id} - SKIPPING`)
+            continue
           }
           
-          // Randomly select from available templates to ensure variety
-          templateName = templates[Math.floor(Math.random() * templates.length)];
-          
-          // Check roast notification limit (max 2 per day) after template selection
-          if (templateName.startsWith('roast_mode_')) {
-            const roastNotifications = existingNotifications?.filter(notification => {
-              const metadata = notification.metadata;
-              return metadata?.templateName?.startsWith('roast_mode_');
-            }) || [];
-            
-            console.log(`User ${user.user_id} has ${roastNotifications.length} roast notifications today`);
-            
-            if (roastNotifications.length >= 2) {
-              console.log(`Roast limit exceeded for user ${user.user_id} - SKIPPING`)
-              continue
-            }
-            
-            // Check if this specific roast template was already used today
-            const hasRoastTemplate = roastNotifications.some(notification => {
-              const metadata = notification.metadata;
-              return metadata?.templateName === templateName;
-            });
-            
-            if (hasRoastTemplate) {
-              console.log(`Roast template ${templateName} already used today for user ${user.user_id} - SKIPPING`)
-              continue
+          // Calculate current daily consumption
+          let currentConsumption = 0;
+          if (recentCheckins && plan.daily_goal) {
+            const goalMatch = plan.daily_goal.match(/(\d+)/);
+            if (goalMatch) {
+              const dailyGoalOz = parseInt(goalMatch[1]);
+              currentConsumption = recentCheckins.reduce((sum, checkin) => {
+                const checkinDate = new Date(checkin.created_at);
+                if (checkinDate.toDateString() === today) {
+                  return sum + (checkin.oz || 0);
+                }
+                return sum;
+              }, 0);
             }
           }
-          
-          // Get notification template
-          const { data: template, error: templateError } = await supabase
-            .from('notification_templates')
-            .select('title, body')
-            .eq('name', templateName)
-            .eq('is_active', true)
-            .single()
 
-          // Create notification content
-          let title = 'Quick Sip Break 💧'
-          let body = `Time to hydrate! `
+          // Get time of day for context
+          const timeOfDay = userLocalHour < 12 ? 'morning' : 
+                           userLocalHour < 17 ? 'afternoon' : 'evening';
+
+          // Generate AI-powered notification
+          let title = 'HydrateAI 💧'
+          let body = 'Time to hydrate!'
           
-          if (template && !templateError) {
-            // Use template with variable substitution
-            title = template.title || title
-            body = template.body
-              .replace('{{name}}', user.name || 'there')
-              .replace('{{oz}}', oz || 'some water')
-              .replace('{{time}}', `${targetHour}:${targetMinute.toString().padStart(2, '0')}`)
-              .replace('{{hours_since_last_drink}}', hoursSinceLastDrink.toString())
-              .replace('{{streak}}', streak?.current_streak?.toString() || '0')
+          try {
+            // Create a new Supabase client with service role key for function-to-function calls
+            const supabaseService = createClient(
+              Deno.env.get('SUPABASE_URL')!,
+              Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+            )
             
-            // Calculate goal percentage if we have recent checkins and daily goal
-            if (recentCheckins && plan.daily_goal) {
-              const goalMatch = plan.daily_goal.match(/(\d+)/);
-              if (goalMatch) {
-                const dailyGoalOz = parseInt(goalMatch[1]);
-                const totalLoggedToday = recentCheckins.reduce((sum, checkin) => {
-                  const checkinDate = new Date(checkin.created_at);
-                  if (checkinDate.toDateString() === today) {
-                    return sum + (checkin.oz || 0);
-                  }
-                  return sum;
-                }, 0);
-                const goalPercentage = Math.round((totalLoggedToday / dailyGoalOz) * 100);
-                body = body.replace('{{goal_percentage}}', goalPercentage.toString());
+            const { data: aiResponse, error: aiError } = await supabaseService.functions.invoke('generate-ai-notification', {
+              body: {
+                userData: {
+                  dailyGoal: plan.daily_goal ? parseInt(plan.daily_goal.match(/(\d+)/)?.[1] || '80') : 80,
+                  currentConsumption,
+                  streak: streak?.current_streak || 0,
+                  hoursSinceLastDrink,
+                  hasLoggedToday,
+                  timeOfDay,
+                  suggestedOz: oz || null,
+                  timeSlot: time || null
+                }
               }
-            }
-          } else {
-            // Fallback to default messages based on context with more variety
-            if (oz) {
-              body += `Try ${oz} oz now. Your body will thank you later! 💪`
-            }
-            
-            if (note) {
-              body += note
+            })
+
+            if (!aiError && aiResponse?.success) {
+              title = aiResponse.title || 'HydrateAI 💧';
+              body = aiResponse.body || 'Time to hydrate!';
+              console.log(`AI generated notification for user ${user.user_id}: ${title} - ${body}`);
             } else {
-              // Use context-aware fallback messages with variety
-              const fallbackMessages = [];
-              
-              if (!hasLoggedToday && recentCheckins.length === 0) {
-                fallbackMessages.push(
-                  'You good dehydrated legend? 💧',
-                  'Is your faucet broken? 💧',
-                  'Liquid? Never heard of her 💧',
-                  'Dry spell much? 💧',
-                  'You\'re 70% water... or were 💧'
-                );
-              } else if (!hasLoggedToday && recentCheckins.length < 2) {
-                fallbackMessages.push(
-                  'Falling behind friend - time to catch up! 💧',
-                  'Uh oh... dehydrated much? 💧',
-                  'SOS: Water levels low 💧',
-                  'Behind schedule! 💧',
-                  'Time to catch up on hydration 💧'
-                );
-              } else if (streak?.current_streak >= 7) {
-                fallbackMessages.push(
-                  `🔥 ${streak.current_streak} day streak! Keep it going! 💧`,
-                  `Amazing! ${streak.current_streak} days strong! 💧`,
-                  `Streak goals! ${streak.current_streak} days! 💧`,
-                  `You're on fire! ${streak.current_streak} days! 💧`
-                );
-              } else if (hoursSinceLastDrink > 6) {
-                fallbackMessages.push(
-                  'Dry spell much? Time to hydrate! 💧',
-                  'Time for a water break! 💧',
-                  'Hydration check-in! 💧',
-                  'Quick sip break! 💧',
-                  'Water break alert! 💧'
-                );
+              console.error(`AI notification error for user ${user.user_id}:`, aiError);
+              // Fallback to simple message
+              if (hoursSinceLastDrink >= 8 && !hasLoggedToday) {
+                title = 'Bro, you good? 💧🌵';
+                body = 'Your plants are more hydrated than you';
+              } else if (hoursSinceLastDrink >= 4) {
+                title = 'Time for a water break! 💧';
+                body = 'Your body is waiting for hydration';
               } else {
-                fallbackMessages.push(
-                  'Stay healthy and hydrated! 💧',
-                  'Time to sip! 💧',
-                  'Hydration vibes only! 💧',
-                  'Drink break alert! 💧',
-                  'WaterAI check-in! 💧'
-                );
+                title = 'Stay hydrated! 💧';
+                body = 'Time to sip some water';
               }
-              
-              // Randomly select a fallback message
-              body = fallbackMessages[Math.floor(Math.random() * fallbackMessages.length)];
             }
+          } catch (error) {
+            console.error(`Error calling AI notification service for user ${user.user_id}:`, error);
+            // Fallback to simple message
+            title = 'HydrateAI 💧';
+            body = 'Time to hydrate!';
           }
 
           // Send push notification if user has a push token
@@ -372,7 +319,7 @@ serve(async (req) => {
                   .from('notifications')
                   .insert({
                     user_id: user.user_id,
-                    template_id: template?.id || null,
+                    template_id: null, // AI-generated, no template
                     title,
                     body,
                     status: 'sent',
@@ -380,7 +327,7 @@ serve(async (req) => {
                       timeSlot,
                       scheduledTime: `${targetHour}:${targetMinute.toString().padStart(2, '0')}`,
                       type: 'hydration_reminder',
-                      templateName: templateName
+                      templateName: 'ai_generated'
                     }
                   })
 
