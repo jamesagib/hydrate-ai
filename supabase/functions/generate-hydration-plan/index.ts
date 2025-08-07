@@ -35,9 +35,9 @@ serve(async (req) => {
 
 Input (JSON):
 {
-  "Age": ${onboarding.age},
-  "Weight": ${onboarding.weight_kg ? Math.round(onboarding.weight_kg * 2.20462) : ''},
-  "Sex": "${onboarding.sex}",
+  "Age": ${onboarding.age ? onboarding.age : '"not provided"'},
+  "Weight": ${onboarding.weight_kg ? Math.round(onboarding.weight_kg * 2.20462) : '"not provided"'},
+  "Sex": "${onboarding.sex || 'not provided'}",
   "Activity Level": "${onboarding.activity_level}",
   "Climate": "${onboarding.climate}",
   "Health Notes": "None",
@@ -46,6 +46,7 @@ Input (JSON):
 
 Instructions:
 - Calculate daily water intake goal based on all inputs.
+- If Age or Sex are marked as "not provided", infer conservatively based on other inputs and avoid over-personalization.
 - Use reasoning to explain recommendations (e.g., impacts of climate, activity, beverages).
 - Suggest logging times and hydration amounts.
 - Include lifestyle adjustments and pro tips.

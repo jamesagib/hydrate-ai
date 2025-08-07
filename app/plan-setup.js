@@ -96,14 +96,10 @@ export default function PlanSetupScreen() {
         console.log('  - activity_level:', onboarding.activity_level);
         console.log('  - climate:', onboarding.climate);
         
-        if (!onboarding.age || !onboarding.height_cm || !onboarding.activity_level || !onboarding.climate) {
+        if (!onboarding.height_cm || !onboarding.activity_level || !onboarding.climate) {
           console.log('❌ User missing onboarding data, redirecting to appropriate step');
           
-          if (!onboarding.age) {
-            console.log('❌ Missing age, redirecting to age screen');
-            router.replace('/onboarding/age');
-            return;
-          } else if (!onboarding.height_cm) {
+          if (!onboarding.height_cm) {
             console.log('❌ Missing height_cm, redirecting to height screen');
             router.replace('/onboarding/height');
             return;

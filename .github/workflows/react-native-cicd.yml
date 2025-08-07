@@ -30,6 +30,10 @@ on:
           - android
           - ios
           - all
+      skipTestFlight:
+        type: boolean
+        description: "Skip TestFlight upload (for development builds)"
+        default: false
 
 env:
   EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
@@ -64,6 +68,7 @@ jobs:
         run: |
           npm ci
           npm install -g eas-cli@latest
+      
       - name: 🔧 Select Xcode 16.2
         run: sudo xcode-select -s /Applications/Xcode_16.2.app
 
@@ -75,12 +80,12 @@ jobs:
           npm cache clean --force
           echo "Clearing expo cache..."
           npx expo install --fix
+      
       - name: 📁 Setup Provisioning Profile
         run: |
           echo "${{ secrets.PROVISIONING_PROFILE }}" | base64 -d > Water_AI_Manually_Created_Profile.mobileprovision
           echo "Provisioning profile created"
       
-
       - name: 📱 Setup EAS build cache
         uses: actions/cache@v3
         with:
@@ -88,6 +93,7 @@ jobs:
           key: ${{ runner.os }}-eas-build-local-${{ hashFiles('**/package.json') }}
           restore-keys: |
             ${{ runner.os }}-eas-build-local-
+      
       - name: 🔄 Verify EAS CLI installation
         run: |
           echo "EAS CLI version:"
@@ -116,79 +122,30 @@ jobs:
           "
           echo "EXPO_PROJECT_ID: $EXPO_PROJECT_ID"
           echo "======================================"
-      
-      # - name: 📋 Show Build Info
-      #   run: |
-      #     echo "=== BUILD INFORMATION ==="
-      #     echo "App version: $(node -p "require('./app.json').expo.version")"
-      #     echo "App name: $(node -p "require('./app.json').expo.name")"
-      #     echo "Bundle ID: $(node -p "require('./app.json').expo.ios.bundleIdentifier")"
-      #     echo "Build profile: development"
-      #     echo "Platform: iOS"
-      #     echo "=========================="
-      # - name: 📱 Build iOS Development
-      #   run: |
-      #     export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
-      #     eas build --platform ios --profile development --local --non-interactive
-      #   env:
-      #     NODE_ENV: development
 
-      # - name: 🔍 Find and Copy Development Build
-      #   run: |
-      #     echo "Looking for development build files..."
-      #     find . -name "*.ipa" -type f
-      #     find . -name "*.app" -type d
-      #     echo "Current directory contents:"
-      #     ls -la
-      #     echo "Copying development build to expected location..."
-      #     # First try to find .ipa file (most common for development builds)
-      #     IPA_FILE=$(find . -name "*.ipa" -type f | head -1)
-      #     if [ -n "$IPA_FILE" ]; then
-      #       echo "Found IPA: $IPA_FILE"
-      #       cp "$IPA_FILE" ./app-ios-dev.ipa
-      #       echo "Copied to ./app-ios-dev.ipa"
-      #     else
-      #       # Fallback to .app file
-      #       APP_FILE=$(find . -name "*.app" -type d | head -1)
-      #       if [ -n "$APP_FILE" ]; then
-      #         echo "Found app: $APP_FILE"
-      #         cp -R "$APP_FILE" ./app-ios-dev.app
-      #         echo "Copied to ./app-ios-dev.app"
-      #       else
-      #         echo "No .ipa or .app file found!"
-      #         exit 1
-      #       fi
-      #     fi
-      # - name: ✅ Verify Development Build
-      #   run: |
-      #     echo "Verifying development build exists..."
-      #     if [ -f "./app-ios-dev.ipa" ]; then
-      #       echo "✅ Development IPA found: ./app-ios-dev.ipa"
-      #       ls -la ./app-ios-dev.ipa
-      #     elif [ -d "./app-ios-dev.app" ]; then
-      #       echo "✅ Development app found: ./app-ios-dev.app"
-      #       ls -la ./app-ios-dev.app
-      #     else
-      #       echo "❌ Development build not found!"
-      #       exit 1
-      #     fi
-      
-      - name: 📋 Show Production Build Info
+      - name: 📋 Show Build Info
         run: |
-          echo "=== PRODUCTION BUILD INFORMATION ==="
+          echo "=== BUILD INFORMATION ==="
+          echo "Build Type: ${{ github.event.inputs.buildType }}"
+          echo "Platform: ${{ github.event.inputs.platform }}"
+          echo "Skip TestFlight: ${{ github.event.inputs.skipTestFlight }}"
           echo "App version: $(node -p "require('./app.json').expo.version")"
           echo "App name: $(node -p "require('./app.json').expo.name")"
           echo "Bundle ID: $(node -p "require('./app.json').expo.ios.bundleIdentifier")"
-          echo "Build profile: production"
-          echo "Platform: iOS"
-          echo "This is the build that will be uploaded to App Store"
-          echo "================================================"
-          echo ""
-          echo "=== VERIFYING VERSION FILE ==="
-          cat app.json | grep -A 1 -B 1 "version"
-          echo "================================="
-      
+          echo "=========================="
+
+      # Development build (no TestFlight upload)
+      - name: 📱 Build iOS Development
+        if: ${{ github.event.inputs.buildType == 'dev' || github.event.inputs.buildType == 'ios-dev' }}
+        run: |
+          export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
+          eas build --platform ios --profile development --local --non-interactive
+        env:
+          NODE_ENV: development
+
+      # Production build (with TestFlight upload option)
       - name: 🔧 Auto-Increment Build Number
+        if: ${{ github.event.inputs.buildType == 'ios-prod' || github.event.inputs.buildType == 'publish-stores' }}
         run: |
           echo "Auto-incrementing build number..."
           # Read current build number from app.json or default to 15
@@ -207,8 +164,9 @@ jobs:
           "
           echo "Updated app.json:"
           cat app.json | grep -A 2 -B 2 "buildNumber"
-      
+
       - name: 📱 Build iOS Production
+        if: ${{ github.event.inputs.buildType == 'ios-prod' || github.event.inputs.buildType == 'publish-stores' }}
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
           eas build --platform ios --profile production --local --non-interactive
@@ -216,6 +174,7 @@ jobs:
           NODE_ENV: production
 
       - name: 🔍 Find and Copy IPA File
+        if: ${{ github.event.inputs.buildType == 'ios-prod' || github.event.inputs.buildType == 'publish-stores' }}
         run: |
           echo "Looking for IPA files..."
           find . -name "*.ipa" -type f
@@ -232,7 +191,9 @@ jobs:
             echo "No IPA file found!"
             exit 1
           fi
+
       - name: ✅ Verify IPA File
+        if: ${{ github.event.inputs.buildType == 'ios-prod' || github.event.inputs.buildType == 'publish-stores' }}
         run: |
           echo "Verifying IPA file exists..."
           if [ -f "./app-ios-prod.ipa" ]; then
@@ -242,23 +203,29 @@ jobs:
             echo "❌ IPA file not found!"
             exit 1
           fi
-      # - name: 🚀 Submit to App Store
-      #   run: |
-      #     # Clear any API key environment variables that might interfere
-      #     unset APP_STORE_CONNECT_API_KEY
-      #     unset APP_STORE_CONNECT_API_KEY_ID
-      #     unset APP_STORE_CONNECT_ISSUER_ID
-      #     eas submit -p ios --path ./app-ios-prod.ipa --non-interactive
-      #   env:
-      #     EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      #     EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
-      #     EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
-      #     EXPO_TEAM_ID: ${{ secrets.EXPO_TEAM_ID }}
 
-      - name: 📦 Upload build artifacts to GitHub
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-builds
-          path: |
-            ./app-ios-prod.ipa
-          retention-days: 7
+      # Conditional TestFlight upload
+      - name: 🚀 Submit to TestFlight
+        if: ${{ (github.event.inputs.buildType == 'ios-prod' || github.event.inputs.buildType == 'publish-stores') && !github.event.inputs.skipTestFlight }}
+        run: |
+          echo "Uploading to TestFlight..."
+          # Clear any API key environment variables that might interfere
+          unset APP_STORE_CONNECT_API_KEY
+          unset APP_STORE_CONNECT_API_KEY_ID
+          unset APP_STORE_CONNECT_ISSUER_ID
+          eas submit -p ios --path ./app-ios-prod.ipa --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
+          EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
+          EXPO_TEAM_ID: ${{ secrets.EXPO_TEAM_ID }}
+
+      - name: ✅ Build Complete
+        run: |
+          echo "=== BUILD COMPLETE ==="
+          if [ "${{ github.event.inputs.skipTestFlight }}" = "true" ]; then
+            echo "✅ Development build completed (no TestFlight upload)"
+          else
+            echo "✅ Production build completed"
+          fi
+          echo "======================"

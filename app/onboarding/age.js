@@ -33,10 +33,10 @@ export default function OnboardingAgeScreen() {
       <OnboardingHeader progress={25} />
       <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 10 }}>
         <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 28, color: 'black', marginBottom: 8 }}>
-          Age
+          Age (optional)
         </Text>
         <Text style={{ fontFamily: 'Nunito_400Regular', fontSize: 16, color: '#666', marginBottom: 32 }}>
-          This will be used to calibrate your custom plan.
+          Optional — helps personalize your plan but not required.
         </Text>
         <TextInput
           style={{
@@ -49,14 +49,14 @@ export default function OnboardingAgeScreen() {
             borderWidth: 1,
             borderColor: '#E5E5E5',
           }}
-          placeholder="Enter your age"
+          placeholder="Enter your age (optional)"
           keyboardType="numeric"
           value={age}
           onChangeText={setAge}
           maxLength={3}
         />
         <Text style={{ fontFamily: 'Nunito_600SemiBold', fontSize: 18, color: 'black', marginBottom: 16 }}>
-          Sex
+          Gender (optional)
         </Text>
         <View style={{ flexDirection: 'row', marginBottom: 40 }}>
           <TouchableOpacity
