@@ -204,6 +204,15 @@ jobs:
             exit 1
           fi
 
+      - name: 📦 Upload IPA Artifact
+        if: ${{ github.event.inputs.buildType == 'ios-prod' || github.event.inputs.buildType == 'publish-stores' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-ios-prod
+          path: ./app-ios-prod.ipa
+          if-no-files-found: error
+          retention-days: 7
+
       # Conditional TestFlight upload
       - name: 🚀 Submit to TestFlight
         if: ${{ (github.event.inputs.buildType == 'ios-prod' || github.event.inputs.buildType == 'publish-stores') && !github.event.inputs.skipTestFlight }}
