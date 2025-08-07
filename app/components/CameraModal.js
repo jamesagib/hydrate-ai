@@ -13,6 +13,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import drinkHydrationService from '../../lib/drinkHydrationService';
+import * as Haptics from 'expo-haptics';
 
 export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenManualLog }) {
   const [hasPermission, setHasPermission] = useState(null);
@@ -467,27 +468,13 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
                               onPress={() => {
                                 // Calculate actual water content for quick add drinks
                                 const waterContent = calculateWaterContent(drink.name, 8);
-                                // Get hydration tip for quick add drinks
-                                const tip = drinkHydrationService.getHydrationTip(drink.name);
                                 
-                                // Show hydration tip as a brief alert for quick add
-                                Alert.alert(
-                                  '💧 Hydration Tip',
-                                  tip.tip,
-                                  [
-                                    {
-                                      text: 'Got it!',
-                                      onPress: () => {
-                                        onDrinkDetected({
-                                          name: drink.name,
-                                          water_oz: waterContent,
-                                          total_oz: 8,
-                                          checkinType: 'quick_add'
-                                        });
-                                      }
-                                    }
-                                  ]
-                                );
+                                onDrinkDetected({
+                                  name: drink.name,
+                                  water_oz: waterContent,
+                                  total_oz: 8,
+                                  checkinType: 'quick_add'
+                                });
                               }}
                             >
                               {/* Drink Icon */}

@@ -1,6 +1,6 @@
 // Debug script to check notification system
 const SUPABASE_URL = 'https://spiuczenpydodsegisvb.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY'; // Replace with your actual anon key
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNwaXVjemVucHlkb2RzZWdpc3ZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzODk1NjksImV4cCI6MjA2ODk2NTU2OX0.ZBEGYAtf7FzXWfQ4lIAouWQKCWAOGLajRSeSMwq71D8';
 
 async function debugNotifications() {
   try {
@@ -38,6 +38,23 @@ async function debugNotifications() {
 
     const pushResult = await pushResponse.json();
     console.log('Push result:', pushResult);
+    
+    // Test 3: Check users with push tokens
+    console.log('\n3️⃣ Checking users with push tokens...');
+    const usersResponse = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=user_id,push_token,wants_coaching&push_token=not.is.null`, {
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': SUPABASE_ANON_KEY
+      }
+    });
+
+    const users = await usersResponse.json();
+    console.log(`Found ${users.length} users with push tokens:`);
+    users.forEach(user => {
+      console.log(`- User: ${user.user_id}`);
+      console.log(`  Push Token: ${user.push_token ? user.push_token.substring(0, 30) + '...' : 'None'}`);
+      console.log(`  Wants Coaching: ${user.wants_coaching}`);
+    });
     
   } catch (error) {
     console.error('❌ Error:', error);

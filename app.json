@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hydrate.ai",
-      "buildNumber": "66",
+      "buildNumber": "68",
       "usesAppleSignIn": true,
       "icon": "./assets/icon.png",
       "entitlements": {
@@ -25,7 +25,7 @@
           "Default",
           "Default"
         ],
-        "aps-environment": "development"
+        "aps-environment": "production"
       },
       "infoPlist": {
         "NSUserAuthenticationUsageDescription": "Sign in with Apple is used to authenticate your account.",

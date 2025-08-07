@@ -7,8 +7,11 @@ import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { supabase } from '../../lib/supabase';
 import PullToRefreshWithHaptics from '../../modules/haptic-engine/PullToRefreshWithHaptics';
+import drinkNotificationService from '../../lib/drinkNotificationService';
+import * as Haptics from 'expo-haptics';
 import CameraModal from '../components/CameraModal';
 import DrinkConfirmationModal from '../components/DrinkConfirmationModal';
+import InAppNotification from '../components/InAppNotification';
 import superwallDelegate from '../../lib/superwallDelegate';
 
 import {
@@ -51,6 +54,8 @@ export default function HomeScreen() {
   const [isCameraVisible, setIsCameraVisible] = useState(false);
   const [isConfirmationVisible, setIsConfirmationVisible] = useState(false);
   const [detectedDrink, setDetectedDrink] = useState(null);
+  const [showInAppNotification, setShowInAppNotification] = useState(false);
+  const [inAppNotification, setInAppNotification] = useState(null);
 
   // Drink options with hydration values and emojis
   const drinkOptions = [
@@ -614,6 +619,15 @@ export default function HomeScreen() {
       };
       console.log('New checkin being added:', newCheckin); // Debug log
       setRecentCheckins(prev => [newCheckin, ...prev.slice(0, 4)]);
+      
+      // Show in-app notification for drink logging
+      try {
+        const notification = await drinkNotificationService.getRandomCongratulation();
+        setInAppNotification(notification);
+        setShowInAppNotification(true);
+      } catch (error) {
+        console.error('Error showing in-app notification:', error);
+      }
       
       // Check if goal is reached and trigger celebration
       if (newTotal >= dailyGoal && !hasReachedGoal) {
@@ -1190,6 +1204,13 @@ export default function HomeScreen() {
           }
         }}
         onOpenManualLog={handleOpenModal}
+      />
+
+      {/* In-App Notification */}
+      <InAppNotification
+        visible={showInAppNotification}
+        notification={inAppNotification}
+        onHide={() => setShowInAppNotification(false)}
       />
     </SafeAreaView>
   );

@@ -73,10 +73,21 @@ export default function StatsScreen() {
         if (statsData.period_checkins) {
           setAllCheckins(statsData.period_checkins);
           
+          // Get today's date in user's timezone from the database
           const today = new Date();
           const weekTotals = new Array(7).fill(0);
           const monthTotals = new Array(30).fill(0);
           const yearTotals = new Array(12).fill(0);
+          
+          // Also fetch today's checkins separately to ensure consistency with home screen
+          const { data: todayCheckins } = await supabase.rpc('get_home_screen_data', {
+            user_uuid: user.id
+          });
+          
+          let todayTotal = 0;
+          if (todayCheckins && todayCheckins.today_checkins) {
+            todayTotal = todayCheckins.today_checkins.reduce((sum, checkin) => sum + (checkin.value || 0), 0);
+          }
           
           statsData.period_checkins.forEach(checkin => {
             const checkinDate = new Date(checkin.created_at);
@@ -84,12 +95,22 @@ export default function StatsScreen() {
             // Calculate week data (last 7 days)
             const daysAgo = Math.floor((today - checkinDate) / (1000 * 60 * 60 * 24));
             if (daysAgo >= 0 && daysAgo < 7) {
-              weekTotals[6 - daysAgo] += checkin.value || 0;
+              if (daysAgo === 0) {
+                // Use the database-calculated today total for consistency
+                weekTotals[6] = todayTotal;
+              } else {
+                weekTotals[6 - daysAgo] += checkin.value || 0;
+              }
             }
             
             // Calculate month data (last 30 days)
             if (daysAgo >= 0 && daysAgo < 30) {
-              monthTotals[29 - daysAgo] += checkin.value || 0;
+              if (daysAgo === 0) {
+                // Use the database-calculated today total for consistency
+                monthTotals[29] = todayTotal;
+              } else {
+                monthTotals[29 - daysAgo] += checkin.value || 0;
+              }
             }
             
             // Calculate year data (last 12 months)
