@@ -100,9 +100,8 @@ export default function OnboardingAgeScreen() {
         </View>
         <TouchableOpacity
           onPress={handleNext}
-          disabled={!age || !sex}
           style={{
-            backgroundColor: age && sex ? 'black' : '#E5E5E5',
+            backgroundColor: 'black',
             borderRadius: 20,
             paddingVertical: 18,
             alignItems: 'center',
@@ -114,7 +113,7 @@ export default function OnboardingAgeScreen() {
           }}
         >
           <Text style={{
-            color: age && sex ? 'white' : '#999',
+            color: 'white',
             fontFamily: 'Nunito_700Bold',
             fontSize: 18,
           }}>
