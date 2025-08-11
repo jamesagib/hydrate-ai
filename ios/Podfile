@@ -1,3 +1,17 @@
+begin
+  require 'xcodeproj'
+  if defined?(Xcodeproj::Constants::COMPATIBILITY_VERSION_BY_OBJECT_VERSION)
+    mapping = Xcodeproj::Constants::COMPATIBILITY_VERSION_BY_OBJECT_VERSION
+    unless mapping.key?(70)
+      new_mapping = mapping.dup
+      new_mapping[70] = 'Xcode 16.0'
+      Xcodeproj::Constants.send(:remove_const, :COMPATIBILITY_VERSION_BY_OBJECT_VERSION)
+      Xcodeproj::Constants.const_set(:COMPATIBILITY_VERSION_BY_OBJECT_VERSION, new_mapping.freeze)
+    end
+  end
+rescue LoadError
+end
+
 require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
 require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
 

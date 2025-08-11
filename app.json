@@ -2,7 +2,7 @@
   "expo": {
     "name": "Water AI",
     "slug": "hydrate-ai",
-    "version": "1.0.2",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hydrate.ai",
-      "buildNumber": "74",
+      "buildNumber": "2",
       "usesAppleSignIn": true,
       "icon": "./assets/icon.png",
       "entitlements": {
@@ -144,7 +144,19 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b4f22400-7632-4de3-bcd1-76119d301f5d"
+        "projectId": "b4f22400-7632-4de3-bcd1-76119d301f5d",
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "bundleIdentifier": "com.hydrate.ai.widgets",
+                  "targetName": "widgets"
+                }
+              ]
+            }
+          }
+        }
       }
     },
     "owner": "jamesagib",

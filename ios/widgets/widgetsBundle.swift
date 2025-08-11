@@ -11,8 +11,12 @@ import SwiftUI
 @main
 struct widgetsBundle: WidgetBundle {
     var body: some Widget {
-        widgets()
-        widgetsControl()
-        widgetsLiveActivity()
+        HydrationWidget()
+        if #available(iOSApplicationExtension 18.0, *) {
+            widgetsControl()
+        }
+        if #available(iOSApplicationExtension 16.1, *) {
+            widgetsLiveActivity()
+        }
     }
 }

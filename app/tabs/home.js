@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, TouchableOpacity, SafeAreaView, ScrollView, TextInput, Image, Modal, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, KeyboardAvoidingView, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, SafeAreaView, ScrollView, TextInput, Image, Modal, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, KeyboardAvoidingView, Platform, NativeModules } from 'react-native';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { supabase } from '../../lib/supabase';
@@ -32,9 +32,13 @@ import Animated, {
 } from 'react-native-reanimated';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { SharedHydrationModule } = NativeModules;
 
 export default function HomeScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const quickHandledRef = useRef(false);
+  const scanHandledRef = useRef(false);
   const [hydrationLevel, setHydrationLevel] = useState(50); // 0-100
   const [dailyGoal, setDailyGoal] = useState(80); // oz - will be fetched from DB
   const [currentIntake, setCurrentIntake] = useState(0); // oz - will be calculated from DB
@@ -173,6 +177,27 @@ export default function HomeScreen() {
   useEffect(() => {
     fetchUserData();
   }, []);
+
+  useEffect(() => {
+    if (params?.quick === '1') {
+      handleOpenModal();
+    }
+  }, [params?.quick]);
+
+  // Open Quick Log or Scan modal when coming from widget deep link
+  useFocusEffect(
+    useCallback(() => {
+      if (params?.quick === '1' && !quickHandledRef.current) {
+        quickHandledRef.current = true;
+        handleOpenModal();
+      }
+      if (params?.scan === '1' && !scanHandledRef.current) {
+        scanHandledRef.current = true;
+        handleOpenCamera();
+      }
+      return () => {};
+    }, [params?.quick, params?.scan])
+  );
 
   // Function to handle modal step transitions with height animation
   const handleStepTransition = useCallback((newStep) => {
@@ -580,6 +605,27 @@ export default function HomeScreen() {
     return Math.round(totalVolume * 0.9); // 90% water content
   };
 
+  const writeSharedForWidgets = useCallback((total, goal) => {
+    try {
+      const nextMins = 15; // TODO: replace with real next reminder minutes
+      SharedHydrationModule?.write?.(Math.round(total), Math.round(goal), nextMins);
+    } catch (e) {
+      console.log('SharedHydration write error', e);
+    }
+  }, []);
+
+  // after fetch set state
+  useEffect(() => {
+    if (dailyGoal > 0) {
+      const percentage = (currentIntake / dailyGoal) * 100;
+      setHydrationLevel(Math.round(Math.min(percentage, 100)));
+      if (currentIntake < dailyGoal && hasReachedGoal) {
+        setHasReachedGoal(false);
+      }
+      writeSharedForWidgets(currentIntake, dailyGoal);
+    }
+  }, [currentIntake, dailyGoal, hasReachedGoal, writeSharedForWidgets]);
+
   // Function to add hydration check-in to database
   const addHydrationCheckin = async (amount, checkinType = 'slider', drinkName = null) => {
     if (!user) return;
@@ -648,6 +694,7 @@ export default function HomeScreen() {
       
       // Note: Streaks are updated automatically when the date changes via updateStreaksForPreviousDay()
       // No need to update streaks here on every drink log
+      writeSharedForWidgets(newTotal, dailyGoal);
       
       return true;
     } catch (error) {

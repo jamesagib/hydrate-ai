@@ -1,6 +1,25 @@
 import Expo
 import React
 import ReactAppDependencyProvider
+import WidgetKit
+
+@objc class SharedHydrationStore: NSObject {
+  static let appGroup = "group.com.hydrate.ai"
+  static let key = "hydration_today"
+
+  @objc static func write(consumedOz: NSNumber, goalOz: NSNumber, nextDrinkMinutes: NSNumber?) {
+    guard let defaults = UserDefaults(suiteName: appGroup) else { return }
+    var payload: [String: Any] = [
+      "consumedOz": consumedOz.intValue,
+      "goalOz": goalOz.intValue,
+      "lastUpdated": Date().timeIntervalSince1970
+    ]
+    if let mins = nextDrinkMinutes?.intValue { payload["nextDrinkMinutes"] = mins }
+    defaults.set(payload, forKey: key)
+    defaults.synchronize()
+    WidgetCenter.shared.reloadTimelines(ofKind: "com.hydrate.ai.widget")
+  }
+}
 
 @UIApplicationMain
 public class AppDelegate: ExpoAppDelegate {
@@ -28,6 +47,9 @@ public class AppDelegate: ExpoAppDelegate {
       in: window,
       launchOptions: launchOptions)
 #endif
+
+    // Seed shared hydration store with placeholder (replace with real writes after logging)
+    SharedHydrationStore.write(consumedOz: 40, goalOz: 64, nextDrinkMinutes: 15)
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
