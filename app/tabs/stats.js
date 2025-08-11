@@ -9,6 +9,7 @@ export default function StatsScreen() {
   const [selectedPeriod, setSelectedPeriod] = useState('week'); // week, month, year
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [userTimezone, setUserTimezone] = useState('UTC');
   
   // Real data from database
   const [periodData, setPeriodData] = useState([0, 0, 0, 0, 0, 0, 0]); // Dynamic based on period
@@ -27,6 +28,16 @@ export default function StatsScreen() {
     year: new Array(12).fill(0)
   });
   const [allCheckins, setAllCheckins] = useState([]);
+
+  // Helper: format a Date into YYYY-MM-DD string in a specific IANA timezone
+  const formatDateYYYYMMDDInTimezone = (date, timeZone) => {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(date);
+  };
 
   // Function to fetch stats data
   const fetchStatsData = async (isRefresh = false) => {
@@ -49,6 +60,15 @@ export default function StatsScreen() {
         return;
       }
       setUser(user);
+
+      // Fetch user's timezone (fallback to UTC)
+      const { data: profileRow } = await supabase
+        .from('profiles')
+        .select('timezone')
+        .eq('user_id', user.id)
+        .single();
+      const tz = profileRow?.timezone || 'UTC';
+      setUserTimezone(tz);
 
       // Fetch all stats data for the last year (covers all periods)
       const { data: statsData, error: statsError } = await supabase.rpc('get_stats_screen_data', {
@@ -73,8 +93,10 @@ export default function StatsScreen() {
         if (statsData.period_checkins) {
           setAllCheckins(statsData.period_checkins);
           
-          // Get today's date in user's timezone from the database
-          const today = new Date();
+          // Get today's date in user's timezone from the database-compatible calculation
+          const todayStrTz = formatDateYYYYMMDDInTimezone(new Date(), tz);
+          const todayUtcFromTzStr = new Date(`${todayStrTz}T00:00:00.000Z`);
+
           const weekTotals = new Array(7).fill(0);
           const monthTotals = new Array(30).fill(0);
           const yearTotals = new Array(12).fill(0);
@@ -91,9 +113,14 @@ export default function StatsScreen() {
           
           statsData.period_checkins.forEach(checkin => {
             const checkinDate = new Date(checkin.created_at);
+            const checkinStrTz = formatDateYYYYMMDDInTimezone(checkinDate, tz);
+            const checkinUtcFromTzStr = new Date(`${checkinStrTz}T00:00:00.000Z`);
+            
+            // Calculate difference in whole days based on the user's timezone day boundaries
+            const msPerDay = 24 * 60 * 60 * 1000;
+            const daysAgo = Math.floor((todayUtcFromTzStr.getTime() - checkinUtcFromTzStr.getTime()) / msPerDay);
             
             // Calculate week data (last 7 days)
-            const daysAgo = Math.floor((today - checkinDate) / (1000 * 60 * 60 * 24));
             if (daysAgo >= 0 && daysAgo < 7) {
               if (daysAgo === 0) {
                 // Use the database-calculated today total for consistency
@@ -113,9 +140,12 @@ export default function StatsScreen() {
               }
             }
             
-            // Calculate year data (last 12 months)
-            const monthDiff = (today.getFullYear() - checkinDate.getFullYear()) * 12 + 
-                             (today.getMonth() - checkinDate.getMonth());
+            // Calculate year data (last 12 months) based on calendar months in user's timezone
+            const todayParts = todayStrTz.split('-').map(Number); // [YYYY, MM, DD]
+            const checkinParts = checkinStrTz.split('-').map(Number);
+            const todayMonthIndex = (todayParts[0] * 12) + (todayParts[1] - 1);
+            const checkinMonthIndex = (checkinParts[0] * 12) + (checkinParts[1] - 1);
+            const monthDiff = todayMonthIndex - checkinMonthIndex;
             if (monthDiff >= 0 && monthDiff < 12) {
               yearTotals[11 - monthDiff] += checkin.value || 0;
             }
@@ -212,22 +242,18 @@ export default function StatsScreen() {
 
   const getPeriodLabel = (index) => {
     if (selectedPeriod === 'week') {
-      // Calculate the actual day of the week for each index
-      const today = new Date();
-      const date = new Date(today);
-      date.setDate(date.getDate() - (6 - index)); // 6 is the last day (Sunday), 0 is Monday
-      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      return days[date.getDay()];
+      // Calculate the actual day of the week for each index using the user's timezone
+      const daysBack = 6 - index;
+      const base = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+      return new Intl.DateTimeFormat('en-US', { timeZone: userTimezone, weekday: 'short' }).format(base);
     } else if (selectedPeriod === 'month') {
-      const today = new Date();
-      const date = new Date(today);
-      date.setDate(date.getDate() - (29 - index));
-      return date.getDate().toString();
+      const daysBack = 29 - index;
+      const base = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+      return new Intl.DateTimeFormat('en-US', { timeZone: userTimezone, day: '2-digit' }).format(base);
     } else if (selectedPeriod === 'year') {
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const today = new Date();
-      const monthIndex = (today.getMonth() - 11 + index + 12) % 12;
-      return months[monthIndex];
+      return new Intl.DateTimeFormat('en-US', { timeZone: userTimezone, month: 'short' }).format(
+        new Date(new Date().getFullYear(), new Date().getMonth() - 11 + index, 1)
+      );
     }
     return '';
   };

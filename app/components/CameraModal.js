@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,9 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +22,16 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
   const [hasPermission, setHasPermission] = useState(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStepIndex, setProcessingStepIndex] = useState(0);
+  const processingSteps = [
+    'Preparing photo',
+    'Checking recent scans',
+    'Detecting items in the image',
+    'Estimating container size',
+    'Calculating water content'
+  ];
+  const processingTimerRef = useRef(null);
+  const [processingStatus, setProcessingStatus] = useState('');
   const [capturedImage, setCapturedImage] = useState(null);
   const [detectedDrink, setDetectedDrink] = useState(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -29,6 +42,8 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
   const [isTrialUser, setIsTrialUser] = useState(false);
   const [hydrationTip, setHydrationTip] = useState(null);
   const [remainingScans, setRemainingScans] = useState(null);
+  const [showAmountEditModal, setShowAmountEditModal] = useState(false);
+  const [editAmountValue, setEditAmountValue] = useState('');
 
   // Reset function to clear all state
   const resetModalState = () => {
@@ -314,9 +329,20 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
           setCapturedImage(result.assets[0]);
           setIsCapturing(false);
           setIsProcessing(true);
+          setProcessingStatus('Sending image securely');
           
           // Send to edge function for analysis
           const analysisResult = await analyzeDrinkImage(result.assets[0].base64);
+          // Update status based on cache usage
+          if (analysisResult.success) {
+            if (analysisResult.data?.cached) {
+              setProcessingStatus('Using cached result');
+            } else {
+              setProcessingStatus('Analyzed with Vision + AI');
+            }
+          }
+          // Briefly show final status before proceeding
+          await new Promise((r) => setTimeout(r, 350));
           
           if (analysisResult.success) {
             setDetectedDrink(analysisResult.data);
@@ -337,6 +363,7 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
         setIsCapturing(false);
       } finally {
         setIsProcessing(false);
+        setProcessingStatus('');
       }
     }
   };
@@ -375,6 +402,31 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
     }
   };
 
+  useEffect(() => {
+    if (isProcessing) {
+      // Reset and start advancing through steps
+      setProcessingStepIndex(0);
+      if (processingTimerRef.current) {
+        clearInterval(processingTimerRef.current);
+      }
+      processingTimerRef.current = setInterval(() => {
+        setProcessingStepIndex((prev) => Math.min(prev + 1, processingSteps.length - 1));
+      }, 900);
+    } else {
+      // Clear timer when not processing
+      if (processingTimerRef.current) {
+        clearInterval(processingTimerRef.current);
+        processingTimerRef.current = null;
+      }
+    }
+    return () => {
+      if (processingTimerRef.current) {
+        clearInterval(processingTimerRef.current);
+        processingTimerRef.current = null;
+      }
+    };
+  }, [isProcessing]);
+
   if (hasPermission === null) {
     console.log('CameraModal: Permission is null, returning null');
     return null;
@@ -397,7 +449,11 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
   console.log('CameraModal: Rendering main modal');
   return (
     <Modal visible={visible} animationType="slide">
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={80}
+      >
         <View style={styles.overlay}>
           {/* Header */}
           <View style={styles.header}>
@@ -517,7 +573,21 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
                     {isProcessing && (
                       <View style={styles.processingContainer}>
                         <ActivityIndicator size="large" color="#4FC3F7" />
-                        <Text style={styles.processingText}>Analyzing image...</Text>
+                        {processingStatus ? (
+                          <Text style={[styles.processingText, { marginTop: 8 }]}>{processingStatus}</Text>
+                        ) : null}
+                        <View style={{ marginTop: 10, alignSelf: 'stretch', paddingHorizontal: 8 }}>
+                          {processingSteps.map((label, idx) => (
+                            <View key={label} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+                              <Text style={{ fontSize: 14 }}>
+                                {idx < processingStepIndex ? '✅' : idx === processingStepIndex ? '⏳' : '•'}
+                              </Text>
+                              <Text style={{ marginLeft: 8, fontSize: 14, color: '#000', fontFamily: 'Nunito_400Regular' }}>
+                                {label}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
                       </View>
                     )}
                   </View>
@@ -571,13 +641,8 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
                 <TouchableOpacity
                   style={styles.secondaryButton}
                   onPress={() => {
-                    if (isManualMode) {
-                      setIsManualMode(false);
-                      setCustomAmount('');
-                    } else {
-                      setIsManualMode(true);
-                      setCustomAmount(detectedDrink?.estimatedOz?.toString() || '');
-                    }
+                    setShowAmountEditModal(true);
+                    setEditAmountValue((isManualMode ? customAmount : detectedDrink?.estimatedOz?.toString()) || '');
                   }}
                 >
                   <Text style={styles.secondaryButtonText}>
@@ -617,7 +682,46 @@ export default function CameraModal({ visible, onClose, onDrinkDetected, onOpenM
             </View>
           )}
         </View>
-      </View>
+
+        {/* Edit Amount Modal */}
+        <Modal visible={showAmountEditModal} transparent animationType="fade">
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+              <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 20, alignSelf: 'stretch' }}>
+                <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 18, color: 'black', marginBottom: 12 }}>Edit amount (oz)</Text>
+                <TextInput
+                  style={{ borderWidth: 1, borderColor: '#E5E5E5', borderRadius: 10, padding: 12, fontSize: 16, fontFamily: 'Nunito_400Regular', marginBottom: 16 }}
+                  value={editAmountValue}
+                  onChangeText={setEditAmountValue}
+                  placeholder="Enter ounces"
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
+                  <TouchableOpacity onPress={() => setShowAmountEditModal(false)} style={{ paddingVertical: 10, paddingHorizontal: 16 }}>
+                    <Text style={{ fontFamily: 'Nunito_600SemiBold', color: '#666' }}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      const parsed = parseInt(editAmountValue, 10);
+                      if (!parsed || parsed <= 0) {
+                        Alert.alert('Invalid amount', 'Please enter a valid number of ounces.');
+                        return;
+                      }
+                      setIsManualMode(true);
+                      setCustomAmount(String(parsed));
+                      setShowAmountEditModal(false);
+                    }}
+                    style={{ paddingVertical: 10, paddingHorizontal: 16 }}
+                  >
+                    <Text style={{ fontFamily: 'Nunito_600SemiBold', color: 'black' }}>Save</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

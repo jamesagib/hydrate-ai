@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, SafeAreaView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, SafeAreaView, Platform, ScrollView } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { router } from 'expo-router';
 import OnboardingHeader from '../components/OnboardingHeader';
@@ -56,139 +56,141 @@ export default function OnboardingHeightWeightScreen() {
         progress={50} 
         onBackPress={() => router.push('/onboarding/age')}
       />
-      <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 10 }}>
-        <Text style={{
-          fontFamily: 'Nunito_700Bold',
-          fontSize: 28,
-          color: 'black',
-          marginBottom: 8,
-        }}>
-          Height & weight
-        </Text>
-        <Text style={{
-          fontFamily: 'Nunito_400Regular',
-          fontSize: 16,
-          color: '#666',
-          marginBottom: 32,
-        }}>
-          This will be used to calibrate your custom plan.
-        </Text>
+      <View style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 140 }}>
+          <Text style={{
+            fontFamily: 'Nunito_700Bold',
+            fontSize: 28,
+            color: 'black',
+            marginBottom: 8,
+          }}>
+            Height & weight
+          </Text>
+          <Text style={{
+            fontFamily: 'Nunito_400Regular',
+            fontSize: 16,
+            color: '#666',
+            marginBottom: 32,
+          }}>
+            This will be used to calibrate your custom plan.
+          </Text>
 
-        {/* Segmented Control */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
-          <TouchableOpacity
-            style={{
-              paddingVertical: 8,
-              paddingHorizontal: 24,
-              borderRadius: 20,
-              backgroundColor: unit === 'imperial' ? 'black' : '#F5F5F5',
-              marginRight: 8,
-            }}
-            onPress={() => setUnit('imperial')}
-          >
-            <Text style={{
-              fontFamily: 'Nunito_600SemiBold',
-              fontSize: 16,
-              color: unit === 'imperial' ? 'white' : '#999',
-            }}>
-              Imperial
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={{
-              paddingVertical: 8,
-              paddingHorizontal: 24,
-              borderRadius: 20,
-              backgroundColor: unit === 'metric' ? 'black' : '#F5F5F5',
-            }}
-            onPress={() => setUnit('metric')}
-          >
-            <Text style={{
-              fontFamily: 'Nunito_600SemiBold',
-              fontSize: 16,
-              color: unit === 'metric' ? 'white' : '#999',
-            }}>
-              Metric
-            </Text>
-          </TouchableOpacity>
-        </View>
+          {/* Segmented Control */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+            <TouchableOpacity
+              style={{
+                paddingVertical: 8,
+                paddingHorizontal: 24,
+                borderRadius: 20,
+                backgroundColor: unit === 'imperial' ? 'black' : '#F5F5F5',
+                marginRight: 8,
+              }}
+              onPress={() => setUnit('imperial')}
+            >
+              <Text style={{
+                fontFamily: 'Nunito_600SemiBold',
+                fontSize: 16,
+                color: unit === 'imperial' ? 'white' : '#999',
+              }}>
+                Imperial
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                paddingVertical: 8,
+                paddingHorizontal: 24,
+                borderRadius: 20,
+                backgroundColor: unit === 'metric' ? 'black' : '#F5F5F5',
+              }}
+              onPress={() => setUnit('metric')}
+            >
+              <Text style={{
+                fontFamily: 'Nunito_600SemiBold',
+                fontSize: 16,
+                color: unit === 'metric' ? 'white' : '#999',
+              }}>
+                Metric
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-        {/* Pickers */}
-        {unit === 'imperial' ? (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 40 }}>
-            {/* Height Picker */}
-            <View style={{ flex: 1, alignItems: 'center' }}>
-              <Text style={{ fontFamily: 'Nunito_600SemiBold', fontSize: 16, color: 'black', marginBottom: 8 }}>Height</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {/* Pickers */}
+          {unit === 'imperial' ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 40 }}>
+              {/* Height Picker */}
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <Text style={{ fontFamily: 'Nunito_600SemiBold', fontSize: 16, color: 'black', marginBottom: 8 }}>Height</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Picker
+                    selectedValue={feet}
+                    style={{ width: 90, height: 120 }}
+                    itemStyle={{ fontFamily: 'Nunito_400Regular', fontSize: 18 }}
+                    onValueChange={setFeet}
+                  >
+                    {feetOptions.map((f) => (
+                      <Picker.Item key={f} label={`${f} ft`} value={f} />
+                    ))}
+                  </Picker>
+                  <Picker
+                    selectedValue={inches}
+                    style={{ width: 100, height: 120 }}
+                    itemStyle={{ fontFamily: 'Nunito_400Regular', fontSize: 18 }}
+                    onValueChange={setInches}
+                  >
+                    {inchOptions.map((i) => (
+                      <Picker.Item key={i} label={`${i} in`} value={i} />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+              {/* Weight Picker */}
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <Text style={{ fontFamily: 'Nunito_600SemiBold', fontSize: 16, color: 'black', marginBottom: 8 }}>Weight</Text>
                 <Picker
-                  selectedValue={feet}
-                  style={{ width: 90, height: 120 }}
+                  selectedValue={lb}
+                  style={{ width: 120, height: 120 }}
                   itemStyle={{ fontFamily: 'Nunito_400Regular', fontSize: 18 }}
-                  onValueChange={setFeet}
+                  onValueChange={setLb}
                 >
-                  {feetOptions.map((f) => (
-                    <Picker.Item key={f} label={`${f} ft`} value={f} />
-                  ))}
-                </Picker>
-                <Picker
-                  selectedValue={inches}
-                  style={{ width: 100, height: 120 }}
-                  itemStyle={{ fontFamily: 'Nunito_400Regular', fontSize: 18 }}
-                  onValueChange={setInches}
-                >
-                  {inchOptions.map((i) => (
-                    <Picker.Item key={i} label={`${i} in`} value={i} />
+                  {lbOptions.map((l) => (
+                    <Picker.Item key={l} label={`${l} lb`} value={l} />
                   ))}
                 </Picker>
               </View>
             </View>
-            {/* Weight Picker */}
-            <View style={{ flex: 1, alignItems: 'center' }}>
-              <Text style={{ fontFamily: 'Nunito_600SemiBold', fontSize: 16, color: 'black', marginBottom: 8 }}>Weight</Text>
-              <Picker
-                selectedValue={lb}
-                style={{ width: 120, height: 120 }}
-                itemStyle={{ fontFamily: 'Nunito_400Regular', fontSize: 18 }}
-                onValueChange={setLb}
-              >
-                {lbOptions.map((l) => (
-                  <Picker.Item key={l} label={`${l} lb`} value={l} />
-                ))}
-              </Picker>
+          ) : (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 40 }}>
+              {/* Height Picker */}
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <Text style={{ fontFamily: 'Nunito_600SemiBold', fontSize: 16, color: 'black', marginBottom: 8 }}>Height</Text>
+                <Picker
+                  selectedValue={cm}
+                  style={{ width: 130, height: 120 }}
+                  itemStyle={{ fontFamily: 'Nunito_400Regular', fontSize: 18 }}
+                  onValueChange={setCm}
+                >
+                  {cmOptions.map((c) => (
+                    <Picker.Item key={c} label={`${c} cm`} value={c} />
+                  ))}
+                </Picker>
+              </View>
+              {/* Weight Picker */}
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <Text style={{ fontFamily: 'Nunito_600SemiBold', fontSize: 16, color: 'black', marginBottom: 8 }}>Weight</Text>
+                <Picker
+                  selectedValue={kg}
+                  style={{ width: 130, height: 120 }}
+                  itemStyle={{ fontFamily: 'Nunito_400Regular', fontSize: 18 }}
+                  onValueChange={setKg}
+                >
+                  {kgOptions.map((k) => (
+                    <Picker.Item key={k} label={`${k} kg`} value={k} />
+                  ))}
+                </Picker>
+              </View>
             </View>
-          </View>
-        ) : (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 40 }}>
-            {/* Height Picker */}
-            <View style={{ flex: 1, alignItems: 'center' }}>
-              <Text style={{ fontFamily: 'Nunito_600SemiBold', fontSize: 16, color: 'black', marginBottom: 8 }}>Height</Text>
-              <Picker
-                selectedValue={cm}
-                style={{ width: 130, height: 120 }}
-                itemStyle={{ fontFamily: 'Nunito_400Regular', fontSize: 18 }}
-                onValueChange={setCm}
-              >
-                {cmOptions.map((c) => (
-                  <Picker.Item key={c} label={`${c} cm`} value={c} />
-                ))}
-              </Picker>
-            </View>
-            {/* Weight Picker */}
-            <View style={{ flex: 1, alignItems: 'center' }}>
-              <Text style={{ fontFamily: 'Nunito_600SemiBold', fontSize: 16, color: 'black', marginBottom: 8 }}>Weight</Text>
-              <Picker
-                selectedValue={kg}
-                style={{ width: 130, height: 120 }}
-                itemStyle={{ fontFamily: 'Nunito_400Regular', fontSize: 18 }}
-                onValueChange={setKg}
-              >
-                {kgOptions.map((k) => (
-                  <Picker.Item key={k} label={`${k} kg`} value={k} />
-                ))}
-              </Picker>
-            </View>
-          </View>
-        )}
+          )}
+        </ScrollView>
 
         {/* Continue Button */}
         <View style={{ position: 'absolute', left: 20, right: 20, bottom: 40 }}>

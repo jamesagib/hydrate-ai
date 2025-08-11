@@ -113,16 +113,17 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
           }
         } else {
           // HAS ACCOUNT - Check subscription with error handling
-          let hasActiveSubscription = false;
+          let hasActiveOrTrialSuperwall = false;
           let hasDatabaseSubscription = false;
           
           try {
-            hasActiveSubscription = subscriptionStatus?.status === 'active' || 
-                                  subscriptionStatus?.status === 'ACTIVE' ||
-                                  subscriptionStatus?.status === 'trialing' || 
-                                  subscriptionStatus?.status === 'TRIALING' ||
-                                  subscriptionStatus?.status === 'trial' || 
-                                  subscriptionStatus?.status === 'TRIAL';
+            // Superwall is source of truth for trial; allow 'trial'/'trialing' to unlock during trial period
+            hasActiveOrTrialSuperwall = subscriptionStatus?.status === 'active' || 
+                                        subscriptionStatus?.status === 'ACTIVE' ||
+                                        subscriptionStatus?.status === 'trialing' || 
+                                        subscriptionStatus?.status === 'TRIALING' ||
+                                        subscriptionStatus?.status === 'trial' || 
+                                        subscriptionStatus?.status === 'TRIAL';
           } catch (error) {
             console.error('Error checking Superwall subscription status:', error);
           }
@@ -130,24 +131,15 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
           try {
             // Also check database subscription status as fallback (for TestFlight sandbox issues)
             hasDatabaseSubscription = userProfile?.subscription_status === 'active' || 
-                                    userProfile?.subscription_status === 'ACTIVE' ||
-                                    userProfile?.subscription_status === 'trialing' || 
-                                    userProfile?.subscription_status === 'TRIALING' ||
-                                    userProfile?.subscription_status === 'trial' || 
-                                    userProfile?.subscription_status === 'TRIAL';
+                                    userProfile?.subscription_status === 'ACTIVE';
           } catch (error) {
             console.error('Error checking database subscription status:', error);
           }
           
-          // If subscription status is not available yet (fresh install), 
-          // go to home screen and let Superwall sync in background
-          if (!subscriptionStatus?.status && !hasDatabaseSubscription) {
-            router.replace('/tabs/home');
-          } else if (hasActiveSubscription || hasDatabaseSubscription) {
-            // PAID - go to home (either Superwall or database shows active)
+          // Only allow home when subscription is active (DB) or trial/active via Superwall; otherwise show paywall
+          if (hasActiveOrTrialSuperwall || hasDatabaseSubscription) {
             router.replace('/tabs/home');
           } else {
-            // NO SUBSCRIPTION - go to paywall
             router.replace('/plan-result?showPaywall=true');
           }
         }

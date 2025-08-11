@@ -43,11 +43,21 @@ function parseHydrationPlan(planText) {
 export default function PlanSetupScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [currentStep, setCurrentStep] = useState(0);
+  const steps = [
+    'Verifying account',
+    'Loading your details',
+    'Generating your hydration plan',
+    'Extracting plan insights',
+    'Saving your plan',
+    'Finalizing profile and notifications'
+  ];
 
   useEffect(() => {
     const setup = async () => {
       try {
         // 1. Get user
+        setCurrentStep(0);
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('No user found');
 
@@ -70,6 +80,7 @@ export default function PlanSetupScreen() {
         }
 
         // 3. Load onboarding data for new users
+        setCurrentStep(1);
         const onboarding = await loadOnboardingData();
         console.log('🔍 DEBUG: Loaded onboarding data:', onboarding);
         
@@ -115,15 +126,20 @@ export default function PlanSetupScreen() {
         }
 
         // 4. Call Edge Function to get plan text
+        setCurrentStep(2);
         const { data, error } = await supabase.functions.invoke('generate-hydration-plan', {
           body: { onboarding }
         });
         if (error) throw new Error(error.message);
         const planText = data.plan_text;
+
+        // 4b. Parse plan
+        setCurrentStep(3);
         const parsedPlan = parseHydrationPlan(planText);
         console.log('Parsed plan:', parsedPlan);
 
         // 5. Insert hydration plan
+        setCurrentStep(4);
         const { error: insertError, data: insertData } = await supabase.from('hydration_plans').insert([{
           user_id: user.id,
           daily_goal: parsedPlan.daily_goal,
@@ -137,7 +153,8 @@ export default function PlanSetupScreen() {
         console.log('Insert result:', insertData, insertError);
         if (insertError) throw new Error(insertError.message);
 
-        // 6. Upsert profile
+        // 6. Upsert profile + notifications
+        setCurrentStep(5);
         console.log('Onboarding data for profile:', onboarding);
         
         // Get user's timezone
@@ -183,8 +200,7 @@ export default function PlanSetupScreen() {
         // 7. Save pending push token if user wants coaching
         if (onboarding.wants_coaching) {
           console.log('User wants coaching, saving pending push token...');
-          const tokenSaved = await notificationService.savePendingPushToken();
-          console.log('Pending push token saved:', tokenSaved);
+          await notificationService.savePendingPushToken();
         }
 
         // 8. Navigate to plan result screen
@@ -199,11 +215,23 @@ export default function PlanSetupScreen() {
   }, []);
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F2EFEB' }}>
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F2EFEB', paddingHorizontal: 24 }}>
       <ActivityIndicator size="large" color="black" />
-      <Text style={{ marginTop: 24, fontSize: 18, color: 'black', fontWeight: '600' }}>
-        Creating your personalized plan...
+      <Text style={{ marginTop: 16, fontSize: 18, color: 'black', fontWeight: '700' }}>
+        Setting up your personalized plan
       </Text>
+      <View style={{ marginTop: 16, alignSelf: 'stretch' }}>
+        {steps.map((label, idx) => (
+          <View key={label} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+            <Text style={{ fontSize: 16 }}>
+              {idx < currentStep ? '✅' : idx === currentStep ? '⏳' : '•'}
+            </Text>
+            <Text style={{ marginLeft: 8, fontSize: 16, color: idx <= currentStep ? 'black' : '#999', fontWeight: idx === currentStep ? '600' : '400' }}>
+              {label}
+            </Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 } 

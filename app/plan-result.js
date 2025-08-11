@@ -118,46 +118,20 @@ export default function PlanResultScreen() {
               }
               
               // If not active, wait 2 seconds and try again
-              setTimeout(() => {
-                checkSubscriptionStatus(attempts + 1);
-              }, 2000);
-              
+              setTimeout(() => checkSubscriptionStatus(attempts + 1), 2000);
             } catch (error) {
-              // On error, wait and retry
-              setTimeout(() => {
-                checkSubscriptionStatus(attempts + 1);
-              }, 2000);
+              console.error('Error checking subscription status:', error);
+              setTimeout(() => checkSubscriptionStatus(attempts + 1), 2000);
             }
           };
           
           // Start checking subscription status
-          await checkSubscriptionStatus();
-          
-                 } catch (error) {
-           // If restore fails, show error message
-           setIsProcessingPurchase(false);
-           setPaywallMessage('Error verifying purchase. Please try again or contact support.');
-           setTimeout(() => setPaywallMessage(null), 5000);
-         }
-       }
-       
-       // Fallback: If paywall was dismissed and user has products, navigate to home
-       if (result?.products && result.products.length > 0) {
-         router.replace('/tabs/home');
-       }
-      },
-    onError: (error) => {
-      setPaywallError(error || 'Could not show paywall.');
-      setPaywallMessage('Paywall error');
-      setTimeout(() => setPaywallMessage(null), 2000);
-      
-      // DEVELOPMENT MODE: Allow access even if paywall errors
-      if (__DEV__) {
-        router.replace('/tabs/home');
+          checkSubscriptionStatus();
+        } catch (error) {
+          console.error('Error restoring purchases:', error);
+          setIsProcessingPurchase(false);
+        }
       }
-    },
-    onSkip: (reason) => {
-      // Paywall skipped
     },
   });
 
@@ -199,16 +173,16 @@ export default function PlanResultScreen() {
         console.log('📊 Subscription status:', subscriptionStatus);
         
         // Check if user has active subscription
-        const hasActiveSubscription = subscriptionStatus?.status === 'active' || 
+        const hasActiveOrTrialSuperwall = subscriptionStatus?.status === 'active' || 
                                     subscriptionStatus?.status === 'ACTIVE' ||
                                     subscriptionStatus?.status === 'trialing' || 
                                     subscriptionStatus?.status === 'TRIALING' ||
                                     subscriptionStatus?.status === 'trial' || 
                                     subscriptionStatus?.status === 'TRIAL';
         
-        console.log('🔍 Has active subscription:', hasActiveSubscription);
+        console.log('🔍 Has active or trial (Superwall):', hasActiveOrTrialSuperwall);
         
-        if (hasActiveSubscription) {
+        if (hasActiveOrTrialSuperwall) {
           // User has subscription, go to home
           console.log('✅ User has subscription, going to home');
           // Clear onboarding data only when user successfully completes the flow

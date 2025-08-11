@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, TouchableOpacity, SafeAreaView, ScrollView, TextInput, Image, Modal, StyleSheet, Dimensions, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, SafeAreaView, ScrollView, TextInput, Image, Modal, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
@@ -1013,7 +1013,7 @@ export default function HomeScreen() {
             ]}
           >
             {/* Background Pattern */}
-            <View style={styles.backgroundPattern}>
+            <View style={styles.backgroundPattern} pointerEvents="none">
               <Text style={styles.backgroundEmoji}>💧</Text>
               <Text style={[styles.backgroundEmoji, { position: 'absolute', top: 50, right: 30 }]}>🌊</Text>
               <Text style={[styles.backgroundEmoji, { position: 'absolute', bottom: 100, left: 20 }]}>💦</Text>
@@ -1155,39 +1155,42 @@ export default function HomeScreen() {
 
             {/* Step 3: Custom Amount */}
             {modalStep === 3 && (
-              <View>
-                <View style={styles.stepHeader}>
-                  <Text style={styles.stepTitle}>Enter amount (oz)</Text>
-                </View>
-                
-                <TextInput
-                  style={styles.customInput}
-                  value={customAmount}
-                  onChangeText={setCustomAmount}
-                  placeholder="Enter ounces"
-                  keyboardType="numeric"
-                />
-                
-                <View style={[styles.buttonRow, { marginBottom: 0 }]}>
-                  <TouchableOpacity
-                    style={styles.addButton}
-                    onPress={async () => {
-                      const totalAmount = parseInt(customAmount) || 0;
-                      if (totalAmount > 0) {
-                        // For custom amount, assume it's water (100% water content)
-                        const waterContent = calculateWaterContent('Water', totalAmount);
-                        const success = await addHydrationCheckin(waterContent, 'freeform', 'Water');
-                        if (success) {
-                          setCustomAmount('');
-                          handleCloseModal();
+              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <View>
+                  <View style={styles.stepHeader}>
+                    <Text style={styles.stepTitle}>Enter amount (oz)</Text>
+                  </View>
+                  
+                  <TextInput
+                    style={styles.customInput}
+                    value={customAmount}
+                    onChangeText={setCustomAmount}
+                    placeholder="Enter ounces"
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                  />
+                  
+                  <View style={[styles.buttonRow, { marginBottom: 0 }]}>
+                    <TouchableOpacity
+                      style={styles.addButton}
+                      onPress={async () => {
+                        const totalAmount = parseInt(customAmount) || 0;
+                        if (totalAmount > 0) {
+                          // For custom amount, assume it's water (100% water content)
+                          const waterContent = calculateWaterContent('Water', totalAmount);
+                          const success = await addHydrationCheckin(waterContent, 'freeform', 'Water');
+                          if (success) {
+                            setCustomAmount('');
+                            handleCloseModal();
+                          }
                         }
-                      }
-                    }}
-                  >
-                    <Text style={styles.addButtonText}>Add Water</Text>
-                  </TouchableOpacity>
+                      }}
+                    >
+                      <Text style={styles.addButtonText}>Add Water</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
+              </KeyboardAvoidingView>
             )}
           </Animated.View>
         </View>

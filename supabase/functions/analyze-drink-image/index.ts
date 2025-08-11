@@ -48,6 +48,55 @@ serve(async (req) => {
       )
     }
 
+    // Compute image hash first for cache lookup
+    const imageHash = generateImageHash(image)
+    console.log('Generated image hash:', imageHash);
+
+    // Try lightweight cache check to avoid Vision+GPT cost
+    try {
+      const { data: cacheRow } = await supabase
+        .from('drink_analysis_cache')
+        .select('analysis_result, created_at')
+        .eq('image_hash', imageHash)
+        .single()
+
+      if (cacheRow) {
+        const createdAt = new Date(cacheRow.created_at)
+        const ageMs = Date.now() - createdAt.getTime()
+        const maxAgeMs = 7 * 24 * 60 * 60 * 1000 // 7 days
+        if (ageMs <= maxAgeMs) {
+          // Cache hit: call RPC to increment scan count and enforce limits, but skip Vision/GPT
+          const { data: dbResult, error } = await supabase.rpc('process_drink_analysis', {
+            p_image_hash: imageHash,
+            p_analysis_result: cacheRow.analysis_result, // provide cached result for idempotency
+            p_user_id: userId || null
+          })
+          if (error) {
+            console.error('Database function error (cache path):', error)
+            if ((error as any).code === 'LIMIT_EXCEEDED') {
+              return new Response(
+                JSON.stringify({ 
+                  error: 'Daily scan limit exceeded',
+                  errorType: 'LIMIT_EXCEEDED',
+                  limitExceeded: true
+                }),
+                { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              )
+            }
+            throw error
+          }
+
+          return new Response(
+            JSON.stringify({ ...dbResult.result, cached: true }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+      }
+    } catch (e) {
+      console.log('Cache lookup failed or not found, proceeding to analyze. Error:', e)
+    }
+
+    // Cache miss path → run Vision + GPT
     // Step 1: Analyze image with Google Cloud Vision API
     const visionResult = await analyzeWithVisionAPI(image)
     
@@ -55,8 +104,7 @@ serve(async (req) => {
     const drinkAnalysis = await analyzeWithGPT4(visionResult)
     
     // Step 3: Handle caching and scan counting in a single database call
-    const imageHash = generateImageHash(image)
-    console.log('Generated image hash:', imageHash);
+    // imageHash already computed above
     
     try {
       // Get user's subscription status for limit checking
@@ -83,7 +131,7 @@ serve(async (req) => {
       
       if (error) {
         console.error('Database function error:', error);
-        if (error.code === 'LIMIT_EXCEEDED') {
+        if ((error as any).code === 'LIMIT_EXCEEDED') {
           // Get user's subscription status to show appropriate message
           let errorMessage = 'Bad connection. Please try again later.';
           let errorType = 'LIMIT_EXCEEDED';

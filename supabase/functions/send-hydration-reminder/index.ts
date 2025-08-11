@@ -78,12 +78,8 @@ serve(async (req) => {
         today
       });
       
-      // TEMPORARILY DISABLED: Inactivity notifications to prevent spam
-      // TODO: Fix inactivity logic properly before re-enabling
-      if (isInactive) {
-        console.log(`User ${user.user_id} would be marked as inactive, but inactivity notifications are temporarily disabled`);
-        continue;
-      }
+      // Note: Do NOT skip scheduled reminders for inactive users.
+      // We only limit roast-style nudges separately below.
 
       // Get user's hydration plan
       const { data: plan, error: planError } = await supabase
@@ -138,8 +134,10 @@ serve(async (req) => {
         if (period === 'AM' && targetHour === 12) targetHour = 0
 
         // Check if it's time to send this notification (within a 2-minute window to avoid duplicates)
-        const timeDiff = Math.abs((userLocalHour * 60 + userLocalMinute) - (targetHour * 60 + targetMinute))
-        const shouldSend = timeDiff <= 2 // Send within 2 minutes of target time (reduced from 5)
+        const currentTotalMinutes = userLocalHour * 60 + userLocalMinute
+        const targetTotalMinutes = targetHour * 60 + targetMinute
+        const timeDiff = Math.abs(currentTotalMinutes - targetTotalMinutes)
+        const shouldSend = timeDiff <= 5 // Send within 5 minutes of target time
         
         console.log(`User ${user.user_id} target: ${targetHour}:${targetMinute}, current: ${userLocalHour}:${userLocalMinute}, diff: ${timeDiff} minutes, shouldSend: ${shouldSend}`)
         
@@ -165,15 +163,18 @@ serve(async (req) => {
           console.log(`Found ${existingNotifications?.length || 0} existing notifications for user ${user.user_id} in last 24 hours`)
 
           // Check if any existing notification has the same scheduled time
+          const todayLocalDate = userLocalTime.toDateString()
           const hasExistingNotification = existingNotifications?.some(notification => {
-            const metadata = notification.metadata;
-            const sameTime = metadata && metadata.scheduledTime === timeSlotKey;
-            
-            if (sameTime) {
-              console.log(`Found matching notification: ${notification.id} with scheduledTime: ${metadata?.scheduledTime}`)
+            const metadata = notification.metadata
+            const createdAt = new Date(notification.created_at)
+            const createdAtLocal = new Date(createdAt.toLocaleString('en-US', { timeZone: validTimezone }))
+            const sameLocalDay = createdAtLocal.toDateString() === todayLocalDate
+            const sameTime = metadata && metadata.scheduledTime === timeSlotKey
+            if (sameLocalDay && sameTime) {
+              console.log(`Found matching notification today: ${notification.id} with scheduledTime: ${metadata?.scheduledTime}`)
             }
-            return sameTime;
-          });
+            return sameLocalDay && sameTime
+          })
 
           if (hasExistingNotification) {
             console.log(`Notification already sent recently for user ${user.user_id} at ${timeSlotKey} - SKIPPING`)
@@ -205,17 +206,18 @@ serve(async (req) => {
             hoursSinceLastDrink = Math.floor((Date.now() - lastDrink.getTime()) / (1000 * 60 * 60));
           }
 
-          // Check roast notification limit (max 2 per day)
-          const roastNotifications = existingNotifications?.filter(notification => {
-            const metadata = notification.metadata;
-            return metadata?.templateName?.startsWith('roast_mode_');
-          }) || [];
-          
-          console.log(`User ${user.user_id} has ${roastNotifications.length} roast notifications today`);
-          
-          if (roastNotifications.length >= 2) {
-            console.log(`Roast limit exceeded for user ${user.user_id} - SKIPPING`)
-            continue
+          // Apply roast limit ONLY if current message would be a roast (8+ hrs since last drink and not logged today)
+          const wouldBeRoast = hoursSinceLastDrink >= 8 && !hasLoggedToday
+          if (wouldBeRoast) {
+            const roastNotifications = existingNotifications?.filter(notification => {
+              const metadata = notification.metadata
+              return metadata?.templateName?.startsWith('roast_mode_')
+            }) || []
+            console.log(`User ${user.user_id} has ${roastNotifications.length} roast notifications today`)
+            if (roastNotifications.length >= 2) {
+              console.log(`Roast limit exceeded for user ${user.user_id} - SKIPPING`)
+              continue
+            }
           }
           
           // Calculate current daily consumption
@@ -327,7 +329,8 @@ serve(async (req) => {
                       timeSlot,
                       scheduledTime: `${targetHour}:${targetMinute.toString().padStart(2, '0')}`,
                       type: 'hydration_reminder',
-                      templateName: 'ai_generated'
+                      templateName: 'ai_generated',
+                      dateKey: todayLocalDate
                     }
                   })
 

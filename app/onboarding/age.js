@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, SafeAreaView, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, SafeAreaView, TextInput, ScrollView } from 'react-native';
 import { loadOnboardingData, saveOnboardingData } from '../../lib/onboardingStorage';
 import { router } from 'expo-router';
 import OnboardingHeader from '../components/OnboardingHeader';
@@ -30,8 +30,8 @@ export default function OnboardingAgeScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F2EFEB' }}>
-      <OnboardingHeader progress={25} />
-      <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 10 }}>
+      <OnboardingHeader progress={25} onBackPress={() => router.replace('/onboarding/welcome')} />
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20 }}>
         <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 28, color: 'black', marginBottom: 8 }}>
           Age (optional)
         </Text>
@@ -120,7 +120,7 @@ export default function OnboardingAgeScreen() {
             Continue
           </Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 } 
