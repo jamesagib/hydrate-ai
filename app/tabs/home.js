@@ -39,9 +39,11 @@ export default function HomeScreen() {
   const params = useLocalSearchParams();
   const quickHandledRef = useRef(false);
   const scanHandledRef = useRef(false);
+  const processedOzRef = useRef(false);
   const [hydrationLevel, setHydrationLevel] = useState(50); // 0-100
   const [dailyGoal, setDailyGoal] = useState(80); // oz - will be fetched from DB
   const [currentIntake, setCurrentIntake] = useState(0); // oz - will be calculated from DB
+  const [planTimes, setPlanTimes] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [modalStep, setModalStep] = useState(1);
   const [selectedDrink, setSelectedDrink] = useState(null);
@@ -139,6 +141,9 @@ export default function HomeScreen() {
           if (goalMatch) {
             setDailyGoal(parseInt(goalMatch[1]));
           }
+          if (Array.isArray(homeData.hydration_plan.suggested_logging_times)) {
+            setPlanTimes(homeData.hydration_plan.suggested_logging_times);
+          }
         }
 
         // Set check-ins data
@@ -178,25 +183,44 @@ export default function HomeScreen() {
     fetchUserData();
   }, []);
 
-  useEffect(() => {
-    if (params?.quick === '1') {
-      handleOpenModal();
-    }
-  }, [params?.quick]);
-
-  // Open Quick Log or Scan modal when coming from widget deep link
+  // Handle oz/quick/scan deep links safely (once) and then clear params
   useFocusEffect(
     useCallback(() => {
+      let handled = false;
+
+      const ozRaw = params?.oz;
+      const ozParam = ozRaw ? parseInt(String(ozRaw), 10) : NaN;
+      if (!isNaN(ozParam) && ozParam > 0 && !processedOzRef.current) {
+        processedOzRef.current = true;
+        handled = true;
+        (async () => {
+          const success = await addHydrationCheckin(ozParam, 'widget_quick_add', 'Water');
+          if (success) {
+            writeSharedForWidgets(currentIntake + ozParam, dailyGoal);
+          }
+          // Clear params so we don't re-trigger on re-render
+          try { router.replace('/tabs/home'); } catch {}
+        })();
+      }
+
       if (params?.quick === '1' && !quickHandledRef.current) {
         quickHandledRef.current = true;
+        handled = true;
         handleOpenModal();
+        try { router.replace('/tabs/home'); } catch {}
       }
+
       if (params?.scan === '1' && !scanHandledRef.current) {
         scanHandledRef.current = true;
+        handled = true;
         handleOpenCamera();
+        try { router.replace('/tabs/home'); } catch {}
       }
-      return () => {};
-    }, [params?.quick, params?.scan])
+
+      return () => {
+        if (!handled) return;
+      };
+    }, [params?.oz, params?.quick, params?.scan])
   );
 
   // Function to handle modal step transitions with height animation
@@ -608,15 +632,43 @@ export default function HomeScreen() {
   const writeSharedForWidgets = useCallback((total, goal) => {
     const consumed = Math.round(total);
     const goalRounded = Math.round(goal);
-    const nextMins = 15;
+    const parseTimeToMinutes = (t) => {
+      if (!t || typeof t !== 'string') return null;
+      const s = t.trim();
+      const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+      if (!m) return null;
+      let h = parseInt(m[1], 10);
+      const min = m[2] ? parseInt(m[2], 10) : 0;
+      const period = m[3] ? m[3].toUpperCase() : null;
+      if (period === 'PM' && h !== 12) h += 12;
+      if (period === 'AM' && h === 12) h = 0;
+      return h * 60 + min;
+    };
+    const computeNextMinutesFromPlan = () => {
+      if (!Array.isArray(planTimes) || planTimes.length === 0) return null;
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const slots = planTimes
+        .map((x) => parseTimeToMinutes(x?.time || x?.Time || ''))
+        .filter((v) => typeof v === 'number' && v >= 0 && v < 24 * 60)
+        .sort((a, b) => a - b);
+      if (slots.length === 0) return null;
+      for (let i = 0; i < slots.length; i++) {
+        if (slots[i] >= nowMinutes) return slots[i] - nowMinutes;
+      }
+      // wrap to tomorrow
+      return 24 * 60 - nowMinutes + slots[0];
+    };
+    const nextMins = computeNextMinutesFromPlan() ?? 15;
     try {
       SharedHydrationModule?.write?.(consumed, goalRounded, nextMins);
+      SharedHydrationModule?.forceReload?.();
     } catch {}
     try {
       const url = `water-ai://sync?consumed=${consumed}&goal=${goalRounded}&next=${nextMins}`;
       Linking.openURL(url).catch(() => {});
     } catch {}
-  }, []);
+  }, [planTimes]);
 
   // after fetch set state
   useEffect(() => {

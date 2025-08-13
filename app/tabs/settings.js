@@ -425,6 +425,15 @@ export default function SettingsScreen() {
                         setProfile(prev => ({ ...prev, wants_coaching: newValue }));
                         
                         if (newValue) {
+                          // Ensure we have permissions and saved token when enabling reminders
+                          try {
+                            const granted = await notificationService.requestPermissions();
+                            if (granted) {
+                              await notificationService.savePendingPushToken();
+                            }
+                          } catch (e) {
+                            console.warn('Enabling reminders: failed to register push token', e);
+                          }
                           Alert.alert(
                             'Notifications Enabled',
                             'You\'ll now receive hydration reminders based on your plan!'

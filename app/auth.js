@@ -11,7 +11,7 @@ import {
   Nunito_700Bold,
 } from '@expo-google-fonts/nunito';
 import { router } from 'expo-router';
-import { saveOnboardingData } from '../lib/onboardingStorage';
+import { saveOnboardingData, loadOnboardingData } from '../lib/onboardingStorage';
 
 // Configure Google Signin
 GoogleSignin.configure({
@@ -88,21 +88,46 @@ export default function AuthScreen() {
       
       if (error) throw error;
       if (data.session) {
-        // Check if this is a new user (no existing profile)
-        const { data: existingProfile } = await supabase
-          .from('profiles')
-          .select('name')
-          .eq('user_id', data.session.user.id)
-          .single();
-        
-        if (!existingProfile) {
-          // This is a new user - go to plan setup
+        const userId = data.session.user.id;
+        // Robust existing-user check: profile OR plan exists
+        let isExisting = false;
+        try {
+          const { data: profile, error: profileErr } = await supabase
+            .from('profiles')
+            .select('user_id')
+            .eq('user_id', userId)
+            .single();
+          if (profile) isExisting = true;
+          if (profileErr && profileErr.code !== 'PGRST116') {
+            console.warn('Profile check error:', profileErr);
+          }
+        } catch (e) {
+          console.warn('Profile check exception:', e);
+        }
+        if (!isExisting) {
+          try {
+            const { data: plan } = await supabase
+              .from('hydration_plans')
+              .select('id')
+              .eq('user_id', userId)
+              .limit(1)
+              .maybeSingle?.() || {};
+            if (plan) isExisting = true;
+          } catch {}
+        }
+        if (isExisting) {
+          console.log('Existing user detected (profile or plan), going to home');
+          router.replace('/tabs/home');
+        } else {
+          // Ensure onboarding data is marked completed if present
+          try {
+            const ob = await loadOnboardingData();
+            if (ob && !ob.completed) {
+              await saveOnboardingData({ ...ob, completed: true });
+            }
+          } catch {}
           console.log('New user signed in with Google, going to plan setup');
           router.replace('/plan-setup');
-        } else {
-          // This is an existing user - go directly to home
-          console.log('Existing user signed in with Google, going to home');
-          router.replace('/tabs/home');
         }
         return;
       } else {
@@ -150,30 +175,54 @@ export default function AuthScreen() {
       
       if (data.session) {
         console.log('Apple sign-in successful, session created');
+        const userId = data.session.user.id;
         
-        // Check if this is a new user (no existing profile)
-        const { data: existingProfile } = await supabase
-          .from('profiles')
-          .select('name')
-          .eq('user_id', data.session.user.id)
-          .single();
+        // Check if this is a new user (no existing profile or plan)
+        let isExisting = false;
+        try {
+          const { data: profile, error: profileErr } = await supabase
+            .from('profiles')
+            .select('user_id')
+            .eq('user_id', userId)
+            .single();
+          if (profile) isExisting = true;
+          if (profileErr && profileErr.code !== 'PGRST116') {
+            console.warn('Profile check error:', profileErr);
+          }
+        } catch (e) {
+          console.warn('Profile check exception:', e);
+        }
+        if (!isExisting) {
+          try {
+            const { data: plan } = await supabase
+              .from('hydration_plans')
+              .select('id')
+              .eq('user_id', userId)
+              .limit(1)
+              .maybeSingle?.() || {};
+            if (plan) isExisting = true;
+          } catch {}
+        }
         
-        if (!existingProfile) {
+        if (!isExisting) {
           // This is a new user - try to get name from Apple
           if (fullName && fullName.givenName) {
             const name = `${fullName.givenName}${fullName.familyName ? ` ${fullName.familyName}` : ''}`;
             console.log('Saving Apple provided name for new user:', name);
-            
-            // Save the name to onboarding storage
             await saveOnboardingData({ name });
           } else {
             console.log('No name provided by Apple for new user - will prompt during onboarding');
           }
-          
-          // After sign-in, go to plan setup to generate and show the plan
+          // Ensure onboarding data is marked completed if present
+          try {
+            const ob = await loadOnboardingData();
+            if (ob && !ob.completed) {
+              await saveOnboardingData({ ...ob, completed: true });
+            }
+          } catch {}
           router.replace('/plan-setup');
         } else {
-          // This is an existing user - go directly to home
+          // Existing user
           console.log('Existing user signed in, going to home');
           router.replace('/tabs/home');
         }
@@ -187,8 +236,6 @@ export default function AuthScreen() {
         console.log('User canceled Apple sign-in');
         return;
       }
-      
-      // More specific error handling
       let errorMessage = 'Apple sign-in failed';
       if (e.code === 'ERR_REQUEST_NOT_HANDLED') {
         errorMessage = 'Apple Sign In is not available on this device';
@@ -199,14 +246,7 @@ export default function AuthScreen() {
       } else if (e.message) {
         errorMessage = e.message;
       }
-      
-      // Send error to remote logging service
-      console.error('Apple Auth Error Details:', {
-        code: e.code,
-        message: e.message,
-        fullError: e
-      });
-      
+      console.error('Apple Auth Error Details:', { code: e.code, message: e.message, fullError: e });
       Alert.alert('Apple sign-in error', `${errorMessage}\n\nCode: ${e.code || 'Unknown'}\nMessage: ${e.message || 'No message'}`);
     }
   };

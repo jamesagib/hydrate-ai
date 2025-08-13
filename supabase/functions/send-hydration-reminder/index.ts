@@ -44,7 +44,7 @@ serve(async (req) => {
     for (const user of users) {
       // Check user's recent activity (last 2 weeks)
       const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
-      const today = new Date().toDateString();
+      // const today = new Date().toDateString(); // Not timezone-aware; avoid using for logic
       
       const { data: recentActivity, error: activityError } = await supabase
         .from('hydration_checkins')
@@ -58,13 +58,8 @@ serve(async (req) => {
         continue;
       }
 
-      // Check if user has logged today
-      const hasLoggedToday = recentActivity?.some(checkin => 
-        new Date(checkin.created_at).toDateString() === today
-      );
-
-      // Check if user has been inactive for 2+ weeks AND hasn't logged today
-      const isInactive = (!recentActivity || recentActivity.length === 0) && !hasLoggedToday;
+      // Basic inactivity diagnostics (does not affect sending)
+      const isInactive = (!recentActivity || recentActivity.length === 0);
       const lastActivity = recentActivity && recentActivity.length > 0 
         ? new Date(recentActivity[0].created_at) 
         : null;
@@ -72,10 +67,8 @@ serve(async (req) => {
       // Debug logging for inactivity check
       console.log(`User ${user.user_id} activity check:`, {
         recentActivityCount: recentActivity?.length || 0,
-        hasLoggedToday,
         isInactive,
         lastActivity: lastActivity?.toISOString(),
-        today
       });
       
       // Note: Do NOT skip scheduled reminders for inactive users.
@@ -113,6 +106,7 @@ serve(async (req) => {
       const userLocalTime = new Date(utcTime.toLocaleString("en-US", {timeZone: validTimezone}))
       const userLocalHour = userLocalTime.getHours()
       const userLocalMinute = userLocalTime.getMinutes()
+      const todayLocalDate = userLocalTime.toDateString()
       
       // Debug logging for timezone issues
       console.log(`User ${user.user_id} timezone: ${validTimezone}, current UTC: ${utcTime.toISOString()}, local time: ${userLocalTime.toLocaleString()}, local hour: ${userLocalHour}, local minute: ${userLocalMinute}`)
@@ -121,13 +115,16 @@ serve(async (req) => {
       for (const timeSlot of suggested_logging_times) {
         const { time, oz, note } = timeSlot
         
-        // Parse time (e.g., "7:00 AM" or "08:00")
-        const timeParts = time.match(/(\d+):(\d+)\s*(AM|PM)?/i)
-        if (!timeParts) continue
-
-        let targetHour = parseInt(timeParts[1])
-        const targetMinute = parseInt(timeParts[2])
-        const period = timeParts[3]?.toUpperCase()
+        // Parse time (e.g., "7:00 AM", "7 AM", "19:05", or "7")
+        const trimmed = String(time).trim()
+        const m = trimmed.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i)
+        if (!m) {
+          console.log(`Unrecognized time format for user ${user.user_id}: '${time}'`)
+          continue
+        }
+        let targetHour = parseInt(m[1], 10)
+        const targetMinute = m[2] ? parseInt(m[2], 10) : 0
+        const period = m[3]?.toUpperCase()
 
         // Convert to 24-hour format
         if (period === 'PM' && targetHour !== 12) targetHour += 12
@@ -142,8 +139,6 @@ serve(async (req) => {
         console.log(`User ${user.user_id} target: ${targetHour}:${targetMinute}, current: ${userLocalHour}:${userLocalMinute}, diff: ${timeDiff} minutes, shouldSend: ${shouldSend}`)
         
         if (shouldSend) {
-          // Check if we already sent a notification for this time slot today
-          const today = new Date().toDateString()
           const timeSlotKey = `${targetHour}:${targetMinute.toString().padStart(2, '0')}`
           
           console.log(`Checking for existing notifications for user ${user.user_id} at time slot ${timeSlotKey}`)
@@ -162,8 +157,7 @@ serve(async (req) => {
 
           console.log(`Found ${existingNotifications?.length || 0} existing notifications for user ${user.user_id} in last 24 hours`)
 
-          // Check if any existing notification has the same scheduled time
-          const todayLocalDate = userLocalTime.toDateString()
+          // Check if any existing notification has the same scheduled time (same local day)
           const hasExistingNotification = existingNotifications?.some(notification => {
             const metadata = notification.metadata
             const createdAt = new Date(notification.created_at)
@@ -184,7 +178,7 @@ serve(async (req) => {
           // Check user's recent activity and streak
           const { data: recentCheckins } = await supabase
             .from('hydration_checkins')
-            .select('created_at')
+            .select('created_at, value')
             .eq('user_id', user.user_id)
             .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
@@ -194,10 +188,12 @@ serve(async (req) => {
             .eq('user_id', user.user_id)
             .single();
 
-          // Check if user has logged today
-          const hasLoggedToday = recentCheckins?.some(checkin => 
-            new Date(checkin.created_at).toDateString() === today
-          );
+          // Check if user has logged today (user local day)
+          const hasLoggedToday = recentCheckins?.some(checkin => {
+            const createdAt = new Date(checkin.created_at)
+            const createdAtLocal = new Date(createdAt.toLocaleString('en-US', { timeZone: validTimezone }))
+            return createdAtLocal.toDateString() === todayLocalDate
+          });
 
           // Calculate hours since last drink
           let hoursSinceLastDrink = 24;
@@ -207,7 +203,7 @@ serve(async (req) => {
           }
 
           // Apply roast limit ONLY if current message would be a roast (8+ hrs since last drink and not logged today)
-          const wouldBeRoast = hoursSinceLastDrink >= 8 && !hasLoggedToday
+          const wouldBeRoast = (hoursSinceLastDrink >= 8) && !hasLoggedToday
           if (wouldBeRoast) {
             const roastNotifications = existingNotifications?.filter(notification => {
               const metadata = notification.metadata
@@ -220,16 +216,15 @@ serve(async (req) => {
             }
           }
           
-          // Calculate current daily consumption
+          // Calculate current daily consumption (user local day)
           let currentConsumption = 0;
           if (recentCheckins && plan.daily_goal) {
             const goalMatch = plan.daily_goal.match(/(\d+)/);
             if (goalMatch) {
-              const dailyGoalOz = parseInt(goalMatch[1]);
               currentConsumption = recentCheckins.reduce((sum, checkin) => {
-                const checkinDate = new Date(checkin.created_at);
-                if (checkinDate.toDateString() === today) {
-                  return sum + (checkin.oz || 0);
+                const checkinDateLocal = new Date(new Date(checkin.created_at).toLocaleString('en-US', { timeZone: validTimezone }));
+                if (checkinDateLocal.toDateString() === todayLocalDate) {
+                  return sum + (checkin.value || 0);
                 }
                 return sum;
               }, 0);
@@ -273,7 +268,7 @@ serve(async (req) => {
             } else {
               console.error(`AI notification error for user ${user.user_id}:`, aiError);
               // Fallback to simple message
-              if (hoursSinceLastDrink >= 8 && !hasLoggedToday) {
+              if ((hoursSinceLastDrink >= 8) && !hasLoggedToday) {
                 title = 'Bro, you good? 💧🌵';
                 body = 'Your plants are more hydrated than you';
               } else if (hoursSinceLastDrink >= 4) {

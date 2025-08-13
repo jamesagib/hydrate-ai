@@ -28,12 +28,15 @@ serve(async (req) => {
       data: data || {},
     }
 
+    const expoProjectId = Deno.env.get('EXPO_PROJECT_ID') || undefined
+
     const response = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
         'Accept-encoding': 'gzip, deflate',
         'Content-Type': 'application/json',
+        ...(expoProjectId ? { 'Expo-Project-ID': expoProjectId } : {})
       },
       body: JSON.stringify(message),
     })

@@ -10,14 +10,17 @@
 		0D0A2B7963F3C14C8E4FF49E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 5EAAB6B748EF5E5745945F5B /* PrivacyInfo.xcprivacy */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3E461D99554A48A4959DE609 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* LaunchScreen.storyboard */; };
-		94107C5BFE623FCABD841688 /* libPods-HydrateAI.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 82102E66E9AAE78ABD6D8D7D /* libPods-HydrateAI.a */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		D275EDCC492EF605999A8649 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98BF3F1E2AF8B8AEADF82699 /* ExpoModulesProvider.swift */; };
 		DA128A382E49C901008C7CEC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA128A372E49C901008C7CEC /* WidgetKit.framework */; };
 		DA128A3A2E49C901008C7CEC /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA128A392E49C901008C7CEC /* SwiftUI.framework */; };
 		DA128A492E49C903008C7CEC /* widgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = DA128A362E49C901008C7CEC /* widgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DA128A502E49CB6A008C7CEC /* widgetsExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = DA128A362E49C901008C7CEC /* widgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		DA84831C2E4D295C001D5FF0 /* SharedHydrationModule.m in Sources */ = {isa = PBXBuildFile; fileRef = DA8483192E4D295C001D5FF0 /* SharedHydrationModule.m */; };
+		DA84831D2E4D295C001D5FF0 /* SharedHydrationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA84831B2E4D295C001D5FF0 /* SharedHydrationStore.swift */; };
+		DA84831E2E4D295C001D5FF0 /* SharedHydrationModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA84831A2E4D295C001D5FF0 /* SharedHydrationModule.swift */; };
 		DAE827A12E36C06E003146D5 /* Products.storekit in Resources */ = {isa = PBXBuildFile; fileRef = DAE827A02E36C06E003146D5 /* Products.storekit */; };
+		EDB298204AF3B4EBBB6D77E9 /* libPods-HydrateAI.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8D13AFC32E27061389EDD896 /* libPods-HydrateAI.a */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -60,16 +63,19 @@
 		13B07F961A680F5B00A75B9A /* HydrateAI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HydrateAI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = HydrateAI/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = HydrateAI/Info.plist; sourceTree = "<group>"; };
-		3D42FD63C4BFDBEFBEB6850E /* Pods-HydrateAI.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-HydrateAI.debug.xcconfig"; path = "Target Support Files/Pods-HydrateAI/Pods-HydrateAI.debug.xcconfig"; sourceTree = "<group>"; };
 		5EAAB6B748EF5E5745945F5B /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = HydrateAI/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		82102E66E9AAE78ABD6D8D7D /* libPods-HydrateAI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-HydrateAI.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		85E34D913A34EE068720FD7C /* Pods-HydrateAI.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-HydrateAI.release.xcconfig"; path = "Target Support Files/Pods-HydrateAI/Pods-HydrateAI.release.xcconfig"; sourceTree = "<group>"; };
+		880C6F7880A955BAB1073E76 /* Pods-HydrateAI.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-HydrateAI.debug.xcconfig"; path = "Target Support Files/Pods-HydrateAI/Pods-HydrateAI.debug.xcconfig"; sourceTree = "<group>"; };
+		8D13AFC32E27061389EDD896 /* libPods-HydrateAI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-HydrateAI.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		98BF3F1E2AF8B8AEADF82699 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-HydrateAI/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		9D9787D27EED1496C4AD4275 /* Pods-HydrateAI.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-HydrateAI.release.xcconfig"; path = "Target Support Files/Pods-HydrateAI/Pods-HydrateAI.release.xcconfig"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = HydrateAI/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		DA128A362E49C901008C7CEC /* widgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = widgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		DA128A372E49C901008C7CEC /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		DA128A392E49C901008C7CEC /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		DA8483192E4D295C001D5FF0 /* SharedHydrationModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SharedHydrationModule.m; sourceTree = "<group>"; };
+		DA84831A2E4D295C001D5FF0 /* SharedHydrationModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedHydrationModule.swift; sourceTree = "<group>"; };
+		DA84831B2E4D295C001D5FF0 /* SharedHydrationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedHydrationStore.swift; sourceTree = "<group>"; };
 		DAE827A02E36C06E003146D5 /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Products.storekit; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = HydrateAI/AppDelegate.swift; sourceTree = "<group>"; };
@@ -95,7 +101,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				94107C5BFE623FCABD841688 /* libPods-HydrateAI.a in Frameworks */,
+				EDB298204AF3B4EBBB6D77E9 /* libPods-HydrateAI.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -136,8 +142,8 @@
 		1C41D9F1DE4B0607C09B0718 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				3D42FD63C4BFDBEFBEB6850E /* Pods-HydrateAI.debug.xcconfig */,
-				9D9787D27EED1496C4AD4275 /* Pods-HydrateAI.release.xcconfig */,
+				880C6F7880A955BAB1073E76 /* Pods-HydrateAI.debug.xcconfig */,
+				85E34D913A34EE068720FD7C /* Pods-HydrateAI.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -146,9 +152,9 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				82102E66E9AAE78ABD6D8D7D /* libPods-HydrateAI.a */,
 				DA128A372E49C901008C7CEC /* WidgetKit.framework */,
 				DA128A392E49C901008C7CEC /* SwiftUI.framework */,
+				8D13AFC32E27061389EDD896 /* libPods-HydrateAI.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -163,6 +169,9 @@
 		83CBB9F61A601CBA00E9B192 = {
 			isa = PBXGroup;
 			children = (
+				DA8483192E4D295C001D5FF0 /* SharedHydrationModule.m */,
+				DA84831A2E4D295C001D5FF0 /* SharedHydrationModule.swift */,
+				DA84831B2E4D295C001D5FF0 /* SharedHydrationStore.swift */,
 				DAE827A02E36C06E003146D5 /* Products.storekit */,
 				13B07FAE1A68108700A75B9A /* HydrateAI */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
@@ -210,16 +219,16 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "HydrateAI" */;
 			buildPhases = (
-				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
+				C415F200DBE2EED02DCAC0C5 /* [CP] Check Pods Manifest.lock */,
 				731611D16F25F73E50181ED5 /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
-				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				9ACA7D180C1D17B0E29D36DE /* [CP] Embed Pods Frameworks */,
 				DA128A4A2E49C903008C7CEC /* Embed Foundation Extensions */,
 				DA128A4F2E49CAB0008C7CEC /* Embed App Extensions */,
+				89B698AAC4FF8B8A75F03996 /* [CP] Embed Pods Frameworks */,
+				0915926636419B426F438388 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -325,48 +334,7 @@
 			shellPath = /bin/sh;
 			shellScript = "if [[ -f \"$PODS_ROOT/../.xcode.env\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env\"\nfi\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n# The project root by default is one level up from the ios directory\nexport PROJECT_ROOT=\"$PROJECT_DIR\"/..\n\nif [[ \"$CONFIGURATION\" = *Debug* ]]; then\n  export SKIP_BUNDLING=1\nfi\nif [[ -z \"$ENTRY_FILE\" ]]; then\n  # Set the entry JS file using the bundler's entry resolution.\n  export ENTRY_FILE=\"$(\"$NODE_BINARY\" -e \"require('expo/scripts/resolveAppEntry')\" \"$PROJECT_ROOT\" ios absolute | tail -n 1)\"\nfi\n\nif [[ -z \"$CLI_PATH\" ]]; then\n  # Use Expo CLI\n  export CLI_PATH=\"$(\"$NODE_BINARY\" --print \"require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })\")\"\nfi\nif [[ -z \"$BUNDLE_COMMAND\" ]]; then\n  # Default Expo CLI command for bundling\n  export BUNDLE_COMMAND=\"export:embed\"\nfi\n\n# Source .xcode.env.updates if it exists to allow\n# SKIP_BUNDLING to be unset if needed\nif [[ -f \"$PODS_ROOT/../.xcode.env.updates\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.updates\"\nfi\n# Source local changes to allow overrides\n# if needed\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n`\"$NODE_BINARY\" --print \"require('path').dirname(require.resolve('react-native/package.json')) + '/scripts/react-native-xcode.sh'\"`\n\n";
 		};
-		08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-HydrateAI-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
-		731611D16F25F73E50181ED5 /* [Expo] Configure project */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "[Expo] Configure project";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-HydrateAI/expo-configure-project.sh\"\n";
-		};
-		800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */ = {
+		0915926636419B426F438388 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -428,7 +396,26 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-HydrateAI/Pods-HydrateAI-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		9ACA7D180C1D17B0E29D36DE /* [CP] Embed Pods Frameworks */ = {
+		731611D16F25F73E50181ED5 /* [Expo] Configure project */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "[Expo] Configure project";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-HydrateAI/expo-configure-project.sh\"\n";
+		};
+		89B698AAC4FF8B8A75F03996 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -446,6 +433,28 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-HydrateAI/Pods-HydrateAI-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
+		C415F200DBE2EED02DCAC0C5 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-HydrateAI-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -455,6 +464,9 @@
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
 				D275EDCC492EF605999A8649 /* ExpoModulesProvider.swift in Sources */,
+				DA84831C2E4D295C001D5FF0 /* SharedHydrationModule.m in Sources */,
+				DA84831D2E4D295C001D5FF0 /* SharedHydrationStore.swift in Sources */,
+				DA84831E2E4D295C001D5FF0 /* SharedHydrationModule.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -478,7 +490,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3D42FD63C4BFDBEFBEB6850E /* Pods-HydrateAI.debug.xcconfig */;
+			baseConfigurationReference = 880C6F7880A955BAB1073E76 /* Pods-HydrateAI.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -515,7 +527,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9D9787D27EED1496C4AD4275 /* Pods-HydrateAI.release.xcconfig */;
+			baseConfigurationReference = 85E34D913A34EE068720FD7C /* Pods-HydrateAI.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -675,6 +687,7 @@
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_ENTITLEMENTS = widgets/widgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = dwarf;
@@ -698,7 +711,6 @@
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
 				PRODUCT_BUNDLE_IDENTIFIER = com.hydrate.ai.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				CODE_SIGN_ENTITLEMENTS = widgets/widgets.entitlements;
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -721,6 +733,7 @@
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_ENTITLEMENTS = widgets/widgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 2;
@@ -744,7 +757,6 @@
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
 				PRODUCT_BUNDLE_IDENTIFIER = com.hydrate.ai.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				CODE_SIGN_ENTITLEMENTS = widgets/widgets.entitlements;
 				SKIP_INSTALL = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_EMIT_LOC_STRINGS = YES;

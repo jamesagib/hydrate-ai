@@ -3,7 +3,7 @@ import React
 import ReactAppDependencyProvider
 import WidgetKit
 
-@objc class SharedHydrationStore: NSObject {
+@objc class SharedHydrationAppStore: NSObject {
   static let appGroup = "group.com.hydrate.ai"
   static let key = "hydration_today"
 
@@ -18,6 +18,7 @@ import WidgetKit
     defaults.set(payload, forKey: key)
     defaults.synchronize()
     WidgetCenter.shared.reloadTimelines(ofKind: "com.hydrate.ai.widget")
+    WidgetCenter.shared.reloadAllTimelines()
   }
 }
 
@@ -69,7 +70,7 @@ public class AppDelegate: ExpoAppDelegate {
           if item.name == "goal", let v = item.value, let n = Int(v) { goal = n }
           if item.name == "next", let v = item.value, let n = Int(v) { next = n }
         }
-        SharedHydrationStore.write(consumedOz: NSNumber(value: consumed), goalOz: NSNumber(value: goal), nextDrinkMinutes: next != nil ? NSNumber(value: next!) : nil)
+        SharedHydrationAppStore.write(consumedOz: NSNumber(value: consumed), goalOz: NSNumber(value: goal), nextDrinkMinutes: next != nil ? NSNumber(value: next!) : nil)
         return true
       }
     }
@@ -88,6 +89,8 @@ public class AppDelegate: ExpoAppDelegate {
 }
 
 class ReactNativeDelegate: ExpoReactNativeFactoryDelegate {
+  // Ensure React headers are visible to Swift via bridging header
+
   // Extension point for config-plugins
 
   override func sourceURL(for bridge: RCTBridge) -> URL? {

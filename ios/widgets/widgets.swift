@@ -22,11 +22,20 @@ struct HydrationEntry: TimelineEntry {
 }
 
 private func readShared() -> (consumed: Int, goal: Int, next: Int?)? {
-    let defaults = UserDefaults(suiteName: "group.com.hydrate.ai")
+    // Prefer UserDefaults (updated every write) then file
+    let defaults = UserDefaults(suiteName: "group.com.hydrateai.shared")
     if let dict = defaults?.dictionary(forKey: "hydration_today") {
-        let consumed = dict["consumedOz"] as? Int ?? 0
-        let goal = dict["goalOz"] as? Int ?? 0
-        let next = dict["nextDrinkMinutes"] as? Int
+        let consumed = (dict["consumedOz"] as? NSNumber)?.intValue ?? (dict["consumedOz"] as? Int ?? 0)
+        let goal = (dict["goalOz"] as? NSNumber)?.intValue ?? (dict["goalOz"] as? Int ?? 0)
+        let next = (dict["nextDrinkMinutes"] as? NSNumber)?.intValue ?? (dict["nextDrinkMinutes"] as? Int)
+        return (consumed, goal, next)
+    }
+    if let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.hydrateai.shared")?.appendingPathComponent("hydration_today.json"),
+       let data = try? Data(contentsOf: url),
+       let dict = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+        let consumed = (dict["consumedOz"] as? NSNumber)?.intValue ?? (dict["consumedOz"] as? Int ?? 0)
+        let goal = (dict["goalOz"] as? NSNumber)?.intValue ?? (dict["goalOz"] as? Int ?? 0)
+        let next = (dict["nextDrinkMinutes"] as? NSNumber)?.intValue ?? (dict["nextDrinkMinutes"] as? Int)
         return (consumed, goal, next)
     }
     return nil
@@ -58,7 +67,11 @@ struct HydrationProvider: TimelineProvider {
 // MARK: - Views
 struct HydrationWidgetView: View {
     @Environment(\.widgetFamily) var family
+    @Environment(\.colorScheme) var colorScheme
     let entry: HydrationEntry
+
+    private var trackOpacity: Double { colorScheme == .dark ? 0.28 : 0.18 }
+    private var chipOpacity: Double { colorScheme == .dark ? 0.28 : 0.18 }
 
     var body: some View {
         switch family {
@@ -88,10 +101,10 @@ struct HydrationWidgetView: View {
         case .systemSmall:
             VStack(spacing: 8) {
                 ZStack {
-                    Circle().stroke(Color(.systemTeal).opacity(0.2), lineWidth: 8)
+                    Circle().stroke(Color.teal.opacity(trackOpacity), lineWidth: 8)
                     Circle()
                         .trim(from: 0, to: CGFloat(entry.percent) / 100)
-                        .stroke(LinearGradient(colors: [Color(#colorLiteral(red: 0.168, green: 0.753, blue: 0.894, alpha: 1)), Color(#colorLiteral(red: 0.11, green: 0.82, blue: 0.63, alpha: 1))], startPoint: .topLeading, endPoint: .bottomTrailing), style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                        .stroke(LinearGradient(colors: [Color.teal, Color.green], startPoint: .topLeading, endPoint: .bottomTrailing), style: StrokeStyle(lineWidth: 8, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                     VStack(spacing: 2) {
                         Text("\(entry.percent)%").font(.system(size: 20, weight: .bold))
@@ -116,34 +129,40 @@ struct HydrationWidgetView: View {
                     }
                 }
                 Spacer()
-                VStack(alignment: .trailing, spacing: 6) {
-                    Label("+8 oz", systemImage: "plus.circle.fill").font(.system(size: 13, weight: .semibold))
-                    Label("+16 oz", systemImage: "plus.circle.fill").font(.system(size: 13, weight: .semibold))
+                VStack(alignment: .trailing, spacing: 8) {
+                    Link(destination: URL(string: "water-ai://tabs/home?oz=8")!) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus.circle.fill").font(.system(size: 14, weight: .semibold))
+                            Text("+8 oz").font(.system(size: 13, weight: .semibold))
+                        }
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 10)
+                        .background(Color.teal.opacity(chipOpacity))
+                        .clipShape(Capsule())
+                    }
+                    Link(destination: URL(string: "water-ai://tabs/home?oz=16")!) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus.circle.fill").font(.system(size: 14, weight: .semibold))
+                            Text("+16 oz").font(.system(size: 13, weight: .semibold))
+                        }
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 10)
+                        .background(Color.teal.opacity(chipOpacity))
+                        .clipShape(Capsule())
+                    }
+                    Link(destination: URL(string: "water-ai://tabs/home?scan=1")!) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "magnifyingglass").font(.system(size: 14, weight: .semibold))
+                            Text("Log Drink").font(.system(size: 13, weight: .semibold))
+                        }
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 10)
+                        .background(Color.teal.opacity(chipOpacity))
+                        .clipShape(Capsule())
+                    }
                 }
             }
-            .widgetURL(URL(string: "water-ai://tabs/home?scan=1"))
             .padding(.horizontal, 8)
-        case .systemLarge:
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Today").font(.system(size: 14, weight: .semibold))
-                ProgressView(value: Double(entry.percent) / 100.0) {
-                    Text("Hydration").font(.system(size: 13, weight: .semibold))
-                } currentValueLabel: {
-                    Text("\(entry.percent)%")
-                }
-                HStack {
-                    Label("Water", systemImage: "drop.fill")
-                    Spacer()
-                    Text("\(entry.consumedOz) oz")
-                }.font(.system(size: 12))
-                Spacer(minLength: 0)
-                HStack {
-                    Image(systemName: "flame.fill")
-                    Text("Streak: 5 days")
-                }.font(.system(size: 13, weight: .semibold))
-            }
-            .padding(.horizontal, 10)
-            .widgetURL(URL(string: "hydrate-ai://tabs/stats"))
         default:
             Text("Hydrate AI")
         }
@@ -160,7 +179,57 @@ struct HydrationWidget: Widget {
         }
         .configurationDisplayName("Hydration Progress")
         .description("See progress and your next reminder.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular])
+    }
+}
+
+// MARK: - Quick Log Widget
+struct LogEntry: TimelineEntry { let date: Date }
+
+struct QuickLogProvider: TimelineProvider {
+    func placeholder(in context: Context) -> LogEntry { LogEntry(date: Date()) }
+    func getSnapshot(in context: Context, completion: @escaping (LogEntry) -> Void) { completion(LogEntry(date: Date())) }
+    func getTimeline(in context: Context, completion: @escaping (Timeline<LogEntry>) -> Void) {
+        completion(Timeline(entries: [LogEntry(date: Date())], policy: .after(Date().addingTimeInterval(3600))))
+    }
+}
+
+struct QuickLogView: View {
+    @Environment(\.widgetFamily) var family
+    var body: some View {
+        switch family {
+        case .accessoryRectangular:
+            HStack(spacing: 8) {
+                Image(systemName: "camera.viewfinder")
+                Text("Log Drink").font(.system(size: 13, weight: .semibold))
+                Spacer(minLength: 0)
+            }
+        case .accessoryCircular:
+            ZStack {
+                Image(systemName: "camera.viewfinder")
+                    .font(.system(size: 14, weight: .semibold))
+            }
+        case .accessoryInline:
+            Text("Log Drink")
+        default:
+            VStack(spacing: 6) {
+                Image(systemName: "camera.viewfinder").font(.system(size: 28, weight: .bold))
+                Text("Log Drink").font(.system(size: 13, weight: .semibold))
+            }
+        }
+    }
+}
+
+struct LogDrinkWidget: Widget {
+    let kind: String = "com.hydrate.ai.widget.quicklog"
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: QuickLogProvider()) { _ in
+            QuickLogView()
+                .widgetURL(URL(string: "water-ai://tabs/home?scan=1"))
+        }
+        .configurationDisplayName("Log Drink")
+        .description("Open the camera to scan or add manually.")
+        .supportedFamilies([.systemSmall, .accessoryRectangular, .accessoryCircular, .accessoryInline])
     }
 }
 

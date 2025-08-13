@@ -128,6 +128,16 @@ export default function RootLayout() {
           await SecureStore.setItemAsync('supabase_session', session.access_token);
           await SecureStore.setItemAsync('supabase_refresh_token', session.refresh_token);
           console.log('Session tokens saved to SecureStore');
+
+          // Ensure we have push permissions and a stored Expo token for this user
+          try {
+            const granted = await notificationService.requestPermissions();
+            if (granted) {
+              await notificationService.savePendingPushToken();
+            }
+          } catch (e) {
+            console.warn('Push token registration after sign-in failed:', e);
+          }
         } else if (event === 'SIGNED_OUT') {
           // Clear session tokens
           await SecureStore.deleteItemAsync('supabase_session');
