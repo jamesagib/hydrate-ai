@@ -80,11 +80,15 @@ Emoji guidelines:
 - Body: No emojis (keep clean)
 - Description: Use exactly 1 emoji
 
+STRICT LENGTH RULES:
+- Body MUST be a single concise sentence, max ~120 characters. No line breaks. No lists. Plain text.
+- Description MUST be a single short sentence (<= 80 chars) with exactly 1 emoji.
+
 Format your response as JSON:
 {
   "title": "Title with 2 emojis max",
-  "body": "Body message without emojis",
-  "description": "Description with 1 emoji"
+  "body": "One-sentence body (<=120 chars)",
+  "description": "One short sentence (<=80 chars) with 1 emoji"
 }`
 
     const userPrompt = `Generate a ${tone} hydration notification for: ${context}`
@@ -101,8 +105,8 @@ Format your response as JSON:
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        max_tokens: 150,
-        temperature: 0.8
+        max_tokens: 70,
+        temperature: 0.7
       })
     })
 
@@ -132,12 +136,26 @@ Format your response as JSON:
       };
     }
 
+    // Enforce one-sentence body and concise description
+    const toOneSentence = (text: string, max: number) => {
+      if (!text) return ''
+      const cleaned = text.replace(/\n+/g, ' ').trim()
+      const match = cleaned.match(/^[^.!?]+[.!?]?/)
+      let sentence = match ? match[0].trim() : cleaned
+      if (sentence.length > max) sentence = sentence.slice(0, max - 1).trimEnd() + '…'
+      return sentence
+    }
+
+    const title = parsedResponse.title || 'HydrateAI 💧'
+    const body = toOneSentence(parsedResponse.body || '', 120) || 'Time to hydrate!'
+    const description = toOneSentence(parsedResponse.description || 'Time to hydrate! 💪', 80)
+
     return new Response(
       JSON.stringify({
         success: true,
-        title: parsedResponse.title || 'HydrateAI 💧',
-        body: parsedResponse.body || aiResponse,
-        description: parsedResponse.description || 'Time to hydrate! 💪',
+        title,
+        body,
+        description,
         tone,
         context
       }),

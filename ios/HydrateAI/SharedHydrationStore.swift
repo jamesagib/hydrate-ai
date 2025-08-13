@@ -16,6 +16,7 @@ import WidgetKit
         defaults.set(payload, forKey: key)
         defaults.synchronize()
         WidgetCenter.shared.reloadTimelines(ofKind: "com.hydrate.ai.widget")
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     static func read() -> (consumed: Int, goal: Int, next: Int?)? {

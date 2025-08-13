@@ -137,7 +137,7 @@ serve(async (req) => {
         const currentTotalMinutes = userLocalHour * 60 + userLocalMinute
         const targetTotalMinutes = targetHour * 60 + targetMinute
         const timeDiff = Math.abs(currentTotalMinutes - targetTotalMinutes)
-        const shouldSend = timeDiff <= 5 // Send within 5 minutes of target time
+        const shouldSend = timeDiff <= 10 // Send within 10 minutes of target time
         
         console.log(`User ${user.user_id} target: ${targetHour}:${targetMinute}, current: ${userLocalHour}:${userLocalMinute}, diff: ${timeDiff} minutes, shouldSend: ${shouldSend}`)
         

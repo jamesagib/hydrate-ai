@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, SafeAreaView, ScrollView, TextInput, Image, Modal, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, KeyboardAvoidingView, Platform, NativeModules } from 'react-native';
+import { View, Text, TouchableOpacity, SafeAreaView, ScrollView, TextInput, Image, Modal, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, KeyboardAvoidingView, Platform, NativeModules, Linking } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
@@ -606,12 +606,16 @@ export default function HomeScreen() {
   };
 
   const writeSharedForWidgets = useCallback((total, goal) => {
+    const consumed = Math.round(total);
+    const goalRounded = Math.round(goal);
+    const nextMins = 15;
     try {
-      const nextMins = 15; // TODO: replace with real next reminder minutes
-      SharedHydrationModule?.write?.(Math.round(total), Math.round(goal), nextMins);
-    } catch (e) {
-      console.log('SharedHydration write error', e);
-    }
+      SharedHydrationModule?.write?.(consumed, goalRounded, nextMins);
+    } catch {}
+    try {
+      const url = `water-ai://sync?consumed=${consumed}&goal=${goalRounded}&next=${nextMins}`;
+      Linking.openURL(url).catch(() => {});
+    } catch {}
   }, []);
 
   // after fetch set state

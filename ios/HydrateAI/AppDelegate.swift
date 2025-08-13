@@ -48,9 +48,6 @@ public class AppDelegate: ExpoAppDelegate {
       launchOptions: launchOptions)
 #endif
 
-    // Seed shared hydration store with placeholder (replace with real writes after logging)
-    SharedHydrationStore.write(consumedOz: 40, goalOz: 64, nextDrinkMinutes: 15)
-
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
@@ -60,6 +57,22 @@ public class AppDelegate: ExpoAppDelegate {
     open url: URL,
     options: [UIApplication.OpenURLOptionsKey: Any] = [:]
   ) -> Bool {
+    // Handle widget sync deep link: water-ai://sync?consumed=..&goal=..&next=..
+    if url.scheme == "water-ai" {
+      let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
+      if comps?.host == "sync" {
+        var consumed: Int = 0
+        var goal: Int = 0
+        var next: Int? = nil
+        comps?.queryItems?.forEach { item in
+          if item.name == "consumed", let v = item.value, let n = Int(v) { consumed = n }
+          if item.name == "goal", let v = item.value, let n = Int(v) { goal = n }
+          if item.name == "next", let v = item.value, let n = Int(v) { next = n }
+        }
+        SharedHydrationStore.write(consumedOz: NSNumber(value: consumed), goalOz: NSNumber(value: goal), nextDrinkMinutes: next != nil ? NSNumber(value: next!) : nil)
+        return true
+      }
+    }
     return super.application(app, open: url, options: options) || RCTLinkingManager.application(app, open: url, options: options)
   }
 

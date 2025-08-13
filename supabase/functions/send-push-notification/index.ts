@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,6 +44,33 @@ serve(async (req) => {
       throw new Error(`Expo push notification failed: ${JSON.stringify(result)}`)
     }
 
+    // Handle Expo response and prune invalid tokens
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+    const handleError = async (err: any) => {
+      const code = err?.details?.error || err?.errors?.[0]?.code || err?.error
+      if (code === 'DeviceNotRegistered' || code === 'InvalidCredentials' || code === 'MessageTooBig' || code === 'ExpoTokenInvalid') {
+        // Null the bad token so we stop trying
+        await supabase.from('profiles').update({ push_token: null }).eq('push_token', token)
+      }
+    }
+
+    // v2 API can return { data: { status: 'ok'|'error', ... } } or { data: [{...}] }
+    const dataField = (result && result.data) || null
+    if (Array.isArray(dataField)) {
+      for (const item of dataField) {
+        if (item?.status === 'error') {
+          await handleError(item)
+        }
+      }
+    } else if (dataField && typeof dataField === 'object') {
+      if (dataField.status === 'error') {
+        await handleError(dataField)
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -57,7 +85,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error sending push notification:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: (error as Error).message }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
