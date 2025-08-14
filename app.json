@@ -2,7 +2,7 @@
   "expo": {
     "name": "Water AI",
     "slug": "hydrate-ai",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hydrate.ai",
-      "buildNumber": "6",
+      "buildNumber": "1",
       "usesAppleSignIn": true,
       "icon": "./assets/icon.png",
       "entitlements": {
