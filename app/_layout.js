@@ -31,125 +31,7 @@ function QuickActionHandler() {
   const router = useRouter();
   
   // Handle quick action routing with subscription check
-  useEffect(() => {
-    const handleQuickAction = async (event) => {
-      console.log('Quick action received:', event);
-      
-      const rawId = event?.id || '';
-      const actionId = rawId.split('.').pop(); // supports fully-qualified ids
-      const href = event?.params?.href || event?.userInfo?.href || event?.href || null;
-
-      // Check if this is the log-water action that requires subscription
-      if (actionId === 'log-water') {
-        try {
-          // Get subscription status from database instead of Superwall hook
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('subscription_status')
-              .eq('user_id', user.id)
-              .single();
-            
-            const hasActiveSubscription = profile?.subscription_status === 'active';
-            
-            if (hasActiveSubscription) {
-              console.log('User has active subscription, allowing access to log water');
-              // Navigate directly to scan on home
-              router.push(href || '/tabs/home?scan=1');
-            } else {
-              console.log('User does not have active subscription, showing alert');
-              Alert.alert(
-                'Premium Feature',
-                'Quick water logging is available for premium users. Upgrade to unlock this feature!',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Upgrade', onPress: () => router.push('/tabs/settings') }
-                ]
-              );
-            }
-          }
-        } catch (error) {
-          console.error('Error checking subscription status:', error);
-          // On error, allow access (fail open)
-          router.push(href || '/tabs/home?scan=1');
-        }
-      } else {
-        // For other actions, just navigate
-        const fallbackHref = actionId === 'stats' ? '/tabs/stats'
-                           : actionId === 'settings' ? '/tabs/settings'
-                            : null;
-        if (href || fallbackHref) {
-          router.push(href || fallbackHref);
-        } else if (actionId === 'feedback') {
-          Linking.openURL('https://x.com/agibjames').catch(() => {});
-        }
-      }
-    };
-
-    // Set up listener for quick action events
-    const setupListener = async () => {
-      try {
-        const QuickActions = await import('expo-quick-actions');
-        
-        // Check if QuickActions is available
-        if (!QuickActions || !QuickActions.default) {
-          console.log('⚠️ QuickActions not available, skipping setup');
-          return () => {};
-        }
-        
-        // Wait for auth/subscription readiness before handling initial action
-        const waitForAuthReady = async () => {
-          try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) return;
-          } catch {}
-          await new Promise((resolve) => {
-            let unsub = null;
-            try {
-              const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-                if (event === 'SIGNED_IN') {
-                  try { subscription.unsubscribe(); } catch {}
-                  resolve();
-                }
-              });
-              unsub = subscription;
-            } catch {}
-            setTimeout(() => {
-              try { unsub?.unsubscribe?.(); } catch {}
-              resolve();
-            }, 2000);
-          });
-        };
-        
-        // Handle cold-start quick action after auth is ready
-        try {
-          await waitForAuthReady();
-          const initial = await QuickActions.default.getInitialActionAsync?.();
-          if (initial) {
-            await handleQuickAction(initial);
-          }
-        } catch (e) {
-          console.log('Quick actions initial check failed:', e?.message || e);
-        }
-        
-        // Set up the listener for subsequent quick actions
-        const subscription = QuickActions.default.addListener(handleQuickAction);
-        
-        console.log('✅ Quick actions listener set up successfully');
-        
-        return () => {
-          subscription?.remove();
-        };
-      } catch (error) {
-        console.error('❌ Error setting up quick actions listener:', error);
-        return () => {};
-      }
-    };
-
-    setupListener();
-  }, [router]);
-
+    // Quick actions temporarily disabled to avoid startup issues
   return null;
 }
 
@@ -271,7 +153,6 @@ export default function RootLayout() {
       <LoadingProvider>
         <SafeAreaProvider>
           <GestureHandlerRootView style={{ flex: 1 }}>
-            <QuickActionHandler />
             <SuperwallDelegateSetup />
             <SuperwallDeepLinkHandler />
             <Slot />

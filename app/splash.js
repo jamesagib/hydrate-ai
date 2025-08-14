@@ -147,26 +147,6 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
             ? '/tabs/home'
             : '/plan-result?showPaywall=true';
 
-          // After auth/subscription ready, honor initial quick action if any
-          try {
-            const QuickActions = await import('expo-quick-actions');
-            const initial = await QuickActions.default.getInitialActionAsync?.();
-            if (initial) {
-              const rawId = initial?.id || '';
-              const actionId = rawId.split('.').pop();
-              const href = initial?.params?.href || initial?.userInfo?.href || initial?.href || null;
-              if (initial.id === 'log-water') {
-                // Only allow scan if subscription/trial is active
-                if (hasActiveOrTrialSuperwall || hasDatabaseSubscription) {
-                  destination = href || '/tabs/home?scan=1';
-                }
-              } else if (actionId === 'stats') {
-                destination = href || '/tabs/stats';
-              } else if (actionId === 'settings') {
-                destination = href || '/tabs/settings';
-              }
-            }
-          } catch {}
 
           // Avoid timing race with router setup on cold start
           setTimeout(() => { try { router.replace(destination); } catch {} }, 0);
