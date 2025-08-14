@@ -132,8 +132,8 @@ export default function RootLayout() {
 
 
 
-  // Show splash screen until fonts are loaded AND app is initialized
-  const showSplash = !fontsLoaded || !appInitialized;
+  // Show splash screen until app is initialized (splash screen handles font loading internally)
+  const showSplash = !appInitialized;
 
   // Debug: Check if Superwall API key is available
   const superwallApiKey = process.env.EXPO_PUBLIC_SUPERWALL_API_KEY;

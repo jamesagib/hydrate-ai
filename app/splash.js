@@ -24,7 +24,8 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
   }
 
   useEffect(() => {
-    if (!fontsLoaded) return;
+    // Start initialization even if fonts aren't loaded yet
+    // Fonts will load in the background while we initialize the app
     
     // Safety timeout: if we haven't routed within 10s, show fallback modal
     const timeout = setTimeout(() => {
@@ -165,7 +166,7 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
       }
     };
 
-    // Start immediately when fonts are loaded
+    // Start immediately (don't wait for fonts)
     initializeApp();
     
     return () => clearTimeout(timeout);
@@ -185,7 +186,7 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
     }
   };
 
-  if (!fontsLoaded || loading) {
+  if (loading) {
     return (
       <View style={styles.container}>
         <Image 
@@ -193,19 +194,36 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
           style={styles.logo}
           resizeMode="contain"
         />
-        <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 30, color: 'black' }}>Water AI</Text>
+        <Text style={[
+          { fontSize: 30, color: 'black' },
+          fontsLoaded ? { fontFamily: 'Nunito_700Bold' } : { fontWeight: 'bold' }
+        ]}>
+          Water AI
+        </Text>
 
         <Modal visible={showUhOh} transparent animationType="fade" onRequestClose={() => setShowUhOh(false)}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Uh oh!</Text>
-              <Text style={styles.modalText}>Something took too long. You can logout or contact the founder on X.</Text>
+              <Text style={[
+                styles.modalTitle,
+                fontsLoaded ? { fontFamily: 'Nunito_700Bold' } : { fontWeight: 'bold' }
+              ]}>Uh oh!</Text>
+              <Text style={[
+                styles.modalText,
+                fontsLoaded ? { fontFamily: 'Nunito_400Regular' } : {}
+              ]}>Something took too long. You can logout or contact the founder on X.</Text>
               <View style={styles.modalButtons}>
                 <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                  <Text style={styles.logoutButtonText}>Logout</Text>
+                  <Text style={[
+                    styles.logoutButtonText,
+                    fontsLoaded ? { fontFamily: 'Nunito_600SemiBold' } : { fontWeight: '600' }
+                  ]}>Logout</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.primaryButton} onPress={() => Linking.openURL('https://x.com/agibjames').catch(() => {})}>
-                  <Text style={styles.primaryButtonText}>Contact on X</Text>
+                  <Text style={[
+                    styles.primaryButtonText,
+                    fontsLoaded ? { fontFamily: 'Nunito_600SemiBold' } : { fontWeight: '600' }
+                  ]}>Contact on X</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -222,7 +240,10 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
         style={styles.logo}
         resizeMode="contain"
       />
-      <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 30 }}>Water AI</Text>
+      <Text style={[
+        { fontSize: 30 },
+        fontsLoaded ? { fontFamily: 'Nunito_700Bold' } : { fontWeight: 'bold' }
+      ]}>Water AI</Text>
     </View>
   );
 }
