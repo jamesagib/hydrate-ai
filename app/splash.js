@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet, Modal, TouchableOpacity, Linking, Alert } from 'react-native';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { supabase } from '../lib/supabase';
@@ -11,6 +11,7 @@ import { loadOnboardingData } from '../lib/onboardingStorage';
 
 export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
   const [loading, setLoading] = useState(true);
+  const [showUhOh, setShowUhOh] = useState(false);
   
   // Add error handling for Superwall hook
   let subscriptionStatus = null;
@@ -25,6 +26,11 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
   useEffect(() => {
     if (!fontsLoaded) return;
     
+    // Safety timeout: if we haven't routed within 10s, show fallback modal
+    const timeout = setTimeout(() => {
+      if (loading) setShowUhOh(true);
+    }, 10000);
+
     const initializeApp = async () => {
       try {
         console.log('Starting app initialization...');
@@ -171,6 +177,7 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
         // On error, go to welcome screen
         router.replace('/onboarding/welcome');
       } finally {
+        clearTimeout(timeout);
         setLoading(false);
         if (onAppInitialized) {
           onAppInitialized();
@@ -181,7 +188,22 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
     // Start immediately when fonts are loaded
     initializeApp();
     
+    return () => clearTimeout(timeout);
+    
   }, [fontsLoaded, subscriptionStatus]);
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      await SecureStore.deleteItemAsync('supabase_session');
+      await SecureStore.deleteItemAsync('supabase_refresh_token');
+      router.replace('/onboarding/welcome');
+    } catch (e) {
+      Alert.alert('Error', 'Failed to logout. Please try again.');
+    } finally {
+      setShowUhOh(false);
+    }
+  };
 
   if (!fontsLoaded || loading) {
     return (
@@ -192,6 +214,23 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
           resizeMode="contain"
         />
         <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 30, color: 'black' }}>Water AI</Text>
+
+        <Modal visible={showUhOh} transparent animationType="fade" onRequestClose={() => setShowUhOh(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Uh oh!</Text>
+              <Text style={styles.modalText}>Something took too long. You can logout or contact the founder on X.</Text>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                  <Text style={styles.logoutButtonText}>Logout</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.primaryButton} onPress={() => Linking.openURL('https://x.com/agibjames').catch(() => {})}>
+                  <Text style={styles.primaryButtonText}>Contact on X</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     );
   }
@@ -219,5 +258,64 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     marginBottom: 24,
+  },
+  // Reuse Settings button styles
+  primaryButton: {
+    backgroundColor: '#4FC3F7',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontFamily: 'Nunito_600SemiBold',
+  },
+  logoutButton: {
+    backgroundColor: 'transparent',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FF6B6B',
+  },
+  logoutButtonText: {
+    color: '#FF6B6B',
+    fontSize: 16,
+    fontFamily: 'Nunito_600SemiBold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: 'Nunito_700Bold',
+    color: 'black',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalText: {
+    fontSize: 14,
+    fontFamily: 'Nunito_400Regular',
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
   },
 }); 
