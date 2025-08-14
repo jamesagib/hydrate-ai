@@ -137,11 +137,29 @@ export default function SplashScreen({ fontsLoaded, onAppInitialized }) {
           }
           
           // Only allow home when subscription is active (DB) or trial/active via Superwall; otherwise show paywall
-          if (hasActiveOrTrialSuperwall || hasDatabaseSubscription) {
-            router.replace('/tabs/home');
-          } else {
-            router.replace('/plan-result?showPaywall=true');
-          }
+          let destination = (hasActiveOrTrialSuperwall || hasDatabaseSubscription)
+            ? '/tabs/home'
+            : '/plan-result?showPaywall=true';
+
+          // After auth/subscription ready, honor initial quick action if any
+          try {
+            const QuickActions = await import('expo-quick-actions');
+            const initial = await QuickActions.default.getInitialActionAsync?.();
+            if (initial) {
+              if (initial.id === 'log-water') {
+                // Only allow scan if subscription/trial is active
+                if (hasActiveOrTrialSuperwall || hasDatabaseSubscription) {
+                  destination = '/tabs/home?scan=1';
+                }
+              } else if (initial.id === 'stats') {
+                destination = '/tabs/stats';
+              } else if (initial.id === 'settings') {
+                destination = '/tabs/settings';
+              }
+            }
+          } catch {}
+
+          router.replace(destination);
         }
         
       } catch (error) {

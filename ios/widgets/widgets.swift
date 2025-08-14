@@ -133,7 +133,7 @@ struct HydrationWidgetView: View {
                     Link(destination: URL(string: "water-ai://tabs/home?oz=8")!) {
                         HStack(spacing: 6) {
                             Image(systemName: "plus.circle.fill").font(.system(size: 14, weight: .semibold))
-                            Text("+8 oz").font(.system(size: 13, weight: .semibold))
+                            Text("Add 8oz").font(.system(size: 13, weight: .semibold))
                         }
                         .padding(.vertical, 6)
                         .padding(.horizontal, 10)
@@ -143,7 +143,7 @@ struct HydrationWidgetView: View {
                     Link(destination: URL(string: "water-ai://tabs/home?oz=16")!) {
                         HStack(spacing: 6) {
                             Image(systemName: "plus.circle.fill").font(.system(size: 14, weight: .semibold))
-                            Text("+16 oz").font(.system(size: 13, weight: .semibold))
+                            Text("Add 16oz").font(.system(size: 13, weight: .semibold))
                         }
                         .padding(.vertical, 6)
                         .padding(.horizontal, 10)

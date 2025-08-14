@@ -81,5 +81,62 @@
     <string>Light</string>
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
+    <key>UIApplicationShortcutItems</key>
+    <array>
+      <dict>
+        <key>UIApplicationShortcutItemType</key>
+        <string>$(PRODUCT_BUNDLE_IDENTIFIER).log-water</string>
+        <key>UIApplicationShortcutItemTitle</key>
+        <string>Log Water</string>
+        <key>UIApplicationShortcutItemSubtitle</key>
+        <string>Quickly log your water intake</string>
+        <key>UIApplicationShortcutItemIconSymbolName</key>
+        <string>drop.fill</string>
+        <key>UIApplicationShortcutItemUserInfo</key>
+        <dict>
+          <key>href</key>
+          <string>/tabs/home?scan=1</string>
+        </dict>
+      </dict>
+      <dict>
+        <key>UIApplicationShortcutItemType</key>
+        <string>$(PRODUCT_BUNDLE_IDENTIFIER).stats</string>
+        <key>UIApplicationShortcutItemTitle</key>
+        <string>View Stats</string>
+        <key>UIApplicationShortcutItemIconSymbolName</key>
+        <string>chart.bar.fill</string>
+        <key>UIApplicationShortcutItemUserInfo</key>
+        <dict>
+          <key>href</key>
+          <string>/tabs/stats</string>
+        </dict>
+      </dict>
+      <dict>
+        <key>UIApplicationShortcutItemType</key>
+        <string>$(PRODUCT_BUNDLE_IDENTIFIER).settings</string>
+        <key>UIApplicationShortcutItemTitle</key>
+        <string>Settings</string>
+        <key>UIApplicationShortcutItemIconSymbolName</key>
+        <string>gear</string>
+        <key>UIApplicationShortcutItemUserInfo</key>
+        <dict>
+          <key>href</key>
+          <string>/tabs/settings</string>
+        </dict>
+      </dict>
+      <dict>
+        <key>UIApplicationShortcutItemType</key>
+        <string>$(PRODUCT_BUNDLE_IDENTIFIER).feedback</string>
+        <key>UIApplicationShortcutItemTitle</key>
+        <string>Need Help?</string>
+        <key>UIApplicationShortcutItemIconSymbolName</key>
+        <string>message.fill</string>
+        <key>UIApplicationShortcutItemUserInfo</key>
+        <dict>
+          <key>href</key>
+          <string>https://x.com/agibjames</string>
+        </dict>
+      </dict>
+    </array>
   </dict>
 </plist>
